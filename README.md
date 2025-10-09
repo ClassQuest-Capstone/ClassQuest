@@ -7,7 +7,7 @@
 
 ## 🧭 Overview
 
-[📂 View Presentation](".\Presentations\ClassQuest presentation.pptx")
+[📂 View Presentation]("./Presentations/ClassQuest presentation.pptx")
 **ClassQuest** is a web-based educational RPG platform designed to make learning engaging and collaborative.  
 Students join guilds, complete quests, and face boss battles (exams) — all while earning XP, gold, and rewards.  
 Teachers manage quests, track progress, and gamify classroom activities through an intuitive dashboard.  
