@@ -1,0 +1,22 @@
+{
+  "name": "github",
+  "version": "1.0.0",
+  "description": "> *Turning classrooms into adventures.*",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "sst dev --config infra/sst.config.ts",
+    "deploy": "sst deploy --config infra/sst.config.ts",
+    "remove": "sst remove --config infra/sst.config.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "sst": "^2.49.6",
+    "sst-win32-x64": "^3.17.23",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
