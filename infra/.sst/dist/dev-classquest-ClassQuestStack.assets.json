@@ -1,0 +1,36 @@
+{
+  "version": "44.0.0",
+  "files": {
+    "5deda166d3941679f48970842497d96f6871c49703e6c704584bb299114b8c75": {
+      "displayName": "CustomResourceHandler/Code",
+      "source": {
+        "path": "asset.5deda166d3941679f48970842497d96f6871c49703e6c704584bb299114b8c75",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "715680702922-ca-central-1": {
+          "bucketName": "cdk-hnb659fds-assets-715680702922-ca-central-1",
+          "objectKey": "5deda166d3941679f48970842497d96f6871c49703e6c704584bb299114b8c75.zip",
+          "region": "ca-central-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::715680702922:role/cdk-hnb659fds-file-publishing-role-715680702922-ca-central-1"
+        }
+      }
+    },
+    "811b5fd6a02b77c65689991bf18d7a111764be859b27f4fce7b34d228c0b0429": {
+      "displayName": "dev-classquest-ClassQuestStack Template",
+      "source": {
+        "path": "dev-classquest-ClassQuestStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "715680702922-ca-central-1": {
+          "bucketName": "cdk-hnb659fds-assets-715680702922-ca-central-1",
+          "objectKey": "811b5fd6a02b77c65689991bf18d7a111764be859b27f4fce7b34d228c0b0429.json",
+          "region": "ca-central-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::715680702922:role/cdk-hnb659fds-file-publishing-role-715680702922-ca-central-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

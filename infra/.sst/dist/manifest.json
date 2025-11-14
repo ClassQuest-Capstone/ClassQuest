@@ -1,0 +1,121 @@
+{
+  "version": "44.0.0",
+  "artifacts": {
+    "dev-classquest-ClassQuestStack.assets": {
+      "type": "cdk:asset-manifest",
+      "properties": {
+        "file": "dev-classquest-ClassQuestStack.assets.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+      }
+    },
+    "dev-classquest-ClassQuestStack": {
+      "type": "aws:cloudformation:stack",
+      "environment": "aws://715680702922/ca-central-1",
+      "properties": {
+        "templateFile": "dev-classquest-ClassQuestStack.template.json",
+        "terminationProtection": false,
+        "tags": {
+          "sst:app": "classquest",
+          "sst:stage": "dev"
+        },
+        "validateOnSynth": false,
+        "assumeRoleArn": "arn:${AWS::Partition}:iam::715680702922:role/cdk-hnb659fds-deploy-role-715680702922-ca-central-1",
+        "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::715680702922:role/cdk-hnb659fds-cfn-exec-role-715680702922-ca-central-1",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-715680702922-ca-central-1/811b5fd6a02b77c65689991bf18d7a111764be859b27f4fce7b34d228c0b0429.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
+        "additionalDependencies": [
+          "dev-classquest-ClassQuestStack.assets"
+        ],
+        "lookupRole": {
+          "arn": "arn:${AWS::Partition}:iam::715680702922:role/cdk-hnb659fds-lookup-role-715680702922-ca-central-1",
+          "requiresBootstrapStackVersion": 8,
+          "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+        }
+      },
+      "dependencies": [
+        "dev-classquest-ClassQuestStack.assets"
+      ],
+      "metadata": {
+        "/dev-classquest-ClassQuestStack": [
+          {
+            "type": "aws:cdk:stack-tags",
+            "data": [
+              {
+                "Key": "sst:app",
+                "Value": "classquest"
+              },
+              {
+                "Key": "sst:stage",
+                "Value": "dev"
+              }
+            ]
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/CustomResourceHandler/ServiceRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CustomResourceHandlerServiceRole41AEC181"
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/CustomResourceHandler/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CustomResourceHandlerE8FB56BA"
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/Assets/Bucket/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AssetsBucket252B3DF7"
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/Assets/Bucket/Policy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AssetsBucketPolicy75E1DDEC"
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/Assets/Parameter_bucketName/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AssetsParameterbucketNameC00030DA"
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/SSTStackOutputAssetsBucketName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AssetsBucketName"
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/SSTStackOutputSSTMetadata": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SSTMetadata"
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/BootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "BootstrapVersion"
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/CheckBootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CheckBootstrapVersion"
+          }
+        ]
+      },
+      "displayName": "dev-classquest-ClassQuestStack"
+    },
+    "Tree": {
+      "type": "cdk:tree",
+      "properties": {
+        "file": "tree.json"
+      }
+    }
+  },
+  "minimumCliVersion": "2.1018.1"
+}
