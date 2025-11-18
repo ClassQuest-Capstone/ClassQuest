@@ -6,7 +6,7 @@
 ---
 
 **ClassQuest** is a web-based educational RPG platform designed to make learning engaging and collaborative.
-Students join guilds, complete quests, and face boss battles (exams) — all while earning XP, gold, and rewards.
+Students join guilds, complete quests, and face boss battles (exams), all while earning XP, gold, and rewards.
 Teachers manage quests, track progress, and gamify classroom activities through an intuitive dashboard.
 The project was initiated as a Capstone at the **University of Regina**.
 
