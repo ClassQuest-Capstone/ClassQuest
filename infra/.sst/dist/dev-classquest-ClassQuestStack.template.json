@@ -180,12 +180,491 @@
      "Ref": "AssetsBucket252B3DF7"
     }
    }
+  },
+  "GameTable371EFC5F": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "pk",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "sk",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "gsi1pk",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "gsi1sk",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "GlobalSecondaryIndexes": [
+     {
+      "IndexName": "gsi1",
+      "KeySchema": [
+       {
+        "AttributeName": "gsi1pk",
+        "KeyType": "HASH"
+       },
+       {
+        "AttributeName": "gsi1sk",
+        "KeyType": "RANGE"
+       }
+      ],
+      "Projection": {
+       "ProjectionType": "ALL"
+      }
+     }
+    ],
+    "KeySchema": [
+     {
+      "AttributeName": "pk",
+      "KeyType": "HASH"
+     },
+     {
+      "AttributeName": "sk",
+      "KeyType": "RANGE"
+     }
+    ],
+    "PointInTimeRecoverySpecification": {
+     "PointInTimeRecoveryEnabled": true
+    },
+    "TableName": "dev-classquest-GameTable",
+    "Tags": [
+     {
+      "Key": "sst:app",
+      "Value": "classquest"
+     },
+     {
+      "Key": "sst:stage",
+      "Value": "dev"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain"
+  },
+  "GameTableParametertableName93A396E7": {
+   "Type": "AWS::SSM::Parameter",
+   "Properties": {
+    "Name": "/sst/classquest/dev/Table/GameTable/tableName",
+    "Tags": {
+     "sst:app": "classquest",
+     "sst:stage": "dev"
+    },
+    "Type": "String",
+    "Value": {
+     "Ref": "GameTable371EFC5F"
+    }
+   }
+  },
+  "HttpApi9292168F": {
+   "Type": "AWS::ApiGatewayV2::Api",
+   "Properties": {
+    "CorsConfiguration": {
+     "AllowCredentials": false,
+     "AllowHeaders": [
+      "*"
+     ],
+     "AllowMethods": [
+      "*"
+     ],
+     "AllowOrigins": [
+      "*"
+     ]
+    },
+    "Name": "dev-classquest-HttpApi",
+    "ProtocolType": "HTTP",
+    "Tags": {
+     "sst:app": "classquest",
+     "sst:stage": "dev"
+    }
+   }
+  },
+  "HttpApiDefaultStageA62A202E": {
+   "Type": "AWS::ApiGatewayV2::Stage",
+   "Properties": {
+    "AccessLogSettings": {
+     "DestinationArn": {
+      "Fn::GetAtt": [
+       "HttpApiLogGroupBEDD1B4C",
+       "Arn"
+      ]
+     },
+     "Format": "{\"requestTime\":\"$context.requestTime\",\"requestId\":\"$context.requestId\",\"httpMethod\":\"$context.httpMethod\",\"path\":\"$context.path\",\"routeKey\":\"$context.routeKey\",\"status\":$context.status,\"responseLatency\":$context.responseLatency,\"integrationRequestId\":\"$context.integration.requestId\",\"integrationStatus\":\"$context.integration.status\",\"integrationLatency\":\"$context.integration.latency\",\"integrationServiceStatus\":\"$context.integration.integrationStatus\",\"ip\":\"$context.identity.sourceIp\",\"userAgent\":\"$context.identity.userAgent\"}"
+    },
+    "ApiId": {
+     "Ref": "HttpApi9292168F"
+    },
+    "AutoDeploy": true,
+    "StageName": "$default",
+    "Tags": {
+     "sst:app": "classquest",
+     "sst:stage": "dev"
+    }
+   }
+  },
+  "HttpApiLogGroupBEDD1B4C": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "LogGroupName": {
+     "Fn::Join": [
+      "",
+      [
+       "/aws/vendedlogs/apis/dev-classquest-HttpApi-",
+       {
+        "Ref": "HttpApi9292168F"
+       },
+       "/default"
+      ]
+     ]
+    },
+    "Tags": [
+     {
+      "Key": "sst:app",
+      "Value": "classquest"
+     },
+     {
+      "Key": "sst:stage",
+      "Value": "dev"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain"
+  },
+  "HttpApiLambdaGEThealthServiceRole5B0C3ADB": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "sst:app",
+      "Value": "classquest"
+     },
+     {
+      "Key": "sst:stage",
+      "Value": "dev"
+     }
+    ]
+   }
+  },
+  "HttpApiLambdaGEThealthServiceRoleDefaultPolicyE554F061": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": "dynamodb:*",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "GameTable371EFC5F",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "GameTable371EFC5F",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "HttpApiLambdaGEThealthServiceRoleDefaultPolicyE554F061",
+    "Roles": [
+     {
+      "Ref": "HttpApiLambdaGEThealthServiceRole5B0C3ADB"
+     }
+    ]
+   }
+  },
+  "HttpApiLambdaGEThealth784DBC8C": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Architectures": [
+     "x86_64"
+    ],
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-715680702922-ca-central-1",
+     "S3Key": "f91c83125f401d60e7e087efa34a436a19b533ea4fb437fe1bff71f5aa39e158.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "TABLE_NAME": {
+       "Ref": "GameTable371EFC5F"
+      },
+      "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+      "SST_APP": "classquest",
+      "SST_STAGE": "dev",
+      "SST_SSM_PREFIX": "/sst/classquest/dev/"
+     }
+    },
+    "EphemeralStorage": {
+     "Size": 512
+    },
+    "Handler": "functions/src/health.ts",
+    "MemorySize": 1024,
+    "Role": {
+     "Fn::GetAtt": [
+      "HttpApiLambdaGEThealthServiceRole5B0C3ADB",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs22.x",
+    "Tags": [
+     {
+      "Key": "sst:app",
+      "Value": "classquest"
+     },
+     {
+      "Key": "sst:stage",
+      "Value": "dev"
+     }
+    ],
+    "Timeout": 10,
+    "TracingConfig": {
+     "Mode": "Active"
+    }
+   },
+   "DependsOn": [
+    "HttpApiLambdaGEThealthServiceRoleDefaultPolicyE554F061",
+    "HttpApiLambdaGEThealthServiceRole5B0C3ADB"
+   ]
+  },
+  "HttpApiRouteGEThealthIntegrationGEThealthD74269B7": {
+   "Type": "AWS::ApiGatewayV2::Integration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "HttpApi9292168F"
+    },
+    "IntegrationType": "AWS_PROXY",
+    "IntegrationUri": {
+     "Fn::GetAtt": [
+      "HttpApiLambdaGEThealth784DBC8C",
+      "Arn"
+     ]
+    },
+    "PayloadFormatVersion": "2.0"
+   }
+  },
+  "HttpApiRouteGEThealthIntegrationGEThealthPermission5E9020C4": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "HttpApiLambdaGEThealth784DBC8C",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":execute-api:ca-central-1:715680702922:",
+       {
+        "Ref": "HttpApi9292168F"
+       },
+       "/*/*/health"
+      ]
+     ]
+    }
+   }
+  },
+  "HttpApiRouteGEThealth5A43FABB": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "HttpApi9292168F"
+    },
+    "AuthorizationType": "NONE",
+    "RouteKey": "GET /health",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "HttpApiRouteGEThealthIntegrationGEThealthD74269B7"
+       }
+      ]
+     ]
+    }
+   }
+  },
+  "HttpApiParameterurl85D741F3": {
+   "Type": "AWS::SSM::Parameter",
+   "Properties": {
+    "Name": "/sst/classquest/dev/Api/HttpApi/url",
+    "Tags": {
+     "sst:app": "classquest",
+     "sst:stage": "dev"
+    },
+    "Type": "String",
+    "Value": {
+     "Fn::GetAtt": [
+      "HttpApi9292168F",
+      "ApiEndpoint"
+     ]
+    }
+   }
+  },
+  "SourcemapUploaderPolicy6476872E": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:GetObject",
+        "s3:GetObjectTagging",
+        "s3:PutObject",
+        "s3:PutObjectTagging"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::Join": [
+          "",
+          [
+           "arn:",
+           {
+            "Ref": "AWS::Partition"
+           },
+           ":s3:::cdk-hnb659fds-assets-715680702922-ca-central-1/*"
+          ]
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           "arn:",
+           {
+            "Ref": "AWS::Partition"
+           },
+           ":s3:::sstbootstrap-cacentral157c8926b-mwv5nbefdjel/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "SourcemapUploaderPolicy6476872E",
+    "Roles": [
+     {
+      "Ref": "CustomResourceHandlerServiceRole41AEC181"
+     }
+    ]
+   }
+  },
+  "SourcemapUploader": {
+   "Type": "Custom::SourcemapUploader",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "CustomResourceHandlerE8FB56BA",
+      "Arn"
+     ]
+    },
+    "app": "classquest",
+    "stage": "dev",
+    "tarBucket": "sstbootstrap-cacentral157c8926b-mwv5nbefdjel",
+    "srcBucket": "cdk-hnb659fds-assets-715680702922-ca-central-1",
+    "sourcemaps": [
+     [
+      {
+       "Fn::GetAtt": [
+        "HttpApiLambdaGEThealth784DBC8C",
+        "Arn"
+       ]
+      },
+      "25f67ea1043723d99a7dfe02acc34a85f7ae45958244ed237e82063418e4d5fd.map"
+     ]
+    ]
+   },
+   "DependsOn": [
+    "SourcemapUploaderPolicy6476872E"
+   ],
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete"
   }
  },
  "Outputs": {
   "AssetsBucketName": {
    "Value": {
     "Ref": "AssetsBucket252B3DF7"
+   }
+  },
+  "GameTableName": {
+   "Value": {
+    "Ref": "GameTable371EFC5F"
+   }
+  },
+  "ApiUrl": {
+   "Value": {
+    "Fn::GetAtt": [
+     "HttpApi9292168F",
+     "ApiEndpoint"
+    ]
    }
   },
   "SSTMetadata": {
@@ -197,7 +676,30 @@
       {
        "Ref": "AssetsBucket252B3DF7"
       },
-      "\",\"notifications\":[],\"notificationNames\":[]}}]}"
+      "\",\"notifications\":[],\"notificationNames\":[]}},{\"id\":\"GameTable\",\"addr\":\"c89bf46b0bd2cb579c6dc3050b5fa6c468f0066058\",\"stack\":\"dev-classquest-ClassQuestStack\",\"type\":\"Table\",\"data\":{\"tableName\":\"",
+      {
+       "Ref": "GameTable371EFC5F"
+      },
+      "\",\"consumers\":[]}},{\"id\":\"HttpApi\",\"addr\":\"c824f74291f75a86e6ccf162062aaad113b8eeefc1\",\"stack\":\"dev-classquest-ClassQuestStack\",\"type\":\"Api\",\"data\":{\"graphql\":false,\"url\":\"https://",
+      {
+       "Ref": "HttpApi9292168F"
+      },
+      ".execute-api.ca-central-1.",
+      {
+       "Ref": "AWS::URLSuffix"
+      },
+      "/\",\"httpApiId\":\"",
+      {
+       "Ref": "HttpApi9292168F"
+      },
+      "\",\"routes\":[{\"type\":\"function\",\"route\":\"GET /health\",\"fn\":{\"node\":\"c8b2c3aa63dfac4115c59bba987d600b15261139ca\",\"stack\":\"dev-classquest-ClassQuestStack\"}}]}},{\"id\":\"Lambda_GET_--health\",\"addr\":\"c8b2c3aa63dfac4115c59bba987d600b15261139ca\",\"stack\":\"dev-classquest-ClassQuestStack\",\"type\":\"Function\",\"data\":{\"arn\":\"",
+      {
+       "Fn::GetAtt": [
+        "HttpApiLambdaGEThealth784DBC8C",
+        "Arn"
+       ]
+      },
+      "\",\"runtime\":\"nodejs22.x\",\"handler\":\"functions/src/health.ts\",\"localId\":\"c8b2c3aa63dfac4115c59bba987d600b15261139ca\",\"secrets\":[]}}]}"
      ]
     ]
    }

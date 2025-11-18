@@ -1,4 +1,4 @@
-// /// <reference path="./.sst/platform/config.d.ts" />
+//// <reference path="./.sst/platform/config.d.ts" />
 
 // export default $config({
 //   app(input) {
@@ -21,7 +21,7 @@
 
 
 
-
+//working code for intial push
 import { SSTConfig } from "sst";
 import { ClassQuestStack } from "./stacks/ClassQuestStack";
 
