@@ -15,8 +15,11 @@
   "devDependencies": {
     "@types/aws-lambda": "^8.10.159",
     "@types/node": "^24.10.1",
-    "sst": "^2.49.6",
+    "sst": "^3.17.23",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.934.0"
   }
 }
