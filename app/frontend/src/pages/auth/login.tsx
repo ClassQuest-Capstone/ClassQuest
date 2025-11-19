@@ -4,8 +4,9 @@ import feather from "feather-icons";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     feather.replace();
@@ -13,7 +14,7 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Implement login logic here (e.g., API call)
+    // Todo: (API call) + extra logic
     navigate("/dashboard");
   };
 
