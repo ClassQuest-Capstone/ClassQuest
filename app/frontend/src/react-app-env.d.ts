@@ -1,4 +1,4 @@
-/// <reference path="../src/App.tsx" />
+/// <reference path="../src/app.tsx" />
 /// <reference path="../src/index.tsx" />
 /// <reference path="../package-lock.json" />
 /// <reference path="../package.json" />
