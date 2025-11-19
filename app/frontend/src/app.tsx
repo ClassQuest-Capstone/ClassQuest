@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function App() {
+export default function app() {
   return (
     <div className="font-[Poppins] bg-slate-900 min-h-screen text-white">
       {/* Navigation */}
