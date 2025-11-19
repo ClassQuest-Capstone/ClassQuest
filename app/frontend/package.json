@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "feather-icons": "^4.29.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
