@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Character | ClassQuest</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(to bottom, #0f172a, #1e293b);
+            color: white;
+            min-height: 100vh;
+        }
+        .character-container {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .character-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+            z-index: -1;
+        }
+        .equipped-item {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .equipped-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), transparent);
+            z-index: -1;
+        }
+        .equipped-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+        .inventory-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(99, 102, 241, 0.2);
+        }
+        .stat-bar {
+            height: 10px;
+            border-radius: 5px;
+            transition: width 0.5s ease;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .health-bar {
+            background: linear-gradient(to right, #ef4444, #f59e0b);
+        }
+        .mana-bar {
+            background: linear-gradient(to right, #3b82f6, #8b5cf6);
+        }
+        .stamina-bar {
+            background: linear-gradient(to right, #10b981, #84cc16);
+        }
+        .level-badge {
+            background: linear-gradient(to right, #f59e0b, #ec4899);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .glow-text {
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+        }
+        .character-portrait {
+            border: 3px solid rgba(255,215,0,0.5);
+            box-shadow: 0 0 30px rgba(255,215,0,0.2);
+        }
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-float-delay {
+            animation: float 6s ease-in-out infinite 1s;
+        }
+        .animate-float-delay-2 {
+            animation: float 6s ease-in-out infinite 2s;
+        }
+        .skill-card {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s;
+        }
+        .skill-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+    </style>
+
+<nav class="bg-blue-700 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center">
+                        <i data-feather="book-open" class="w-8 h-8 mr-2"></i>
+                        <span class="text-xl font-bold">ClassQuest</span>
+                    </div>
+                </div>
+                <div class="hidden md:ml-6 md:flex md:items-center md:space-x-4">
+                    <a href="login.html" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-600">Login</a>
+                    <a href="Register.html" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-600">Register</a>
+                    
+                    </div>
+                </div>
+                <div class="-mr-2 flex items-center md:hidden">
+                    <button type="button" class="inline-flex items-center justify-center p-2 rounded-md text-primary-100 hover:text-white hover:bg-primary-600 focus:outline-none">
+                        <i data-feather="menu"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f8fafc;
+        }
+        .quest-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.5s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+    </style>
+
+<!-- Hero Section -->
+    <div class="relative bg-primary-600 overflow-hidden">
+        <div class="max-w-7xl mx-auto">
+            <div class="relative z-10 pb-8 bg-primary-600 sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32">
+                <main class="mt-10 mx-auto max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
+                    <div class="sm:text-center lg:text-left">
+                        <h1 class="text-4xl tracking-tight font-extrabold text-white sm:text-5xl md:text-6xl">
+                            <span class="block">Transform Learning</span>
+                            <span class="block text-secondary-300">Into An Adventure</span>
+                        </h1>
+                        <p class="mt-3 text-base text-primary-100 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
+                            ClassQuest turns education into an exciting RPG experience where students complete quests, earn rewards, and level up their knowledge.
+                        </p>
+                        <div class="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
+                            <div class="rounded-md shadow">
+                                <a href="#" class="text-gray-600 w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-primary-700 bg-white hover:bg-gray-50 md:py-4 md:text-lg md:px-10">
+                                    Get Started
+                                </a>
+                            </div>
+                            <div class="mt-3 sm:mt-0 sm:ml-3">
+                                <a href="#" class="w-full flex items-center justify-center px-8 py-3 border border-white text-base font-medium rounded-md text-white bg-primary-500 bg-opacity-60 hover:bg-opacity-70 md:py-4 md:text-lg md:px-10">
+                                    Learn more
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+        <div class="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2">
+            <img class="h-56 w-full object-cover sm:h-72 md:h-96 lg:w-full lg:h-full" src="https://cdn.pixabay.com/photo/2016/06/01/06/26/open-book-1428428_960_720.jpg" alt="Students learning">
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="py-12 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="lg:text-center">
+                <h2 class="text-base text-secondary-600 font-semibold tracking-wide uppercase">Features</h2>
+                <p class="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                    Game Mechanics Meet Education
+                </p>
+                <p class="mt-4 max-w-2xl text-xl text-gray-500 lg:mx-auto">
+                    The perfect blend of gamification and learning outcomes
+                </p>
+            </div>
+
+            <div class="mt-10">
+                <div class="space-y-10 md:space-y-0 md:grid md:grid-cols-2 md:gap-x-8 md:gap-y-10">
+                    <!-- Feature 1 -->
+                    <div class="relative">
+                        <div class="absolute flex items-center justify-center h-12 w-12 rounded-md bg-primary-500 text-white">
+                            <i data-feather="award"></i>
+                        </div>
+                        <p class="ml-16 text-lg leading-6 font-medium text-gray-900">XP & Leveling System</p>
+                        <p class="mt-2 ml-16 text-base text-gray-500">
+                            Students earn experience points and level up as they complete assignments and demonstrate mastery.
+                        </p>
+                    </div>
+
+                    <!-- Feature 2 -->
+                    <div class="relative">
+                        <div class="absolute flex items-center justify-center h-12 w-12 rounded-md bg-primary-500 text-white">
+                            <i data-feather="shopping-bag"></i>
+                        </div>
+                        <p class="ml-16 text-lg leading-6 font-medium text-gray-900">Virtual Economy</p>
+                        <p class="mt-2 ml-16 text-base text-gray-500">
+                            Earn gold coins for completing quests and spend them on avatar customization and power-ups.
+                        </p>
+                    </div>
+
+                    <!-- Feature 3 -->
+                    <div class="relative">
+                        <div class="absolute flex items-center justify-center h-12 w-12 rounded-md bg-primary-500 text-white">
+                            <i data-feather="map"></i>
+                        </div>
+                        <p class="ml-16 text-lg leading-6 font-medium text-gray-900">Subject Maps</p>
+                        <p class="mt-2 ml-16 text-base text-gray-500">
+                            Each subject has its own interactive map with points of interest representing learning objectives.
+                        </p>
+                    </div>
+
+                    <!-- Feature 4 -->
+                    <div class="relative">
+                        <div class="absolute flex items-center justify-center h-12 w-12 rounded-md bg-primary-500 text-white">
+                            <i data-feather="user"></i>
+                        </div>
+                        <p class="ml-16 text-lg leading-6 font-medium text-gray-900">Avatar Customization</p>
+                        <p class="mt-2 ml-16 text-base text-gray-500">
+                            Students can personalize their avatars with items purchased using their earned gold.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teacher Preview -->
+    <div class="bg-gray-50 pt-16 sm:pt-24 lg:pt-32">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-base text-secondary-600 font-semibold tracking-wide uppercase">For Educators</h2>
+            <p class="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                Powerful Classroom Management
+            </p>
+        </div>
+        <div class="mt-16 pb-12 bg-white shadow-lg sm:rounded-lg mx-4 sm:mx-6 lg:mx-8">
+            <div class="relative">
+                <div class="absolute inset-0 h-1/2 bg-gray-50"></div>
+                <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="max-w-4xl mx-auto">
+                        <div class="rounded-lg shadow-xl overflow-hidden">
+                            <div class="bg-white px-6 py-8 md:p-10">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 bg-primary-500 rounded-md p-3">
+                                        <i data-feather="users" class="h-6 w-6 text-white"></i>
+                                    </div>
+                                    <div class="ml-4">
+                                        <h3 class="text-lg leading-6 font-medium text-gray-900">Teacher Dashboard</h3>
+                                        <p class="mt-1 text-sm text-gray-500">
+                                            Monitor student progress at a glance
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
+                                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                                        <div class="px-4 py-5 sm:p-6">
+                                            <div class="flex items-center">
+                                                <div class="flex-shrink-0 bg-secondary-500 rounded-md p-2">
+                                                    <i data-feather="trending-up" class="h-5 w-5 text-white"></i>
+                                                </div>
+                                                <div class="ml-5 w-0 flex-1">
+                                                    <dt class="text-sm font-medium text-gray-500 truncate">
+                                                        Average XP
+                                                    </dt>
+                                                    <dd class="flex items-baseline">
+                                                        <div class="text-2xl font-semibold text-gray-900">
+                                                            1,243
+                                                        </div>
+                                                    </dd>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                                        <div class="px-4 py-5 sm:p-6">
+                                            <div class="flex items-center">
+                                                <div class="flex-shrink-0 bg-secondary-500 rounded-md p-2">
+                                                    <i data-feather="check-circle" class="h-5 w-5 text-white"></i>
+                                                </div>
+                                                <div class="ml-5 w-0 flex-1">
+                                                    <dt class="text-sm font-medium text-gray-500 truncate">
+                                                        Completion Rate
+                                                    </dt>
+                                                    <dd class="flex items-baseline">
+                                                        <div class="text-2xl font-semibold text-gray-900">
+                                                            78%
+                                                        </div>
+                                                    </dd>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                                        <div class="px-4 py-5 sm:p-6">
+                                            <div class="flex items-center">
+                                                <div class="flex-shrink-0 bg-secondary-500 rounded-md p-2">
+                                                    <i data-feather="star" class="h-5 w-5 text-white"></i>
+                                                </div>
+                                                <div class="ml-5 w-0 flex-1">
+                                                    <dt class="text-sm font-medium text-gray-500 truncate">
+                                                        Top Student
+                                                    </dt>
+                                                    <dd class="flex items-baseline">
+                                                        <div class="text-xl font-semibold text-gray-900">
+                                                            Emma S.
+                                                        </div>
+                                                    </dd>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-6">
+                                    <h4 class="text-md font-medium text-gray-900">Recent Activity</h4>
+                                    <div class="mt-4 space-y-4">
+                                        <div class="flex items-start">
+                                            <div class="flex-shrink-0">
+                                                <img class="h-10 w-10 rounded-full" src="http://static.photos/people/200x200/1" alt="">
+                                            </div>
+                                            <div class="ml-3">
+                                                <p class="text-sm font-medium text-gray-900">Michael completed <span class="text-primary-600">Algebra Quiz</span></p>
+                                                <p class="text-sm text-gray-500">Earned 150 XP and 50 Gold</p>
+                                            </div>
+                                            <div class="ml-auto text-sm text-gray-500">
+                                                <time datetime="2020-01-10">2h ago</time>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start">
+                                            <div class="flex-shrink-0">
+                                                <img class="h-10 w-10 rounded-full" src="http://static.photos/people/200x200/2" alt="">
+                                            </div>
+                                            <div class="ml-3">
+                                                <p class="text-sm font-medium text-gray-900">Sarah reached <span class="text-primary-600">Level 5</span> in History</p>
+                                                <p class="text-sm text-gray-500">Unlocked new avatar item</p>
+                                            </div>
+                                            <div class="ml-auto text-sm text-gray-500">
+                                                <time datetime="2020-01-09">5h ago</time>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Preview -->
+    <div class="bg-white py-16 sm:py-24 lg:py-32">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="lg:grid lg:grid-cols-12 lg:gap-8">
+                <div class="sm:text-center md:max-w-2xl md:mx-auto lg:col-span-6 lg:text-left">
+                    <h2 class="text-base text-secondary-600 font-semibold tracking-wide uppercase">For Students</h2>
+                    <p class="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                        Your Learning Adventure
+                    </p>
+                    <p class="mt-3 text-lg text-gray-500 sm:mt-5">
+                        Complete quests, earn rewards, and watch your avatar grow as you master new concepts across all your subjects.
+                    </p>
+                    <div class="mt-8 sm:max-w-lg sm:mx-auto sm:text-center lg:text-left lg:mx-0">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <i data-feather="chevrons-up" class="h-6 w-6 text-primary-500"></i>
+                                <h3 class="mt-2 font-medium text-gray-900">Level Up</h3>
+                                <p class="mt-1 text-sm text-gray-500">
+                                    Gain XP and unlock new content
+                                </p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <i data-feather="coins" class="h-6 w-6 text-primary-500"></i>
+                                <h3 class="mt-2 font-medium text-gray-900">Earn Gold</h3>
+                                <p class="mt-1 text-sm text-gray-500">
+                                    Get rewarded for your efforts
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-12 relative sm:max-w-lg sm:mx-auto lg:mt-0 lg:max-w-none lg:mx-0 lg:col-span-6 lg:flex lg:items-center">
+                    <div class="relative mx-auto w-full rounded-lg shadow-lg lg:max-w-md">
+                        <div class="bg-white p-6 rounded-lg shadow">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <div class="relative">
+                                        <img class="h-16 w-16 rounded-full" src="http://static.photos/people/200x200/3" alt="Student avatar">
+                                        <div class="absolute bottom-0 right-0 bg-primary-500 rounded-full h-6 w-6 flex items-center justify-center">
+                                            <span class="text-xs font-bold text-white">5</span>
+                                        </div>
+                                    </div>
+                                    <div class="ml-4">
+                                        <h3 class="text-lg font-medium text-gray-900">Alex Johnson</h3>
+                                        <div class="flex items-center mt-1">
+                                            <div class="h-2 w-24 bg-gray-200 rounded-full overflow-hidden">
+                                                <div class="h-full bg-primary-500 rounded-full" style="width: 65%"></div>
+                                            </div>
+                                            <span class="ml-2 text-sm text-gray-500">65% to Lvl 6</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center bg-gray-50 px-3 py-1 rounded-full">
+                                    <i data-feather="coins" class="h-5 w-5 text-yellow-500"></i>
+                                    <span class="ml-1 font-medium">1,245</span>
+                                </div>
+                            </div>
+                            <div class="mt-6">
+                                <h4 class="text-md font-medium text-gray-900">Current Quests</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
+                    <div class="bg-gradient-to-r from-blue-600 to-blue-800 p-4 rounded-lg border-2 border-yellow-400 shadow-lg">
+                        <h3 class="font-bold text-white">Algebraic Equations</h3>
+                        <p class="text-blue-100 text-sm mb-3">Complete 10 equations to boost Intelligence</p>
+                        <div class="flex items-center mb-2">
+                            <div class="w-full bg-gray-700 rounded-full h-2">
+                                <div class="bg-blue-400 h-2 rounded-full" style="width: 60%"></div>
+                            </div>
+                            <span class="ml-2 text-xs text-white">6/10</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-yellow-300 text-sm">+15 Int</span>
+                            <button class="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-1 rounded-full text-xs font-bold">
+                                Continue
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-red-600 to-red-800 p-4 rounded-lg border-2 border-yellow-400 shadow-lg">
+                        <h3 class="font-bold text-white">History Research</h3>
+                        <p class="text-red-100 text-sm mb-3">Read 5 chapters to boost Wisdom</p>
+                        <div class="flex items-center mb-2">
+                            <div class="w-full bg-gray-700 rounded-full h-2">
+                                <div class="bg-red-400 h-2 rounded-full" style="width: 80%"></div>
+                            </div>
+                            <span class="ml-2 text-xs text-white">4/5</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-yellow-300 text-sm">+10 Wis</span>
+                            <button class="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-1 rounded-full text-xs font-bold">
+                                Continue
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                            </div>
+                            <div class="mt-6">
+                                <button type="button" class="w-full flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
+                                    View All Quests
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA Section -->
+    <div class="bg-primary-700">
+        <div class="max-w-2xl mx-auto text-center py-16 px-4 sm:py-20 sm:px-6 lg:px-8">
+            <h2 class="text-3xl font-extrabold text-white sm:text-4xl">
+                <span class="block">Ready to transform your classroom?</span>
+                <span class="block text-primary-200">Start your ClassQuest journey today.</span>
+            </h2>
+            <p class="mt-4 text-lg leading-6 text-primary-200">
+                Whether you're a teacher looking to engage your students or a student ready for adventure, we've got you covered.
+            </p>
+            <a href="#" class="text-gray-600 mt-8 w-full inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-primary-600 bg-white hover:bg-primary-50 sm:w-auto">
+                Sign up for free
+            </a>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800">
+        <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-400 tracking-wider uppercase">Product</h3>
+                    <div class="mt-4 space-y-4">
+                        <a href="#" class="text-base text-gray-300 hover:text-white">Features</a>
+                        <a href="#" class="text-base text-gray-300 hover:text-white">Pricing</a>
+                        <a href="#" class="text-base text-gray-300 hover:text-white">Teachers</a>
+                        <a href="#" class="text-base text-gray-300 hover:text-white">Students</a>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-400 tracking-wider uppercase">Resources</h3>
+                    <div class="mt-4 space-y-4">
+                        <a href="#" class="text-base text-gray-300 hover:text-white">Documentation</a>
+                        <a href="#" class="text-base text-gray-300 hover:text-white">Guides</a>
+                        <a href="#" class="text-base text-gray-300 hover:text-white">Blog</a>
+                        <a href="#" class="text-base text-gray-300 hover:text-white">Support</a>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-400 tracking-wider uppercase">Company</h3>
+                    <div class="mt-4 space-y-4">
+                        <a href="#" class="text-base text-gray-300 hover:text-white">About</a>
+                        <a href="#" class="text-base text-gray-300 hover:text-white">Careers</a>
+                        <a href="#" class="text-base text-gray-300 hover:text-white">Contact</a>
+                        <a href="#" class="text-base text-gray-300 hover:text-white">Press</a>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-400 tracking-wider uppercase">Legal</h3>
+                    <div class="mt-4 space-y-4">
+                        <a href="#" class="text-base text-gray-300 hover:text-white">Privacy</a>
+                        <a href="#" class="text-base text-gray-300 hover:text-white">Terms</a>
+                        <a href="#" class="text-base text-gray-300 hover:text-white">Cookie Policy</a>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-8 border-t border-gray-700 pt-8 md:flex md:items-center md:justify-between">
+                <div class="flex space-x-6 md:order-2">
+                    <a href="#" class="text-gray-400 hover:text-gray-300">
+                        <i data-feather="twitter" class="h-6 w-6"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-gray-300">
+                        <i data-feather="facebook" class="h-6 w-6"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-gray-300">
+                        <i data-feather="instagram" class="h-6 w-6"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-gray-300">
+                        <i data-feather="github" class="h-6 w-6"></i>
+                    </a>
+                </div>
+                <p class="mt-8 text-base text-gray-400 md:mt-0 md:order-1">
+                    &copy; 2023 ClassQuest. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </footer>
+    <script>
+        feather.replace();
+    </script>
+</body>
+</html>
