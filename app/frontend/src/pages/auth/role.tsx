@@ -36,6 +36,13 @@ export default function Role() {
                 </div>
               </div>
             </nav>
+      {/* Back button */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+              <Link to="/" className="inline-flex items-center text-gray-700 hover:text-indigo-600 transition-colors">
+                <i data-feather="arrow-left" className="w-5 h-5 mr-2"></i>
+                <span className="text-sm font-medium">Back</span>
+              </Link>
+            </div>
       {/* Role Selection */}
       <div className="flex items-center justify-center min-h-screen">
         <div className="max-w-md w-full space-y-8 p-6">
@@ -90,12 +97,13 @@ export default function Role() {
               </div>
             </div>
           </div>
-
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Don't have an account? Contact your teacher or administrator
-            </p>
-          </div>
+              <p className="text-sm text-gray-600">
+                  Dont have anaccount? </p>
+                  <Link to="/Signup" className="text-blue-600 hover:text-blue-500 text-sm">
+                    Create an account
+                  </Link>
+            </div>
         </div>
       </div>
     </div>
