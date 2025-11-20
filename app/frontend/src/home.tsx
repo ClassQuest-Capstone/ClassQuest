@@ -3,6 +3,8 @@ import feather from 'feather-icons';
 import { CurrencyDollarIcon } from "@heroicons/react/24/solid";
 import { Link } from 'react-router-dom';
 
+/** Todo: Fix nest mess */
+
 export default function App() {
   useEffect(() => {
     feather.replace();
@@ -270,7 +272,7 @@ export default function App() {
       Whether you're a teacher looking to engage your students or a student ready for adventure, we've got you covered.
     </p>
     <a
-      href="#"
+      href="/Signup"
       className="mt-8 inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-md bg-green-500 text-white shadow-lg hover:bg-green-600 transition duration-300"
     >
       Sign up for free
