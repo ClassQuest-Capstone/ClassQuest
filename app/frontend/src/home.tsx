@@ -1,10 +1,9 @@
-'use client';
-
 import React, { useEffect } from 'react';
 import feather from 'feather-icons';
 import { CurrencyDollarIcon } from "@heroicons/react/24/solid";
+import { Link } from 'react-router-dom';
 
-export default function app() {
+export default function App() {
   useEffect(() => {
     feather.replace();
   }, []);
@@ -22,12 +21,12 @@ export default function app() {
               </div>
             </div>
             <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
-              <a href="/pages/auth/login" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
+              <Link to="/role" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                 Login
-              </a>
-              <a href="/pages/auth/signup" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
+              </Link>
+              <Link to="/Signup" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                 Register
-              </a>
+              </Link>
             </div>
             <div className="-mr-2 flex items-center md:hidden">
               <button className="inline-flex items-center justify-center p-2 rounded-md text-blue-100 hover:text-white hover:bg-blue-600">
