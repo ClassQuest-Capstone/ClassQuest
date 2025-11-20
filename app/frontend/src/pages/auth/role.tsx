@@ -15,10 +15,10 @@ export default function Role() {
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between h-16">
                   <div className="flex items-center">
-                    <div className="shrink-0 flex items-center">
+                      <Link to="/" className="flex items-center px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                       <i data-feather="book-open" className="w-8 h-8 mr-2"></i>
-                      <span className="text-xl font-bold">ClassQuest</span>
-                    </div>
+                      <span className="text-xl font-bold"> ClassQuest</span>
+                      </Link>
                   </div>
                   <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
                     <Link to="/role" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
@@ -64,7 +64,7 @@ export default function Role() {
                     <p className="text-sm text-gray-500">Access your quests and rewards</p>
                   </div>
                   <div>
-                    <a href="/student-login" className="text-blue-600 hover:text-blue-800">
+                    <a href="/StudentLogin" className="text-blue-600 hover:text-blue-800">
                       <i data-feather="arrow-right" className="h-5 w-5"></i>
                     </a>
                   </div>
@@ -82,7 +82,7 @@ export default function Role() {
                     <p className="text-sm text-gray-500">Manage classes and content</p>
                   </div>
                   <div>
-                    <a href="/teacher-login" className="text-purple-600 hover:text-purple-800">
+                    <a href="/TeacherLogin" className="text-purple-600 hover:text-purple-800">
                       <i data-feather="arrow-right" className="h-5 w-5"></i>
                     </a>
                   </div>
