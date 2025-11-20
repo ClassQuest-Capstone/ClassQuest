@@ -16,8 +16,10 @@ export default function App() {
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <div className="shrink-0 flex items-center">
+                <Link to="/" className="flex items-center px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                 <i data-feather="book-open" className="w-8 h-8 mr-2"></i>
-                <span className="text-xl font-bold">ClassQuest</span>
+                <span className="text-xl font-bold"> ClassQuest</span>
+                </Link>
               </div>
             </div>
             <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
@@ -76,7 +78,7 @@ export default function App() {
       </div>
 
       {/* Features Section */}
-      <div className="py-12 bg-white">
+      <div className="py-12 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="lg:text-center">
             <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
@@ -109,14 +111,14 @@ export default function App() {
       </div>
 
       {/* Teacher Preview */}
-      <div className="bg-white pt-16 sm:pt-24 lg:pt-32">
+      <div className="bg-gray-50 pt-16 sm:pt-24 lg:pt-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-base text-blue-600 font-semibold tracking-wide uppercase">For Educators</h2>
           <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
             Powerful Classroom Management
           </p>
         </div>
-        <div className="mt-16 pb-12 bg-white">
+        <div className="mt-16 pb-12 bg-gray-50 sm:pb-16 lg:pb-20">
           <div className="relative">
             <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="max-w-4xl mx-auto">
@@ -161,7 +163,7 @@ export default function App() {
       </div>
 
       {/* Student Preview */}
-      <div className="bg-white py-16 sm:py-24 lg:py-32">
+      <div className="bg-gray-50 py-16 sm:py-24 lg:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="lg:grid lg:grid-cols-12 lg:gap-8">
             <div className="sm:text-center md:max-w-2xl md:mx-auto lg:col-span-6 lg:text-left">
@@ -174,12 +176,12 @@ export default function App() {
               </p>
               <div className="mt-8 sm:max-w-lg sm:mx-auto sm:text-center lg:text-left lg:mx-0">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gray-50 p-4 rounded-lg shadow">
+                  <div className="bg-white p-4 rounded-lg shadow">
                     <i data-feather="chevrons-up" className="h-6 w-6 text-blue-500"></i>
                     <h3 className="mt-2 font-medium text-gray-900">Level Up</h3>
                     <p className="mt-1 text-sm text-gray-500">Gain XP and unlock new content</p>
                   </div>
-                  <div className="bg-gray-50 p-4 rounded-lg shadow">
+                  <div className="bg-white p-4 rounded-lg shadow">
                     <CurrencyDollarIcon className="h-6 w-6 text-yellow-500" />
                     <h3 className="mt-2 font-medium text-gray-900">Earn Gold</h3>
                     <p className="mt-1 text-sm text-gray-500">Get rewarded for your efforts</p>
