@@ -54,7 +54,7 @@ export default function Signup() {
         setStudentCode(code);
       }
       
-      // Sign up with AWS Amplify
+      // Sign up with AWS Amplify (Todo: Replace with API endpoint when backend is configured)
       const { userId, nextStep } = await signUp({
         username,
         password,
@@ -68,7 +68,7 @@ export default function Signup() {
 
       console.log("Sign up successful:", userId);
 
-      // Store user data in backend
+      // Store user data in backend (Not working)
       try {
         const userData = {
           username,
@@ -210,7 +210,7 @@ export default function Signup() {
       {/* Back button */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <Link
-          to="/role"
+          to="/"
           className="inline-flex items-center text-gray-700 hover:text-indigo-600 transition-colors"
         >
           <i data-feather="arrow-left" className="w-5 h-5 mr-2"></i>

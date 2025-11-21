@@ -1,1 +1,2 @@
-//export {default as Dashboard} from './teacher/Dashboard';
+/** Barrel export to rexport all teacher pages */
+//export {default as teacherDashboard} from './teacherDashboard';
