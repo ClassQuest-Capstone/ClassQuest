@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 
 /** Todo: Fix nest mess */
 
-export default function App() {
+export default function Home() {
   useEffect(() => {
     feather.replace();
   }, []);
