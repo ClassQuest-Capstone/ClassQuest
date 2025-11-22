@@ -11,7 +11,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="font-poppins">
+    <div className="font-poppins ">
       {/* Navigation */}
       <nav className="bg-blue-700 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -56,7 +56,7 @@ export default function Home() {
                 </p>
                 <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
                   <div className="rounded-md shadow">
-                    <a href="#" className="text-white w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 md:py-4 md:text-lg md:px-10">
+                    <a href="/Signup" className="text-white w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 md:py-4 md:text-lg md:px-10">
                       Get Started
                     </a>
                   </div>
@@ -71,9 +71,11 @@ export default function Home() {
           </div>
         </div>
         <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2">
+        {/* src="https://cdn.pixabay.com/photo/2016/06/01/06/26/open-book-1428428_960_720.jpg" 
+            */}
           <img
             className="h-56 w-full object-cover sm:h-72 md:h-96 lg:w-full lg:h-full"
-            src="https://cdn.pixabay.com/photo/2016/06/01/06/26/open-book-1428428_960_720.jpg"
+            src="/assets/characters.png"
             alt="Students learning"
           />
         </div>
