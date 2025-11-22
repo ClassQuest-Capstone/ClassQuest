@@ -9,7 +9,7 @@ export default function Role() {
   }, []);
 
   return (
-    <div className="font-poppins min-h-screen bg-gray-100">
+    <div className="font-poppins min-h-screen bg-gray-50">
       {/* Navigation */}
       <nav className="bg-blue-700 text-white shadow-lg">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -99,7 +99,7 @@ export default function Role() {
           </div>
           <div className="mt-6 text-center">
               <p className="text-sm text-gray-600">
-                  Dont have anaccount? </p>
+                  Dont have an account? </p>
                   <Link to="/Signup" className="text-blue-600 hover:text-blue-500 text-sm">
                     Create an account
                   </Link>
