@@ -453,7 +453,7 @@
     "EphemeralStorage": {
      "Size": 512
     },
-    "Handler": "functions/src/health.ts",
+    "Handler": "functions/src/health.handler",
     "MemorySize": 1024,
     "Role": {
      "Fn::GetAtt": [
@@ -542,6 +542,216 @@
        "integrations/",
        {
         "Ref": "HttpApiRouteGEThealthIntegrationGEThealthD74269B7"
+       }
+      ]
+     ]
+    }
+   }
+  },
+  "HttpApiLambdaPOSTdebugServiceRole1C39D735": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "sst:app",
+      "Value": "classquest"
+     },
+     {
+      "Key": "sst:stage",
+      "Value": "dev"
+     }
+    ]
+   }
+  },
+  "HttpApiLambdaPOSTdebugServiceRoleDefaultPolicy0374F2AD": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": "dynamodb:*",
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "GameTable371EFC5F",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "GameTable371EFC5F",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "HttpApiLambdaPOSTdebugServiceRoleDefaultPolicy0374F2AD",
+    "Roles": [
+     {
+      "Ref": "HttpApiLambdaPOSTdebugServiceRole1C39D735"
+     }
+    ]
+   }
+  },
+  "HttpApiLambdaPOSTdebugD8BD2648": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Architectures": [
+     "x86_64"
+    ],
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-715680702922-ca-central-1",
+     "S3Key": "7b8a4d87dee1525988c3026f703d981f325ecc06bd96256ca81cce0f005a2a1e.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "TABLE_NAME": {
+       "Ref": "GameTable371EFC5F"
+      },
+      "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+      "SST_APP": "classquest",
+      "SST_STAGE": "dev",
+      "SST_SSM_PREFIX": "/sst/classquest/dev/"
+     }
+    },
+    "EphemeralStorage": {
+     "Size": 512
+    },
+    "Handler": "functions/src/debug-create.handler",
+    "MemorySize": 1024,
+    "Role": {
+     "Fn::GetAtt": [
+      "HttpApiLambdaPOSTdebugServiceRole1C39D735",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs22.x",
+    "Tags": [
+     {
+      "Key": "sst:app",
+      "Value": "classquest"
+     },
+     {
+      "Key": "sst:stage",
+      "Value": "dev"
+     }
+    ],
+    "Timeout": 10,
+    "TracingConfig": {
+     "Mode": "Active"
+    }
+   },
+   "DependsOn": [
+    "HttpApiLambdaPOSTdebugServiceRoleDefaultPolicy0374F2AD",
+    "HttpApiLambdaPOSTdebugServiceRole1C39D735"
+   ]
+  },
+  "HttpApiRoutePOSTdebugIntegrationPOSTdebugB0798C3C": {
+   "Type": "AWS::ApiGatewayV2::Integration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "HttpApi9292168F"
+    },
+    "IntegrationType": "AWS_PROXY",
+    "IntegrationUri": {
+     "Fn::GetAtt": [
+      "HttpApiLambdaPOSTdebugD8BD2648",
+      "Arn"
+     ]
+    },
+    "PayloadFormatVersion": "2.0"
+   }
+  },
+  "HttpApiRoutePOSTdebugIntegrationPOSTdebugPermission65C8FC1A": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "HttpApiLambdaPOSTdebugD8BD2648",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":execute-api:ca-central-1:715680702922:",
+       {
+        "Ref": "HttpApi9292168F"
+       },
+       "/*/*/debug"
+      ]
+     ]
+    }
+   }
+  },
+  "HttpApiRoutePOSTdebug7FA1945E": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "HttpApi9292168F"
+    },
+    "AuthorizationType": "NONE",
+    "RouteKey": "POST /debug",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "HttpApiRoutePOSTdebugIntegrationPOSTdebugB0798C3C"
        }
       ]
      ]
@@ -638,6 +848,15 @@
        ]
       },
       "25f67ea1043723d99a7dfe02acc34a85f7ae45958244ed237e82063418e4d5fd.map"
+     ],
+     [
+      {
+       "Fn::GetAtt": [
+        "HttpApiLambdaPOSTdebugD8BD2648",
+        "Arn"
+       ]
+      },
+      "af289bf7ef1c2aea90562636fb496f411946df67f9699f1d6627cc0c629c0ce3.map"
      ]
     ]
    },
@@ -692,14 +911,21 @@
       {
        "Ref": "HttpApi9292168F"
       },
-      "\",\"routes\":[{\"type\":\"function\",\"route\":\"GET /health\",\"fn\":{\"node\":\"c8b2c3aa63dfac4115c59bba987d600b15261139ca\",\"stack\":\"dev-classquest-ClassQuestStack\"}}]}},{\"id\":\"Lambda_GET_--health\",\"addr\":\"c8b2c3aa63dfac4115c59bba987d600b15261139ca\",\"stack\":\"dev-classquest-ClassQuestStack\",\"type\":\"Function\",\"data\":{\"arn\":\"",
+      "\",\"routes\":[{\"type\":\"function\",\"route\":\"GET /health\",\"fn\":{\"node\":\"c8b2c3aa63dfac4115c59bba987d600b15261139ca\",\"stack\":\"dev-classquest-ClassQuestStack\"}},{\"type\":\"function\",\"route\":\"POST /debug\",\"fn\":{\"node\":\"c8cd639be5621cf938ec74571fb71ebb0fe18639c2\",\"stack\":\"dev-classquest-ClassQuestStack\"}}]}},{\"id\":\"Lambda_GET_--health\",\"addr\":\"c8b2c3aa63dfac4115c59bba987d600b15261139ca\",\"stack\":\"dev-classquest-ClassQuestStack\",\"type\":\"Function\",\"data\":{\"arn\":\"",
       {
        "Fn::GetAtt": [
         "HttpApiLambdaGEThealth784DBC8C",
         "Arn"
        ]
       },
-      "\",\"runtime\":\"nodejs22.x\",\"handler\":\"functions/src/health.ts\",\"localId\":\"c8b2c3aa63dfac4115c59bba987d600b15261139ca\",\"secrets\":[]}}]}"
+      "\",\"runtime\":\"nodejs22.x\",\"handler\":\"functions/src/health.handler\",\"localId\":\"c8b2c3aa63dfac4115c59bba987d600b15261139ca\",\"secrets\":[]}},{\"id\":\"Lambda_POST_--debug\",\"addr\":\"c8cd639be5621cf938ec74571fb71ebb0fe18639c2\",\"stack\":\"dev-classquest-ClassQuestStack\",\"type\":\"Function\",\"data\":{\"arn\":\"",
+      {
+       "Fn::GetAtt": [
+        "HttpApiLambdaPOSTdebugD8BD2648",
+        "Arn"
+       ]
+      },
+      "\",\"runtime\":\"nodejs22.x\",\"handler\":\"functions/src/debug-create.handler\",\"localId\":\"c8cd639be5621cf938ec74571fb71ebb0fe18639c2\",\"secrets\":[]}}]}"
      ]
     ]
    }
