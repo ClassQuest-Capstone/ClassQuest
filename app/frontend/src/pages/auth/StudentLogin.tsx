@@ -16,36 +16,44 @@ export default function Login() {
     feather.replace();
   }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setIsLoading(true);
+//   "const handleLogin = async (e: React.FormEvent) => {
+//    e.preventDefault();
+//    setError("");
+//    setIsLoading(true);
+//
+//    try {
+//      const { isSignedIn } = await signIn({ username, password });
+//      
+//      if (isSignedIn) {
+//        console.log("Signed in successfully");
+//        navigate("/StudentDashboard");
+//      } else {
+//        // MFA, etc. HERE
+//        setError("Additional verification required. Please check your email or follow the prompts.");
+//      }
+//    } catch (err: any) {
+//      console.error("Login error:", err);
+//      if (err.name === "UserNotConfirmedException") {
+//        setError("Account not confirmed. Please check your email for the confirmation code.");
+//      } else if (err.name === "NotAuthorizedException") {
+//        setError("Invalid username or password.");
+//      } else if (err.name === "UserNotFoundException") {
+//        setError("User not found. Please check your username or sign up.");
+//      } else {
+//        setError(err.message || "An error occurred during login. Please try again.");
+//      }
+//    } finally {
+//      setIsLoading(false);
+//    }
+//  }; 
 
-    try {
-      const { isSignedIn } = await signIn({ username, password });
-      
-      if (isSignedIn) {
-        console.log("Signed in successfully");
-        navigate("/StudentDashboard");
-      } else {
-        // MFA, etc. HERE
-        setError("Additional verification required. Please check your email or follow the prompts.");
-      }
-    } catch (err: any) {
-      console.error("Login error:", err);
-      if (err.name === "UserNotConfirmedException") {
-        setError("Account not confirmed. Please check your email for the confirmation code.");
-      } else if (err.name === "NotAuthorizedException") {
-        setError("Invalid username or password.");
-      } else if (err.name === "UserNotFoundException") {
-        setError("User not found. Please check your username or sign up.");
-      } else {
-        setError(err.message || "An error occurred during login. Please try again.");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
+const handleLogin = (e: React.FormEvent) => {
+  e.preventDefault();
+
+  // ignore actual auth for now, just go to character page
+  navigate("/character");
+};
+
 
   return (
      <div className="font-poppins min-h-screen bg-gray-50">
