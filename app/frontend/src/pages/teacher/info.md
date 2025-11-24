@@ -1,0 +1,1 @@
+for teachers page quests page will show previous quests and students performance stats in graph form
