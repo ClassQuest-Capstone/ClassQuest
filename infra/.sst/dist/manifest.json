@@ -22,7 +22,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::715680702922:role/cdk-hnb659fds-deploy-role-715680702922-ca-central-1",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::715680702922:role/cdk-hnb659fds-cfn-exec-role-715680702922-ca-central-1",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-715680702922-ca-central-1/a1495f875631bef8a647623e5f246717ee4ff85336bcb0467c37a3326c1fdb4d.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-715680702922-ca-central-1/54b944c8f442bfcc18e9407a57d2aa601d9b223a77c42d830e039693d4811b19.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -155,6 +155,42 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "HttpApiRouteGEThealth5A43FABB"
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/HttpApi/Lambda_POST_--debug/ServiceRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HttpApiLambdaPOSTdebugServiceRole1C39D735"
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/HttpApi/Lambda_POST_--debug/ServiceRole/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HttpApiLambdaPOSTdebugServiceRoleDefaultPolicy0374F2AD"
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/HttpApi/Lambda_POST_--debug/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HttpApiLambdaPOSTdebugD8BD2648"
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/HttpApi/Route_POST_--debug/Integration_POST_--debug/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HttpApiRoutePOSTdebugIntegrationPOSTdebugB0798C3C"
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/HttpApi/Route_POST_--debug/Integration_POST_--debug-Permission": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HttpApiRoutePOSTdebugIntegrationPOSTdebugPermission65C8FC1A"
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/HttpApi/Route_POST_--debug/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HttpApiRoutePOSTdebug7FA1945E"
           }
         ],
         "/dev-classquest-ClassQuestStack/HttpApi/Parameter_url/Resource": [
