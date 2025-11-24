@@ -4,9 +4,36 @@ import feather from "feather-icons";
 
 {/** Todo: seprate dash board components into different files */}
 
+import StatsCard from "../components/teacher/statsCard";
+import { fetchTeacherStats, TeacherStats } from "../features/teacher/teacherService";
+
 const TeacherDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [stats, setStats] = useState<TeacherStats>({
+    activeStudents: 0,
+    activeSubjects: 0,
+    activeTasks: 0,
+    completionRate: 0,
+  });
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    feather.replace();
+  }, [sidebarOpen]);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      setLoading(true);
+      // Replace "teacher-123" with actual ID from auth
+      const teacherId = localStorage.getItem("teacherId") || "teacher-123";
+      const data = await fetchTeacherStats(teacherId);
+      setStats(data);
+      setLoading(false);
+    };
+
+    loadStats();
+  }, []);
 
   useEffect(() => {
     feather.replace();
@@ -19,7 +46,7 @@ const TeacherDashboard = () => {
   }
 
   const sidebarLinks = [
-    { icon: "home", label: "Dashboard", href: "#",},
+    { icon: "home", label: "Dashboard", href: "/TeacherDashboard",},
     { icon: "users", label: "Students", href: "#" },
     { icon: "book", label: "Subjects", href: "#" },
     { icon: "award", label: "Quests", href: "#" },
@@ -74,7 +101,7 @@ const TeacherDashboard = () => {
                 <div>
                   <img
                     className="inline-block h-9 w-9 rounded-full"
-                    src=""
+                    src="/assets/warrior-head.png"
                     alt="Profile"
                   />
                 </div>
@@ -116,7 +143,7 @@ const TeacherDashboard = () => {
                   <div>
                     <img
                       className="inline-block h-9 w-9 rounded-full"
-                      src=""
+                      src="/assets/warrior-head.png"
                       alt="Profile"
                     />
                     <p className="text-white"> Profile </p>
@@ -129,7 +156,7 @@ const TeacherDashboard = () => {
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main content mobile */}
       <div className="flex-1 flex flex-col overflow-hidden">
        
         <div className="sticky top-0 z-10 md:hidden pl-1 pt-1 sm:pl-3 sm:pt-3 bg-white/300 bg-center bg-cover bg-no-repeat">
@@ -141,19 +168,55 @@ const TeacherDashboard = () => {
           </button>
         </div>
 
-        {/* Search bar */}
-        <div className="bg-white/300 p-4 flex items-center">
+        {/* Search bar  and profile/logout*/}
+        <div className="bg-white/300 p-4 flex items-center  space-x-5">
           <i data-feather="search" className="w-6 h-6 mr-5"></i>
           <input
             type="text"
             placeholder="search.."
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+           <img
+                    className="inline-block h-9 w-9 rounded-full ring-3 ring-purple-500 hover:ring-purple-700"
+                    src="/assets/warrior-head.png"
+                    alt="Profile"
+                  />
         </div>
 
-        {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-4">
+        {/* Students stats */}
+        <main className="flex-1 overflow-y-auto p-4 ml-3 mr-3">
+          <p className="text-2xl font-bold text-blue-600">Teacher Dashboard</p>
           
+          {loading ? (
+            <div className="mt-6 text-center text-gray-500">Loading stats...</div>
+          ) : (
+            <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-4">
+              <StatsCard
+                icon="users"
+                label="Active Students"
+                value={stats.activeStudents}
+              />
+              <StatsCard
+                icon="book"
+                label="Active Subjects"
+                value={stats.activeSubjects}
+              />
+              <StatsCard
+                icon="award"
+                label="Active Tasks"
+                value={stats.activeTasks}
+              />
+              <StatsCard
+                icon="check-circle"
+                label="Completion Rate"
+                value={`${stats.completionRate}%`}
+              />
+            </div>
+          )}
+
+          <div>
+            <p className="text-2xl font-bold text-blue-300 mt-6"> Recent Activity</p>
+          </div>
         </main>
       </div>
     </div>

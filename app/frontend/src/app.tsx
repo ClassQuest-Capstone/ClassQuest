@@ -5,7 +5,7 @@ import Home from './home';
 import { StudentLogin, TeacherLogin, Signup, Role} from './pages/auth';
 import StudentDashboard from './pages/students/studentDashboard';
 import TeacherDashboard from './pages/teacher/teacherDashboard';
-
+//import DropDownProfile from './pages/features/teacher/dropDownProfile';
 //Amplify.configure(awsExports); (Todo: enable when aws export is setup)
 
 export default function App() {
@@ -19,6 +19,7 @@ export default function App() {
         <Route path="/Signup" element={<Signup />} />
         <Route path="/StudentDashboard" element={<StudentDashboard />} />
         <Route path="/TeacherDashboard" element={<TeacherDashboard />} />
+        {/*<Route path="/dropDownProfile" element={<DropDownProfile />} /> */}
       </Routes>
     </BrowserRouter>
   );
