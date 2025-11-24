@@ -11,7 +11,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="font-poppins ">
+    <div className="font-poppins">
       {/* Navigation */}
       <nav className="bg-blue-700 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
