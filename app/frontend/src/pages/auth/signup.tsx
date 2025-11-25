@@ -225,7 +225,7 @@ export default function Signup() {
             <div className="text-center mb-6">
               <i
                 data-feather="user-plus"
-                className="mx-auto h-12 w-12 text-secondary-600"
+                className="mx-auto h-12 w-12 text-secondary-600 text-gray-900"
               ></i>
               <h3 className="text-2xl font-bold text-gray-900">
                 Create Account
@@ -237,7 +237,7 @@ export default function Signup() {
 
             {!showConfirmation ? (
               <form onSubmit={handleSignup} className="mt-8 space-y-6">
-                <div className="space-y-4">
+                <div className="space-y-4 text-gray-900">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 text-left">
                       User Type

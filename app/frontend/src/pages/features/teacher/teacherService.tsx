@@ -24,4 +24,7 @@ export const fetchTeacherStats = async (teacherId: string): Promise<TeacherStats
       completionRate: 0,
     };
   }
+
+{/* const fetchNewQuests = async (teacherId: string): Promise<number> => {
+*/}
 };
