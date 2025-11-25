@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import feather from "feather-icons";
-
-{/** Todo: seprate dash board components into different files */}
-
 import StatsCard from "../components/teacher/statsCard";
 import { fetchTeacherStats, TeacherStats } from "../features/teacher/teacherService";
+import { CurrencyDollarIcon } from "@heroicons/react/24/solid";
+import DropDownProfile from "../features/teacher/dropDownProfile";
 
+{/** Todo: seprate dash board components into different files */}
 const TeacherDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats] = useState<TeacherStats>({
@@ -35,6 +35,19 @@ const TeacherDashboard = () => {
     loadStats();
   }, []);
 
+  // Replace all feather icons after component mounts and when content updates
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      feather.replace();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [loading, stats]);
+
+  // Also replace icons on initial mount
+  useEffect(() => {
+    feather.replace();
+  }, []);
+
   useEffect(() => {
     feather.replace();
   }, [sidebarOpen]);
@@ -48,8 +61,8 @@ const TeacherDashboard = () => {
   const sidebarLinks = [
     { icon: "home", label: "Dashboard", href: "/TeacherDashboard",},
     { icon: "users", label: "Students", href: "#" },
-    { icon: "book", label: "Subjects", href: "#" },
-    { icon: "award", label: "Quests", href: "#" },
+    { icon: "book", label: "Quests", href: "/subjects" },
+    { icon: "clock", label: "Activity", href: "#" },
     { icon: "shopping-bag", label: "Rewards", href: "#" },
     { icon: "settings", label: "Settings", href: "#" },
   ];
@@ -156,7 +169,7 @@ const TeacherDashboard = () => {
         </div>
       </div>
 
-      {/* Main content mobile */}
+      {/* Menu mobile */}
       <div className="flex-1 flex flex-col overflow-hidden">
        
         <div className="sticky top-0 z-10 md:hidden pl-1 pt-1 sm:pl-3 sm:pt-3 bg-white/300 bg-center bg-cover bg-no-repeat">
@@ -170,22 +183,24 @@ const TeacherDashboard = () => {
 
         {/* Search bar  and profile/logout*/}
         <div className="bg-white/300 p-4 flex items-center  space-x-5">
-          <i data-feather="search" className="w-6 h-6 mr-5"></i>
+          <i data-feather="search" className="w-6 h-6 mr-5 text-gray-900"></i>
           <input
             type="text"
             placeholder="search.."
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 text-gray-900 focus:ring-blue-500"
           />
+          <a href="#" className="shrink-0 group block">
            <img
                     className="inline-block h-9 w-9 rounded-full ring-3 ring-purple-500 hover:ring-purple-700"
                     src="/assets/warrior-head.png"
                     alt="Profile"
                   />
+                  </a>
         </div>
 
         {/* Students stats */}
         <main className="flex-1 overflow-y-auto p-4 ml-3 mr-3">
-          <p className="text-2xl font-bold text-blue-600">Teacher Dashboard</p>
+          <p className="text-2xl font-bold text-indigo-700">Teacher Dashboard</p>
           
           {loading ? (
             <div className="mt-6 text-center text-gray-500">Loading stats...</div>
@@ -214,8 +229,148 @@ const TeacherDashboard = () => {
             </div>
           )}
 
+          {/**Static pages for now */}
           <div>
-            <p className="text-2xl font-bold text-blue-300 mt-6"> Recent Activity</p>
+            <p className="text-2xl font-bold text-indigo-500 mt-6"> Recent Activity</p>
+            <div className="mt-4 p-4 bg-white/300 rounded-lg shadow-md">
+                        <div className=" bg-white shadow overflow-hidden sm:rounded-md">
+                            <ul className="divide-y divide-gray-200">
+                                <li>
+                                    <a href="#" className="block hover:bg-gray-300">
+                                        <div className="px-4 py-4 sm:px-6">
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-sm font-medium text-primary-600 truncate text-gray-900">
+                                                    Michael completed Algebra Quiz
+                                                </p>
+                                                <div className="ml-2 flex-shrink-0 flex">
+                                                    <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                        +150 XP
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="mt-2 sm:flex sm:justify-between">
+                                                <div className="sm:flex">
+                                                    <p className="flex items-center text-sm text-gray-500">
+                                                        <i data-feather="user" className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400"></i>
+                                                        Michael Johnson
+                                                    </p>
+                                                    <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
+                                                        <i data-feather="calendar" className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400"></i>
+                                                        <span>November 24, 2025</span>
+                                                    </p>
+                                                </div>
+                                                <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                                                    <i data-feather="clock" className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400"></i>
+                                                    <span>
+                                                        2h ago
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </li>
+                                 <li>
+                                    <a href="#" className="block hover:bg-gray-300">
+                                        <div className="px-4 py-4 sm:px-6">
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-sm font-medium text-primary-600 truncate text-gray-900">
+                                                    You added a new item
+                                                </p>
+                                                <div className="ml-2 flex-shrink-0 flex">
+                                                    <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                        New item
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="mt-2 sm:flex sm:justify-between">
+                                                <div className="sm:flex">
+                                                    <p className="flex items-center text-sm text-gray-500">
+                                                        <i data-feather="shield" className="flex-shrink-0 mr-1.5 h-5 w-5 text-yellow-500"></i>
+                                                        Gold shield
+                                                    </p>
+                                                    <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
+                                                        <i data-feather="calendar" className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400"></i>
+                                                        <span>November 24, 2025</span>
+                                                    </p>
+                                                </div>
+                                                <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                                                    <i data-feather="clock" className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400"></i>
+                                                    <span>
+                                                        5m ago
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </li>
+                                </ul>  
+                            </div>
+                        </div>
+          </div>
+          {/** Top students page (dynamic logic to be added) */} 
+          <div className="mt-5"> 
+            <p className="text-2xl font-bold text-indigo-500 mt-6"> Top Students</p>
+             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <div className="bg-gradient-to-r from-gray-200 to-gray-500 overflow-hidden shadow rounded-lg">
+                      <div className="px-4 py-5 sm:p-6">
+                          <div className="flex items-center">
+                              <div className="shrink-0">
+                                  <img className="h-12 w-12 rounded-full" src="/assets/mage-head.png" alt=""/>
+                              </div>
+                              <div className="ml-4">
+                                  <h3 className="text-lg font-medium text-gray-900">Emma Smith</h3>
+                                  <div className="flex items-center mt-1">
+                                      <div className="h-2 w-24 bg-gray-500 rounded-full overflow-hidden">
+                                          <div className="h-full bg-green-500 rounded-full"></div>
+                                      </div>
+                                      <span className="ml-2 text-sm text-gray-900">Level 8</span>
+                                  </div>
+                              </div>
+                          </div>
+                          <div className="mt-4 grid grid-cols-2 gap-4">
+                              <div>
+                                  <p className="text-sm font-medium text-gray-900">Total XP</p>
+                                  <p className="text-xl font-semibold text-gray-900">4,850</p>
+                              </div>
+                              <div>
+                                  <p className="text-sm font-medium text-gray-900">Gold</p>
+                                
+                                 <p className=" flex items-center text-xl font-semibold text-gray-900"> <CurrencyDollarIcon className="h-6 w-6 text-yellow-500" /> 1,250</p>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+                  <div className="bg-gradient-to-r from-gray-200 to-gray-500 overflow-hidden shadow rounded-lg">
+                      <div className="px-4 py-5 sm:p-6">
+                          <div className="flex items-center">
+                              <div className="shrink-0">
+                                  <img className="h-12 w-12 rounded-full" src="/assets/warrior-head.png" alt=""/>
+                              </div>
+                              <div className="ml-4">
+                                  <h3 className="text-lg font-medium text-gray-900">Olivia brown</h3>
+                                  <div className="flex items-center mt-1">
+                                      <div className="h-2 w-24 bg-gray-500 rounded-full overflow-hidden">
+                                          <div className="h-full bg-green-500 rounded-full"></div>
+                                      </div>
+                                      <span className="ml-2 text-sm text-gray-900">Level 6</span>
+                                  </div>
+                              </div>
+                          </div>
+                          <div className="mt-4 grid grid-cols-2 gap-4">
+                              <div>
+                                  <p className="text-sm font-medium text-gray-900">Total XP</p>
+                                  <p className="text-xl font-semibold text-gray-900">3,750</p>
+                              </div>
+                              <div>
+                                  <p className="text-sm font-medium text-gray-900">Gold</p>
+                                
+                                 <p className=" flex items-center text-xl font-semibold text-gray-900"> <CurrencyDollarIcon className="h-6 w-6 text-yellow-500" /> 850</p>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+                  </div>
+
           </div>
         </main>
       </div>

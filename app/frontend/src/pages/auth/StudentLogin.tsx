@@ -91,11 +91,11 @@ const handleLogin = (e: React.FormEvent) => {
                       </Link>
                     </div>
                  {/* Login form */}
-                <div className="flex items-center justify-center min-h-screen">
+                <div className="flex items-center justify-center min-h-screen text-gray-900">
                   <div className="max-w-lg w-full space-y-8 p-5 pt-2">
                     <div className="bg-white p-7 rounded-xl shadow-lg login-card">
                   <div className="text-center mb-6">
-                    <i data-feather="users" className="mx-auto h-12 w-12 text-secondary-600"></i>
+                    <i data-feather="users" className="mx-auto h-12 w-12 text-secondary-600 text-gray-900"></i>
                     <h3 className="text-2xl font-bold text-gray-900">Student Login</h3>
                     <p className="mt-2 text-sm text-gray-600">Access your quests, rewards and more</p>
                      <form onSubmit={handleLogin} className="mt-8 space-y-6">
@@ -112,7 +112,7 @@ const handleLogin = (e: React.FormEvent) => {
                             required 
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                            className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900" 
                             placeholder="Enter your username"
                           />
                         </div>

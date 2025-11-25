@@ -48,7 +48,7 @@ export default function TeacherLogin() {
   };
 
   return (
-    <div className="font-poppins min-h-screen bg-gray-50">
+    <div className="font-poppins min-h-screen bg-gray-50 text-gray-900">
           {/* Navigation */}
           <nav className="bg-blue-700 text-white shadow-lg">
                   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -87,7 +87,7 @@ export default function TeacherLogin() {
                   <div className="max-w-lg w-full space-y-8 p-5 pt-2">
                     <div className="bg-white p-7 rounded-xl shadow-lg login-card">
                   <div className="text-center mb-6">
-                    <i data-feather="users" className="mx-auto h-12 w-12 text-secondary-600"></i>
+                    <i data-feather="users" className="mx-auto h-12 w-12 text-secondary-600 text-gray-900" ></i>
                     <h3 className="text-2xl font-bold text-gray-900">Teacher Login</h3>
                     <p className="mt-2 text-sm text-gray-600">Manage classes, quests, and rewards</p>
                      <form onSubmit={handleLogin} className="mt-8 space-y-6">
