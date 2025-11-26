@@ -1,0 +1,177 @@
+[
+  {
+    "id": "1764134049393",
+    "type": "Multiple Choice",
+    "title": "Algebra",
+    "difficulty": "Easy",
+    "xpValue": 25,
+    "questionText": "What is 2 +2 ",
+    "answerOptions": [
+      {
+        "id": "1",
+        "text": "4",
+        "isCorrect": true
+      },
+      {
+        "id": "2",
+        "text": "100",
+        "isCorrect": false
+      },
+      {
+        "id": "1764134007020",
+        "text": "90",
+        "isCorrect": false
+      },
+      {
+        "id": "1764134008261",
+        "text": "5",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "2 + 2 is 4",
+    "hint": "Count 2 pairs of pencils",
+    "tags": "Algebra",
+    "timeLimit": 60,
+    "goldReward": 1
+  },
+  {
+    "id": "1764134140728",
+    "type": "Multiple Choice",
+    "title": "Algebra",
+    "difficulty": "Easy",
+    "xpValue": 25,
+    "questionText": "What is the decimal value of 1/2",
+    "answerOptions": [
+      {
+        "id": "1",
+        "text": "0",
+        "isCorrect": false
+      },
+      {
+        "id": "2",
+        "text": "0.3",
+        "isCorrect": false
+      },
+      {
+        "id": "1764134074192",
+        "text": "0.5",
+        "isCorrect": true
+      },
+      {
+        "id": "1764134075391",
+        "text": "1/2",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "1/2 reduced to fraction is 0.5 since 0.5+0.5 = 1",
+    "hint": "0.5 + 0.5 = ?",
+    "tags": "Algebra",
+    "timeLimit": 120,
+    "goldReward": 3
+  },
+  {
+    "id": "1764134273390",
+    "type": "Multiple Choice",
+    "title": "Comparison",
+    "difficulty": "Easy",
+    "xpValue": 25,
+    "questionText": "Which number is greater: 457,230 or 457,203?  ",
+    "answerOptions": [
+      {
+        "id": "1",
+        "text": "Both are equal",
+        "isCorrect": false
+      },
+      {
+        "id": "2",
+        "text": "None are equal",
+        "isCorrect": false
+      },
+      {
+        "id": "1764134196626",
+        "text": "457,230",
+        "isCorrect": true
+      },
+      {
+        "id": "1764134196647",
+        "text": "457,203",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "since 457,230 is correct since its more than 457,203 ",
+    "hint": "N/A",
+    "tags": "Comparison",
+    "timeLimit": 120,
+    "goldReward": 2
+  },
+  {
+    "id": "1764134479789",
+    "type": "Multiple Choice",
+    "title": "Comparison",
+    "difficulty": "Medium",
+    "xpValue": 25,
+    "questionText": "Which is larger: 1/5 or 1/8",
+    "answerOptions": [
+      {
+        "id": "1",
+        "text": "1/5",
+        "isCorrect": true
+      },
+      {
+        "id": "2",
+        "text": "1/8",
+        "isCorrect": false
+      },
+      {
+        "id": "1764134310121",
+        "text": "They are equal",
+        "isCorrect": false
+      },
+      {
+        "id": "1764134310582",
+        "text": "Cannot be determined",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "The answer is 1/5.",
+    "hint": "Lesser denominator",
+    "tags": "Comparison",
+    "timeLimit": 120,
+    "goldReward": 5
+  },
+  {
+    "id": "1764134634615",
+    "type": "Multiple Choice",
+    "title": "Decimals",
+    "difficulty": "Easy",
+    "xpValue": 25,
+    "questionText": "What is 0.7 as a fraction with denominator 100?",
+    "answerOptions": [
+      {
+        "id": "1",
+        "text": "0.7/100",
+        "isCorrect": false
+      },
+      {
+        "id": "2",
+        "text": "700/100",
+        "isCorrect": false
+      },
+      {
+        "id": "1764134525014",
+        "text": "70/100",
+        "isCorrect": true
+      },
+      {
+        "id": "1764134525810",
+        "text": " 7/100",
+        "isCorrect": false
+      }
+    ],
+    "explanation": "0.7 * 100 is 70 hence answer is 70/100",
+    "hint": "multiply 0.7* 100 to get numerator",
+    "tags": "Decimals",
+    "timeLimit": 120,
+    "goldReward": 15
+  }
+]
