@@ -58,12 +58,13 @@ const TeacherDashboard = () => {
     }, 5000);
   }
 
+
   const sidebarLinks = [
     { icon: "home", label: "Dashboard", href: "/TeacherDashboard",},
     { icon: "users", label: "Students", href: "#" },
     { icon: "book", label: "Quests", href: "/subjects" },
     { icon: "clock", label: "Activity", href: "#" },
-    { icon: "shopping-bag", label: "Rewards", href: "#" },
+    { icon: "shopping-bag", label: "Rewards", href: "/rewards" },
     { icon: "settings", label: "Settings", href: "#" },
   ];
 
@@ -189,18 +190,13 @@ const TeacherDashboard = () => {
             placeholder="search.."
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 text-gray-900 focus:ring-blue-500"
           />
-          <a href="#" className="shrink-0 group block">
-           <img
-                    className="inline-block h-9 w-9 rounded-full ring-3 ring-purple-500 hover:ring-purple-700"
-                    src="/assets/warrior-head.png"
-                    alt="Profile"
-                  />
-                  </a>
+          <DropDownProfile username="user"onLogout={() => {console.log("Logging out"); /**TODO: Logout logic */}}/>
+
         </div>
 
         {/* Students stats */}
         <main className="flex-1 overflow-y-auto p-4 ml-3 mr-3">
-          <p className="text-2xl font-bold text-indigo-700">Teacher Dashboard</p>
+          <p className="text-2xl font-bold text-indigo-600">Teacher Dashboard</p>
           
           {loading ? (
             <div className="mt-6 text-center text-gray-500">Loading stats...</div>

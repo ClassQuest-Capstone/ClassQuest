@@ -9,6 +9,7 @@ import TeacherDashboard from './pages/teacher/teacherDashboard';
 import CharacterPage from './pages/students/characterpage';
 import Subjects from './pages/teacher/subjects';
 import Quests from './pages/teacher/quests';
+import Rewards from './pages/teacher/rewards'
 
 
 export default function App() {
@@ -24,7 +25,8 @@ export default function App() {
         <Route path="/TeacherDashboard" element={<TeacherDashboard />} />
         <Route path="/character" element={<CharacterPage />} />
         <Route path="/subjects" element={<Subjects />} />
-        {<Route path="/quests" element={<Quests />} />}
+        <Route path="/quests" element={<Quests />} />
+        <Route path="/rewards" element={<Rewards />} />
       </Routes>
     </BrowserRouter>
   );
