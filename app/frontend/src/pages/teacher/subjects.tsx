@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
+import DropDownProfile from "../features/teacher/dropDownProfile";
 
 
 type QuestCard = {
@@ -118,13 +119,7 @@ const handleCreateQuest = (event: React.FormEvent<HTMLFormElement>) => {
               >
                 Activity
               </Link>
-              <a href="#" className="shrink-0 group block">
-                <img
-                  className="inline-block h-9 w-9 rounded-full ring-3 ring-purple-500 hover:ring-purple-700"
-                  src="/assets/warrior-head.png"
-                  alt="Profile"
-                />
-              </a>
+             <DropDownProfile username="user"onLogout={() => {console.log("Logging out"); /**TODO: Logout logic */}}/>
             </div>
             <div className="-mr-2 flex items-center md:hidden">
               <button className="inline-flex items-center justify-center p-2 rounded-md text-blue-100 hover:text-white hover:bg-blue-600">
@@ -139,10 +134,10 @@ const handleCreateQuest = (event: React.FormEvent<HTMLFormElement>) => {
         <div className="flex flex-wrap gap-4 justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-indigo-800">Quest Management</h1>
-            <p className="text-white">Launch, schedule, and monitor classroom quests</p>
+            <p className="text-white">Create, Launch, schedule, and monitor classroom quests</p>
           </div>
           <button
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center"
+            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-6 py-2 rounded-lg flex items-center"
             onClick={() => setIsModalOpen(true)}
           >
             <i data-feather="plus" className="mr-2"></i> Create Quest

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
+import DropDownProfile from "../features/teacher/dropDownProfile";
 
 type QuestionType = "Multiple Choice" | "True/False" | "Short Answer" | "Matching";
 
@@ -275,13 +276,8 @@ const Quests = () => {
               >
                 Subjects
               </Link>
-              <a href="#" className="shrink-0 group block">
-                <img
-                  className="inline-block h-9 w-9 rounded-full ring-3 ring-purple-500 hover:ring-purple-700"
-                  src="/assets/warrior-head.png"
-                  alt="Profile"
-                />
-              </a>
+              <DropDownProfile username="user"onLogout={() => {console.log("Logging out"); /**TODO: Logout logic */}}/>
+              
             </div>
           </div>
         </div>
