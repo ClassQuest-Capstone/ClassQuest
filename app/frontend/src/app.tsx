@@ -13,6 +13,7 @@ import Rewards from './pages/teacher/rewards'
 import ProblemSolve from './pages/students/problemsolve'
 import Leaderboards from "./pages/students/leaderboards";
 import Guild from "./pages/students/guilds";
+import Settings from './pages/teacher/settings'
 
 
 
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/StudentDashboard" element={<StudentDashboard />} />
         <Route path="/TeacherDashboard" element={<TeacherDashboard />} />
         <Route path='/rewards' element={<Rewards/>} />
+        <Route path='/settings' element={<Settings />} />
         <Route path="/character" element={<CharacterPage />} />
         <Route path="/subjects" element={<Subjects />} />
         <Route path="/problemsolve" element={<ProblemSolve />} />

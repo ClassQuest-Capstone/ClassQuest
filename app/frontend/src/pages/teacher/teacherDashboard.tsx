@@ -65,7 +65,7 @@ const TeacherDashboard = () => {
     { icon: "book", label: "Quests", href: "/subjects" },
     { icon: "clock", label: "Activity", href: "#" },
     { icon: "shopping-bag", label: "Rewards", href: "/rewards" },
-    { icon: "settings", label: "Settings", href: "#" },
+    { icon: "settings", label: "Settings", href: "/settings" },
   ];
 
   return (
