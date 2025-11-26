@@ -11,3 +11,16 @@ Signup endpoints are commented out, so they won’t break.
 
 ISSUES
 Not compatible. The frontend calls /api/teacher/${teacherId}/stats, but the backend doesn’t define it. The dashboard will show zeros and console errors. Add the missing endpoint in the infrastructure stack to make it work.
+
+
+TODO:
+Teachers:
+Dashboard: 
+- profile picture to pick from 
+- dynamic recent activity feed
+- dynamic student cards (top student)
+
+Quests (subjects):
+- makequest connect with backend to add questions and answers
+- make quest properly function with backend
+- 

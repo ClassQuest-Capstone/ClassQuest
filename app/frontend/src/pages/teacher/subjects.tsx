@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
+
 
 type QuestCard = {
   title: string;
   subject: string;
   difficulty: string;
   description: string;
+  type: string;
   grade: string;
   gradient: string;
   icon: string;
@@ -17,18 +19,20 @@ const QUESTS: QuestCard[] = [
   {
     title: "Algebra Questline",
     subject: "Mathematics",
-    difficulty: "Intermediate",
-    description: "Solve linear equations and unlock the Portal of Numbers.",
+    difficulty: "Medium",
+    description: "Solve fractions and unlock the Portal of Numbers.",
+    type: "Quest",
     grade: "5th grade",
     gradient: "from-blue-500 to-indigo-600",
     icon: "activity",
-    reward: "+250 XP / 150 Gold",
+    reward: "+150 XP / 150 Gold",
   },
   {
     title: "Motion & friction",
     subject: "Science",
-    difficulty: "Beginner",
+    difficulty: "Easy",
     description: "Force and Motion.",
+    type: "Quest",
     grade: "5th grade",
     gradient: "from-green-500 to-emerald-600",
     icon: "zap",
@@ -37,8 +41,9 @@ const QUESTS: QuestCard[] = [
   {
     title: "The Dominion of Canada",
     subject: "Social studies",
-    difficulty: "Advanced",
+    difficulty: "Hard",
     description: " A Journey Through Land, People, and Power.",
+    type: "Quest",
     grade: "5th grade",
     gradient: "from-amber-500 to-orange-600",
     icon: "clock",
@@ -48,6 +53,7 @@ const QUESTS: QuestCard[] = [
 
 const Subjects = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     feather.replace();
@@ -57,11 +63,25 @@ const Subjects = () => {
     feather.replace();
   }, [isModalOpen]);
 
-  const handleCreateQuest = (event: React.FormEvent<HTMLFormElement>) => {
+const handleCreateQuest = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+  
+  const questData = {
+    name: formData.get("questName"),
+    type: formData.get("type"),
+    subject: formData.get("subject"),
+    grade: formData.get("grade"),
+    description: formData.get("description"),
+    difficulty: formData.get("difficulty"),
+    reward: formData.get("reward"),
+  };
     // Todo: Connect to backend workflow for quest creation.
     setIsModalOpen(false);
+    navigate("/quests", { state: { questData } });
+    setIsModalOpen(false);
   };
+
 
   return (
     <div className="font-poppins bg-[url(/assets/background-teacher-dash.png)] bg-cover bg-center bg-no-repeat min-h-screen">
@@ -148,6 +168,7 @@ const Subjects = () => {
                 <p className="text-sm text-gray-500 uppercase tracking-wide">{quest.difficulty}</p>
                 <p className="text-gray-700 text-sm">{quest.description}</p>
                 <div className="flex items-center justify-between text-sm text-gray-600">
+                  <span className="font-semibold text-gray-900">{quest.type}</span>
                   <span className="font-semibold text-gray-900">{quest.reward}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -171,13 +192,14 @@ const Subjects = () => {
       </main>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center text-gray-900">
+        
+        <div className="fixed inset-0 bg-white/300 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center text-gray-900">
           <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">Create New Quest</h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-500"
+                className="text-blue-500 hover:text-blue-700"
               >
                 <i data-feather="x"></i>
               </button>
@@ -189,36 +211,41 @@ const Subjects = () => {
                 </label>
                 <input
                   type="text"
+                  name="questName"
                   className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                  placeholder="e.g. Fraction Frontier"
+                  placeholder="e.g. Polynomial peaks"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Subject
-                </label>
-                <select className="w-full border border-gray-300 rounded-lg px-4 py-2" required>
-                  {["Mathematics", "Science", "Social Studies", "Health Education"].map((subj) => (
-                    <option key={subj}>{subj}</option>
-                  ))}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <select name="type" className="w-full border border-gray-300 rounded-lg px-4 py-2" required>
+                  <option>Quest</option>
+                  <option>Boss Fight</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Grade
-                </label>
-                <select className="w-full border border-gray-300 rounded-lg px-4 py-2" required>
-                  {["Grade 5", "Grade 6", "Grade 7", "Grade 8"].map((grade) => (
-                    <option key={grade}>{grade}</option>
-                  ))}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                <select name="subject" className="w-full border border-gray-300 rounded-lg px-4 py-2" required>
+                  <option>Mathematics</option>
+                  <option>Science</option>
+                  <option>Social Studies</option>
+                  <option>Health Education</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
+                <select name="grade" className="w-full border border-gray-300 rounded-lg px-4 py-2" required>
+                  <option>Grade 5</option>
+                  <option>Grade 6</option>
+                  <option>Grade 7</option>
+                  <option>Grade 8</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea
+                  name="description"
                   className="w-full border border-gray-300 rounded-lg px-4 py-2"
                   rows={3}
                   placeholder="Brief overview for your students"
@@ -227,32 +254,30 @@ const Subjects = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Difficulty
-                  </label>
-                  <select className="w-full border border-gray-300 rounded-lg px-4 py-2" required>
-                    {["Beginner", "Intermediate", "Advanced"].map((level) => (
-                      <option key={level}>{level}</option>
-                    ))}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
+                  <select name="difficulty" className="w-full border border-gray-300 rounded-lg px-4 py-2" required>
+                    <option>Easy</option>
+                    <option>Medium</option>
+                    <option>Hard</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Reward
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reward</label>
                   <input
                     type="text"
+                    name="reward"
                     className="w-full border border-gray-300 rounded-lg px-4 py-2"
                     placeholder="+150 XP / 50 Gold"
                     required
                   />
                 </div>
               </div>
+
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-500"
                 >
                   Cancel
                 </button>
@@ -260,7 +285,7 @@ const Subjects = () => {
                   type="submit"
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
                 >
-                  Start Quest
+                  Create Quest
                 </button>
               </div>
             </form>
