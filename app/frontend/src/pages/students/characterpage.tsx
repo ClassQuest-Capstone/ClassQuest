@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import feather from "feather-icons";
+import { Link } from "react-router-dom";
 import "../../styles/character.css";
 
 type EquipmentSlot = "helmet" | "armour" | "shield" | "pet" | "background";
@@ -27,20 +28,16 @@ const EQUIPMENT_SLOTS: EquipmentSlot[] = [
   "background",
 ];
 
-// Render order for the character preview
-// Lower entries are drawn first; later ones appear on top
-// Render order for the character preview
-// Drawn from back to front (last is on top)
+// Render order for the character preview (back → front)
 const PREVIEW_ORDER: EquipmentSlot[] = [
   "background",
-  "helmet",   // back
-  "armour",   // middle
-  "shield",   // front
+  "helmet",
+  "armour",
+  "shield",
   "pet",
 ];
 
-
-// basic starter inventory – extend this as you add more art
+// starter inventory
 const INITIAL_INVENTORY: EquipmentItem[] = [
   {
     id: "helm1",
@@ -84,12 +81,11 @@ const INITIAL_INVENTORY: EquipmentItem[] = [
     slot: "background",
     icon: "/assets/background/background1.png",
   },
-  
   {
-     id: "dog",
-     name: "Pet 1",
-     slot: "pet",
-     icon: "/assets/pets/dog.png",
+    id: "dog",
+    name: "Pet 1",
+    slot: "pet",
+    icon: "/assets/pets/dog.png",
   },
 ];
 
@@ -155,11 +151,7 @@ const CharacterPage: React.FC = () => {
     const itemSlot = e.dataTransfer.getData("equip-slot") as EquipmentSlot;
 
     if (!id || !itemSlot) return;
-
-    // only allow correct item type in each slot
-    if (itemSlot !== slot) {
-      return;
-    }
+    if (itemSlot !== slot) return;
 
     const item = inventory.find((i) => i.id === id);
     if (!item) return;
@@ -183,30 +175,21 @@ const CharacterPage: React.FC = () => {
               </div>
             </div>
             <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
-              <a
-                href="/student"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-600"
-              >
-                Dashboard
-              </a>
-              <a
-                href="/character"
+              <Link
+                to="/character"
                 className="px-3 py-2 rounded-md text-sm font-medium bg-primary-800"
               >
                 Character
-              </a>
-              <a
-                href="/guild"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-600"
-              >
+              </Link>
+              <Link to="/guilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                 Guilds
-              </a>
-              <a
-                href="/leaderboard"
+              </Link>
+              <Link
+                to="/leaderboards"
                 className="px-3 py-2 rounded-md text-sm font-medium hover:bg-primary-600"
               >
                 Leaderboard
-              </a>
+              </Link>
               <div className="flex items-center ml-4">
                 <div className="flex items-center bg-primary-600 px-3 py-1 rounded-full">
                   <i
@@ -232,7 +215,7 @@ const CharacterPage: React.FC = () => {
                       src="http://static.photos/people/200x200/8"
                       alt="User avatar"
                     />
-                      <span className="ml-2 text-sm font-medium">Alex</span>
+                    <span className="ml-2 text-sm font-medium">Alex</span>
                   </button>
                 </div>
                 <div
@@ -241,18 +224,17 @@ const CharacterPage: React.FC = () => {
                     isUserMenuOpen ? "" : "hidden"
                   }`}
                 >
-                  <a
-                    href="#"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  <button
+                    className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     Your Profile
-                  </a>
-                  <a
-                    href="/"
+                  </button>
+                  <Link
+                    to="/"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
                     Sign out
-                  </a>
+                  </Link>
                 </div>
               </div>
             </div>
@@ -345,11 +327,8 @@ const CharacterPage: React.FC = () => {
                   <div className="relative w-full h-full">
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-900/30 via-purple-900/30 to-pink-900/30 rounded-xl animate-pulse" />
                     <div className="relative h-full flex items-center justify-center">
-                      {/* Layered warrior preview filling the appearance box */}
                       <div className="relative w-full h-full max-w-[360px] max-h-[480px] pixel-art">
-                        {/* Base character sprite */}
-                        
-                        {/* Equipped layers in specific order */}
+                        {/* Base sprite would go here */}
                         {PREVIEW_ORDER.map((slot) => {
                           const item = equipped[slot] ?? null;
                           if (!item) return null;
@@ -403,7 +382,6 @@ const CharacterPage: React.FC = () => {
                   Inventory
                 </h2>
                 <div className="space-y-4">
-                  {/* Equipment inventory (renamed from Consumables) */}
                   <div className="bg-gray-900 rounded-lg p-4 hover:bg-gray-800 transition-colors">
                     <div className="flex justify-between items-center mb-2">
                       <h3 className="font-medium">Equipment</h3>
@@ -490,7 +468,7 @@ const CharacterPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Stats + Skills + Quests + Subjects (unchanged from before) */}
+          {/* Stats + Skills + Quests + Subjects */}
           <div className="bg-gray-800 bg-opacity-80 rounded-lg p-6 mt-6">
             <div className="w-full max-w-6xl mx-auto px-4">
               <div className="grid grid-cols-2 gap-6">
@@ -615,28 +593,33 @@ const CharacterPage: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* ⭐ Algebra quest – links to /problemsolve and shows 0% */}
                 <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-4 rounded-lg border-2 border-yellow-400 shadow-lg">
                   <h3 className="font-bold text-white">Algebraic Equations</h3>
                   <p className="text-blue-100 text-sm mb-3">
-                    Complete 10 equations to boost Intelligence
+                    Complete 5 questions to boost Intelligence
                   </p>
                   <div className="flex items-center mb-2">
                     <div className="w-full bg-gray-700 rounded-full h-2">
                       <div
                         className="bg-blue-400 h-2 rounded-full"
-                        style={{ width: "60%" }}
+                        style={{ width: "0%" }}
                       />
                     </div>
-                    <span className="ml-2 text-xs text-white">6/10</span>
+                    <span className="ml-2 text-xs text-white">0/5</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-yellow-300 text-sm">+15 Int</span>
-                    <button className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-1 rounded-full text-xs font-bold">
+                    <Link
+                      to="/problemsolve"
+                      className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-1 rounded-full text-xs font-bold"
+                    >
                       Continue
-                    </button>
+                    </Link>
                   </div>
                 </div>
 
+                {/* Second quest unchanged for now */}
                 <div className="bg-gradient-to-r from-red-600 to-red-800 p-4 rounded-lg border-2 border-yellow-400 shadow-lg">
                   <h3 className="font-bold text-white">History Research</h3>
                   <p className="text-red-100 text-sm mb-3">
