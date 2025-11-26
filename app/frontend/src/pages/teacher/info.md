@@ -23,4 +23,5 @@ Dashboard:
 Quests (subjects):
 - makequest connect with backend to add questions and answers
 - make quest properly function with backend
-- 
+- Quest does not add tags from creation currently (TODO: fix)
+
