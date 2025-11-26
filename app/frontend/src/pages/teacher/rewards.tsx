@@ -72,7 +72,7 @@ const rewards = () => {
                         className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-6 py-2 rounded-lg flex items-center"
                         onClick={() => setIsModalOpen(true)}
                     >
-                        <i data-feather="plus" className="mr-2"></i> Create Item
+                        <i data-feather="plus" className="mr-2"></i> Create Items
                     </button>
                     </div>
                     {/** */}
