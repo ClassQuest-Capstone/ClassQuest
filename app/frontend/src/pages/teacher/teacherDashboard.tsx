@@ -114,7 +114,7 @@ const TeacherDashboard = () => {
               <div className="flex items-center">
                 <div>
                   <img
-                    className="inline-block h-9 w-9 rounded-full"
+                    className="inline-block h-8 w-10 rounded-full"
                     src="/assets/warrior-head.png"
                     alt="Profile"
                   />

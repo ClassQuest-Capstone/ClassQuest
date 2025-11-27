@@ -216,7 +216,7 @@ export default function Home() {
                     </div>
                     <div className="flex items-center bg-yellow-100 px-3 py-1 rounded-full">
                       <CurrencyDollarIcon className="h-6 w-6 text-yellow-500" />
-                      <span className="ml-1 font-light"> 1,245</span>
+                      <span className="ml-1 font-light text-gray-900"> 1,245</span>
                     </div>
                   </div>
                   <div className="mt-6">
