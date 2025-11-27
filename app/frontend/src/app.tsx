@@ -15,6 +15,7 @@ import Leaderboards from "./pages/students/leaderboards";
 import Guild from "./pages/students/guilds";
 import Settings from './pages/teacher/settings'
 import StudentShop from "./pages/students/studentshop";
+import Profile from './pages/teacher/profile';
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/TeacherDashboard" element={<TeacherDashboard />} />
         <Route path='/rewards' element={<Rewards/>} />
         <Route path='/settings' element={<Settings />} />
+        <Route path='/profile' element={<Profile />} />
         <Route path="/character" element={<CharacterPage />} />
         <Route path="/subjects" element={<Subjects />} />
         <Route path="/problemsolve" element={<ProblemSolve />} />

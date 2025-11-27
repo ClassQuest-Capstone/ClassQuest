@@ -196,7 +196,7 @@ const handleCreateQuest = (event: React.FormEvent<HTMLFormElement>) => {
                 onClick={() => setIsModalOpen(false)}
                 className="text-blue-500 hover:text-blue-700"
               >
-                <i data-feather="x"></i>
+                <i data-feather="x-circle"></i>
               </button>
             </div>
             <form className="space-y-4" onSubmit={handleCreateQuest}>
