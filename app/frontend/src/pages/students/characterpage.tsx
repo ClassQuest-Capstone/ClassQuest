@@ -190,17 +190,22 @@ const CharacterPage: React.FC = () => {
               >
                 Leaderboard
               </Link>
-              <div className="flex items-center ml-4">
-                <div className="flex items-center bg-primary-600 px-3 py-1 rounded-full">
-                  <i
-                    data-feather="coins"
-                    className="h-5 w-5 text-yellow-400"
-                  />
-                  <span className="text-primary-600 ml-1 font-medium">
-                    1,245
-                  </span>
-                </div>
-              </div>
+            <div className="flex items-center ml-4">
+            <Link
+                to="/shop"
+                className="flex items-center bg-primary-600 px-3 py-1 rounded-full hover:bg-primary-700 transition"
+            >
+                {/* Gold Bar Image */}
+                <img
+                src="/assets/icons/gold-bar.png"
+                alt="Gold"
+                className="h-5 w-5 mr-1"
+                />
+
+                {/* Amount */}
+                <span className="text-white font-medium">1,245</span>
+            </Link>
+            </div>
               <div className="relative ml-3" ref={userMenuRef}>
                 <div>
                   <button
