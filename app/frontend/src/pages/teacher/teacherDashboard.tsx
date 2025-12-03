@@ -110,7 +110,7 @@ const TeacherDashboard = () => {
           </div>
 
           <div className="shrink-0 flex border-t border-blue-800 p-4">
-            <a href="#" className="shrink-0 group block">
+            <a href="/profile" className="shrink-0 group block">
               <div className="flex items-center">
                 <div>
                   <img
@@ -152,7 +152,7 @@ const TeacherDashboard = () => {
             </nav>
 
             <div className="shrink-0 flex border-t border-blue-800 p-4">
-              <a href="#" className="shrink-0 group block w-full">
+              <a href="/profile" className="shrink-0 group block w-full">
                 <div className="flex items-center">
                   <div>
                     <img

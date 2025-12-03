@@ -24,4 +24,18 @@ Quests (subjects):
 - makequest connect with backend to add questions and answers
 - make quest properly function with backend
 - Quest does not add tags from creation currently (TODO: fix)
+- make timer on quests optional 
+- make quest difficulty with a set value for gold & XP for each difficulty level as a **suggestion**
+
+Guardians protect individual members
+mage protects the entire guild  (keep it simple)
+
+post question all guilds answer then reveal guild who is supposed to answer the question (and take damage for wrong questions or boss takes damage for wrong questions) (give teachers the option to keep boss battle public or private and quests and edit other teachers quests also)
+
+Guilds page still missing 
+
+all giulds should have the same hearts per boss battle (one set of hearts for all members)
+
+Settings:
+- tab on table one for students other for performance stats
 
