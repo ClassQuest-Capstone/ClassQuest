@@ -231,7 +231,7 @@ const Quests = () => {
     );
   };
 
-  // No integration yet, so manual JSON download
+  // No backendintegration yet, so manual JSON download
   const handleDownloadJSON = () => {
   const dataStr = JSON.stringify(questions, null, 2);
   const blob = new Blob([dataStr], { type: "application/json" });

@@ -15,6 +15,7 @@ The project was initiated as a Capstone at the **University of Regina**.
 ## Vlogs
 
 1. Team and project Introduction: [🎞️ Vlog1](https://www.youtube.com/watch?v=lCHaV5K9AQU)
+2. Progress report and semester reflection: [🎞️ Vlog2] (https://www.youtube.com/watch?v=BxoGuTXhTXo)
 
 
 ## 🚀 Overview
