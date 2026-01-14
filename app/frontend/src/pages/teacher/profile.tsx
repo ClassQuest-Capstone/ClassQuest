@@ -6,10 +6,28 @@ import DropDownProfile from "../features/teacher/dropDownProfile";
 const Profile = () => {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     feather.replace();
   }, []);
+
+
+<button onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}>
+  <i data-feather="menu" />
+</button>
+
+{isMobileNavOpen && (
+  <div className="md:hidden bg-blue-700 text-white">
+    <Link to="/teacherDashboard" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Dashboard</Link>
+    <Link to="/Students" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Students</Link>
+    <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Quests</Link>
+    <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Activity</Link>
+    <Link to="/rewards" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Rewards</Link>
+    <DropDownProfile username="user" onLogout={() => console.log("Logging out")} />
+  </div>
+)}
 
   return (
     <div className="font-poppins bg-[url(/assets/background-teacher-dash.png)] bg-cover bg-center bg-no-repeat min-h-screen">
@@ -34,56 +52,54 @@ const Profile = () => {
               <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Quests</Link>
               <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Activity</Link>
               <Link to="/rewards" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Rewards</Link>
-              <Link to="/settings" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Settings</Link>
               <DropDownProfile username="user" onLogout={() => console.log("Logging out")} />
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Profile Card Section */}
-      <section className="py-10 flex justify-center">
-        <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl overflow-hidden flex">
-          {/* Left side */}
-          <div className="bg-gradient-to-b from-blue-600 to-blue-400 text-white flex flex-col items-center justify-center p-6 w-1/3">
-            <img
-              src="/assets/warrior-head.png"
-              alt="Avatar"
-              className="w-20 h-20 rounded-full mb-4"
-            />
-            <h5 className="text-lg font-semibold">User</h5>
-            <p className="text-sm">Grade 5 teacher</p>
-            <i data-feather="edit" className="mt-5"></i>
+      {/* Back button */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <Link to="/teacherDashboard" className="inline-flex items-center bg-indigo-600 text-white border-2 border-indigo-600 rounded-md px-3 py-2 hover:bg-indigo-700">
+              <i data-feather="arrow-left" className="w-5 h-5 mr-2"></i>
+              <span className="text-sm font-medium">Back</span>
+            </Link>
           </div>
 
-          {/* Right side */}
-          <div className="flex-1 p-6">
-            <h6 className="text-gray-700 font-semibold">Information</h6>
-            <hr className="my-2" />
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <h6 className="text-gray-700 font-semibold">Email</h6>
-                <p className="text-gray-500 text-sm">info@example.com</p>
-              </div>
-              <div>
-                <h6 className="text-gray-700 font-semibold">Phone</h6>
-                <p className="text-gray-500 text-sm">123 456 789</p>
-              </div>
-            </div>
+      {/* Content */}
+      <div className="rounded-2xl p-4 bg-[#efe6bc] shadow-lg transform transition hover:-translate-y-1 hover:shadow-2xl cursor-pointer max-w-80 mx-auto max-h-">
+    {/** Character card */}
+      <div className="w-full flex justify-center">
+        <img
+          src="/assets/cards/healer-noBckgnd.png"
+          alt="charcater"
+          className="h-110 w-65 "
+        />
+      </div>
+      
+    </div>
+    {/** Character name and role */}
+    <div className="rounded-2xl p-4 bg-indigo-600 max-w-80 mx-auto mt-3 mb-5">
+      <p className="mt-0.5 text-lg font-bold text-white"> Name: </p>
+      <p className="text-white text-lg font-bold items-center justify-between">
+        Password: {/*{showPassword ? profile.password : "••••••••"}*/}
+      </p>
+      <p className="mt-0.5 text-lg font-bold text-white"> ClassCode: </p>
+      <i
+        data-feather="edit"
+        className="mt-3 flex cursor-pointer"
+        onClick={() => setIsModalOpen(true)}
+      />
 
-            {/* Social Links */}
-            <div className="flex space-x-4 mt-4">
-              <a href="#!" className="text-blue-600 hover:text-blue-800">
-                <i data-feather="facebook"></i>
-              </a>
-              
-              <a href="#!" className="text-pink-500 hover:text-pink-700">
-                <i data-feather="instagram"></i>
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/*isModalOpen && (
+        <EditProfileModal
+          profile={profile}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleSave}
+        />
+      )*/}
+
+      </div>
     </div>
   );
 };

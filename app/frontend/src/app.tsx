@@ -9,11 +9,12 @@ import TeacherDashboard from './pages/teacher/teacherDashboard';
 import CharacterPage from './pages/students/characterpage';
 import Subjects from './pages/teacher/subjects';
 import Quests from './pages/teacher/quests';
-import Rewards from './pages/teacher/rewards'
-import ProblemSolve from './pages/students/problemsolve'
+import Rewards from './pages/teacher/rewards';
+import Students from './pages/teacher/students';
+import Activity from './pages/teacher/Activity';
+import ProblemSolve from './pages/students/problemsolve';
 import Leaderboards from "./pages/students/leaderboards";
 import Guild from "./pages/students/guilds";
-import Settings from './pages/teacher/settings'
 import StudentShop from "./pages/students/studentshop";
 import Profile from './pages/teacher/profile';
 
@@ -29,7 +30,8 @@ export default function App() {
         <Route path="/StudentDashboard" element={<StudentDashboard />} />
         <Route path="/TeacherDashboard" element={<TeacherDashboard />} />
         <Route path='/rewards' element={<Rewards/>} />
-        <Route path='/settings' element={<Settings />} />
+        <Route path='/students' element={<Students/>} />
+        <Route path='/Activity' element={<Activity/>} />
         <Route path='/profile' element={<Profile />} />
         <Route path="/character" element={<CharacterPage />} />
         <Route path="/subjects" element={<Subjects />} />

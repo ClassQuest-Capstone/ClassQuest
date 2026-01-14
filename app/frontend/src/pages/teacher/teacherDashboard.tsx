@@ -61,11 +61,11 @@ const TeacherDashboard = () => {
 
   const sidebarLinks = [
     { icon: "home", label: "Dashboard", href: "/TeacherDashboard",},
-    { icon: "users", label: "Students", href: "#" },
-    { icon: "book", label: "Quests", href: "/subjects" },
-    { icon: "clock", label: "Activity", href: "#" },
+    { icon: "users", label: "Students", href: "/students" },
+    { icon: "book", label: "Subjects", href: "/subjects" },
+    { icon: "clock", label: "Activity", href: "/activity" },
     { icon: "shopping-bag", label: "Rewards", href: "/rewards" },
-    { icon: "settings", label: "Settings", href: "/settings" },
+    { icon: "user", label: "Profile", href: "/profile" },
   ];
 
   return (
