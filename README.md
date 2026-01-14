@@ -12,6 +12,11 @@ The project was initiated as a Capstone at the **University of Regina**.
 
 ---
 
+## Project Directory
+1. Project related documents: [Docs](https://github.com/ClassQuest-Capstone/ClassQuest/tree/main/Project%20Management%20Documents)
+2. Aws Infra: [Infra](https://github.com/ClassQuest-Capstone/ClassQuest/tree/main/infra)
+3. Frontend: [Frontend](https://github.com/ClassQuest-Capstone/ClassQuest/tree/main/app/frontend)
+
 ## Vlogs
 
 1. Team and project Introduction: [🎞️ Vlog1](https://www.youtube.com/watch?v=lCHaV5K9AQU)
@@ -44,4 +49,4 @@ The project was initiated as a Capstone at the **University of Regina**.
 
 ---
 
-## 🏫 University of Regina – Software Systems Engineering Capstone 2025
+## 🏫 University of Regina – Software Systems Engineering Capstone 2025/2026
