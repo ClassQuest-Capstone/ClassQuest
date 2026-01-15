@@ -2,3 +2,6 @@ node_modules
 .sst
 dist
 .env
+.log# SST 
+infra/.sst/ 
+**/.sst/ 
