@@ -34,8 +34,10 @@ const Leaderboard: React.FC = () => {
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <div className="flex-shrink-0 flex items-center">
-                <i data-feather="book-open" className="w-8 h-8 mr-2" />
-                <span className="text-xl font-bold">ClassQuest</span>
+                <Link to="/character" className="flex items-center px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
+                  <i data-feather="book-open" className="w-8 h-8 mr-2"></i>
+                  <span className="text-xl font-bold"> ClassQuest</span>
+                  </Link>
               </div>
             </div>
             <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
