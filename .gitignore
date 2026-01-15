@@ -1,7 +1,77 @@
-node_modules
-.sst
-dist
+# ===== OS / Editor =====
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+
+# ===== Node / JS =====
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# ===== Build outputs =====
+dist/
+build/
+out/
+coverage/
+*.tsbuildinfo
+
+# ===== Environment / Secrets =====
 .env
-.log# SST 
-infra/.sst/ 
-**/.sst/ 
+.env.*
+!.env.example
+
+# ===== SST / CDK / AWS =====
+.sst/
+**/.sst/
+cdk.out/
+.aws/
+.aws-sam/
+samconfig.toml
+
+# ===== Logs =====
+logs/
+*.log
+
+# ===== Cache =====
+.cache/
+.parcel-cache/
+.next/
+.turbo/
+.eslintcache
+
+# ===== Frontend (React / Vite) =====
+.vite/
+.vite-cache/
+.vitepress/cache/
+.vitepress/dist/
+
+# ===== Testing =====
+__tests__/__snapshots__/
+*.snap
+
+# ===== Python (if any tooling/scripts) =====
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env.venv
+.venv/
+venv/
+
+# ===== Terraform (if ever used) =====
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+
+# ===== Misc =====
+tmp/
+temp/
