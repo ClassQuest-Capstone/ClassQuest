@@ -17,6 +17,7 @@ import Leaderboards from "./pages/students/leaderboards";
 import Guild from "./pages/students/guilds";
 import StudentShop from "./pages/students/studentshop";
 import Profile from './pages/teacher/profile';
+import Welcome from "./pages/students/welcome";
 
 export default function App() {
   return (
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/guilds" element={<Guild />} />
         {<Route path="/quests" element={<Quests />} />}
         <Route path="/shop" element={<StudentShop />} />
+        <Route path="/welcome" element={<Welcome />} />
       </Routes>
     </BrowserRouter>
   );
