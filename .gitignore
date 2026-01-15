@@ -75,3 +75,4 @@ crash.log
 # ===== Misc =====
 tmp/
 temp/
+"\n# SST\ninfra/.sst/\n**/.sst/\n*.log\n" 
