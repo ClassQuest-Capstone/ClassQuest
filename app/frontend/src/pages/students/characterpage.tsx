@@ -420,24 +420,44 @@ const CharacterPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 level-badge px-6 py-1 rounded-full ">
-                    <span className="font-bold text-lg text-white">
-                      Level 5 Warrior
-                    </span>
+                  {/* Level Badge */}
+                  <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 level-badge px-6 py-1 rounded-full">
+                    <span className="font-bold text-lg text-white">Level 5 Warrior</span>
                   </div>
 
-                  <div className="absolute -bottom-14 left-1/2 transform -translate-x-1/2 w-48 bg-gray-900 bg-opacity-70 p-2 rounded-lg">
-                    <div className="flex justify-between text-xs mb-1">
-                      <span>XP Progress</span>
-                      <span>{currentXp}/{(currentLevel) * xpPerLevel}</span>
-                    </div>
-                    <div className="w-full bg-gray-700 rounded-full h-2">
-                      <div
-                        className="bg-blue-500 h-2 rounded-full"
-                        style={{ width: `${progressPct}%` }}
-                      />
+                  {/* XP Bar (game style) */}
+                  <div className="absolute -bottom-34 left-1/2 transform -translate-x-1/2 w-[320px] max-w-[90vw]">
+                    <div className="bg-gray-950/70 border border-blue-400/40 backdrop-blur rounded-xl px-4 py-3 shadow-lg">
+                      <div className="flex justify-between text-xs mb-2 text-gray-200">
+                        <span className="tracking-wide uppercase">XP</span>
+                        <span className="font-semibold text-blue-200">1,245 / 2,000</span>
+                      </div>
+
+                      {/* Outer bar frame */}
+                      <div className="relative w-full h-4 rounded-full bg-gray-800 border border-gray-600 overflow-hidden">
+                        {/* Subtle “track” glow */}
+                        <div className="absolute inset-0 opacity-40 bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900" />
+
+                        {/* Filled progress */}
+                        <div
+                          className="relative h-full rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500"
+                          style={{ width: "62%" }}
+                        >
+                          {/* Shine highlight */}
+                          <div className="absolute inset-0 opacity-30 bg-gradient-to-b from-white to-transparent" />
+
+                          {/* Little moving sparkle (optional but looks game-y) */}
+                          <div className="absolute right-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white/80 blur-[1px]" />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between mt-2 text-[11px] text-gray-300">
+                        <span>Next Level</span>
+                        <span className="text-blue-200 font-semibold">+755 XP needed</span>
+                      </div>
                     </div>
                   </div>
+
 
                   <div className="absolute bottom-0 right-0 flex space-x-2 bg-black/50 p-2 rounded-tl-xl">
                     <button className="bg-gray-700 hover:bg-gray-600 p-2 rounded-full text-white transition-all hover:rotate-45">
