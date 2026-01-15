@@ -1,0 +1,24 @@
+/* Healer.css */
+.Healer-sprite {
+  position: relative;
+  animation: MageFloat 2.4s ease-in-out infinite;
+}
+
+.Healer-img {
+  image-rendering: pixelated;
+  width: 64px;
+  height: 64px;
+}
+
+/* Healer animation */
+@keyframes MageFloat {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}

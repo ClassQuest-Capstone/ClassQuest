@@ -1,0 +1,66 @@
+/* tutorial-intro.css */
+.intro-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 10, 25, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9980;
+}
+
+.intro-modal {
+  background: #020617;
+  border-radius: 16px;
+  border: 1px solid #4b5563;
+  padding: 18px 20px;
+  max-width: 420px;
+  width: 90%;
+  color: #e5e7eb;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.intro-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.intro-title {
+  font-size: 1.1rem;
+  margin: 0 0 4px;
+}
+
+.intro-subtitle {
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.intro-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.intro-primary,
+.intro-secondary {
+  font-size: 0.85rem;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+}
+
+.intro-primary {
+  background: linear-gradient(135deg, #facc15, #f97316);
+  color: #111827;
+  font-weight: 600;
+}
+
+.intro-secondary {
+  background: transparent;
+  color: #9ca3af;
+  border: 1px solid #4b5563;
+}

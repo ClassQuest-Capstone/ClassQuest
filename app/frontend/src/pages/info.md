@@ -17,7 +17,7 @@ TODO:
 Teachers:
 Dashboard: 
 - profile picture to pick from 
-- dynamic recent activity feed
+- dynamic recent activity feed (80% done)
 - dynamic student cards (top student)
 
 Quests (subjects):
@@ -32,7 +32,7 @@ mage protects the entire guild  (keep it simple)
 
 post question all guilds answer then reveal guild who is supposed to answer the question (and take damage for wrong questions or boss takes damage for wrong questions) (give teachers the option to keep boss battle public or private and quests and edit other teachers quests also)
 
-Guilds page still missing 
+Guilds page still missing (Done TODO: backend connection & )
 
 all giulds should have the same hearts per boss battle (one set of hearts for all members)
 

@@ -71,9 +71,9 @@ const Profile = () => {
     {/** Character card */}
       <div className="w-full flex justify-center">
         <img
-          src="/assets/cards/healer-noBckgnd.png"
+          src="/assets/cards/Mage_1.png"
           alt="charcater"
-          className="h-110 w-65 "
+          className="h-100 w-65 "
         />
       </div>
       

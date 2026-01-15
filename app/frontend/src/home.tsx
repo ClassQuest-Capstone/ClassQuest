@@ -60,8 +60,8 @@ export default function Home() {
           {/** Hero content */}
           <div className="max-w-8xl mx-auto flex items-center justify-center min-h-[70vh]">
             <div className="relative z-10 pb-8 sm:pb-16 md:pb-20 lg:pb-28 xl:pb-32 text-center">
-              <main className="mt-10 mx-auto max-w-3xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 xl:mt-28">
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl tracking-tight font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-amber-500 to-amber-300">
+              <main className="mt-10 mx-auto max-w-3xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 xl:mt-28 bg-gradient-to-b from-gray-900/90 to-transparent rounded-lg">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl tracking-tight font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-[#ff00d4] to-amber-500 mt-3 p-0.5">
                   <span className="block ">Transform Learning</span>   
                   <span className="block ">Into An Adventure</span> 
                 </h1>
@@ -74,7 +74,7 @@ export default function Home() {
                 <div className="mt-5 sm:mt-8 flex justify-center">
                   <div className="rounded-md shadow">
                     <a href="/Signup" 
-                    className="text-white w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700  md:py-4 md:text-lg md:px-10" >
+                    className="text-white w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700  md:py-4 md:text-lg md:px-10 mb-3.5" >
                       Get Started
                     </a>
                   </div>
