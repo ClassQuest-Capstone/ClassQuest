@@ -41,13 +41,13 @@ const rewards = () => {
                         Dashboard
                       </Link>
                       <Link
-                        to="/Subjects"
-                        className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
+                        to="/rewards"
+                        className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900"
                       >
-                        Quests
+                        Rewards
                       </Link>
                       <Link
-                        to="/"
+                        to="/Activity"
                         className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
                       >
                         Activity

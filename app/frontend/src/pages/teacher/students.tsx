@@ -37,7 +37,7 @@ const students = () => {
                       </Link>
                       <Link
                         to="/students"
-                        className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
+                        className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900"
                       >
                         Students
                       </Link>

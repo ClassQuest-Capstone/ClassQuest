@@ -72,10 +72,10 @@ const ActivityPage = () => {
                         Dashboard
                       </Link>
                       <Link
-                        to="/students"
-                        className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
+                        to="/Activity"
+                        className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900"
                       >
-                        Students
+                        Activity
                       </Link>
                       <Link
                         to="/profile"

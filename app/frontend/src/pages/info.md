@@ -36,8 +36,8 @@ Guilds page still missing
 
 all giulds should have the same hearts per boss battle (one set of hearts for all members)
 
-Settings:
+Settings: (DONE)
 - tab on table one for students other for performance stats
 
-
- complete quests, earn rewards, and level your their knowledge.
+for boss fight
+- if boss fight assign boss based on subject

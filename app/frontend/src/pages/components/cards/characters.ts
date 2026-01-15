@@ -11,14 +11,14 @@ export const characters: CharacterCardProps[] = [
   {
     name: "Mage",
     role: "Deal magical damage during battles",
-    image: "/assets/cards/healer.png",
+    image: "/assets/cards/mage.png",
     accent: "#efe6bc",
 
   },
   {
     name: "Healer",
     role: "Heal teammates during battles",
-    image: "/assets/cards/mage.png",
+    image: "/assets/cards/healer.png",
     accent: "#efe6bc",
   },
 ];

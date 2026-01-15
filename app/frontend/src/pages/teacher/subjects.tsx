@@ -109,7 +109,7 @@ const handleCreateQuest = (event: React.FormEvent<HTMLFormElement>) => {
               </Link>
               <Link
                 to="/Subjects"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
+                className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900"
               >
                 Quests
               </Link>
