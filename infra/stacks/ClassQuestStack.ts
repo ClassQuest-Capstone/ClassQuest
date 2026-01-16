@@ -16,6 +16,24 @@ export function ClassQuestStack({ stack }: StackContext) {
         },
     });
 
+    // Users table
+    const usersTable = new Table(stack, "Users", {
+        fields: {
+        user_id: "string",
+        cognito_sub: "string",
+        role: "string",
+        status: "string",
+        created_at: "string",
+        last_login_at: "string",
+        },
+        primaryIndex: { partitionKey: "user_id" },
+        globalIndexes: {
+        // Lookup by Cognito ID (cognito_sub)
+        gsi1: { partitionKey: "cognito_sub" },
+        },
+    });
+
+
     const api = new Api(stack, "HttpApi", {
         routes: {
             "GET /health": "functions/src/health.handler",
@@ -30,11 +48,12 @@ export function ClassQuestStack({ stack }: StackContext) {
         },
     });
 
-    api.attachPermissions([gameTable]);
+    api.attachPermissions([gameTable, usersTable]);
 
     stack.addOutputs({
         AssetsBucketName: assetsBucket.bucketName,
         GameTableName: gameTable.tableName,
+        UsersTableName: usersTable.tableName,
         ApiUrl: api.url,
     });
 }
