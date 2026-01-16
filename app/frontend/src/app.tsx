@@ -12,6 +12,7 @@ import Quests from './pages/teacher/quests';
 import Rewards from './pages/teacher/rewards';
 import Students from './pages/teacher/students';
 import Activity from './pages/teacher/Activity';
+import BossFight from './pages/students/bossFight';
 import ProblemSolve from './pages/students/problemsolve';
 import Leaderboards from "./pages/students/leaderboards";
 import Guild from "./pages/students/guilds";
@@ -33,6 +34,7 @@ export default function App() {
         <Route path='/rewards' element={<Rewards/>} />
         <Route path='/students' element={<Students/>} />
         <Route path='/Activity' element={<Activity/>} />
+        <Route path="/bossFight" element={<BossFight />} />
         <Route path='/profile' element={<Profile />} />
         <Route path="/character" element={<CharacterPage />} />
         <Route path="/subjects" element={<Subjects />} />
