@@ -349,7 +349,12 @@ const Guild: React.FC = () => {
                 </div>
               </div>
               <button className="mt-4 w-full bg-white text-blue-600 font-bold py-2 rounded-lg">
-                Start Fight
+                <Link
+                  to="/bossFight"
+                  className="px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  Start Fight
+                </Link>
               </button>
             </div>
           </div>
