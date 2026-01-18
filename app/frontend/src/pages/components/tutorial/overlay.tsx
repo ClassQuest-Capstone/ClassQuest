@@ -31,14 +31,14 @@ export const TutorialOverlay: React.FC = () => {
           targetId: "Active-tab",
           title: "Active tabs",
           text:
-            "use these cards to monitor active quests, active students and completion rate of quests",
+            "Use these cards to monitor active quests, active students and completion rate of quests",
         };
       case "recent-activity":
         return {
           targetId: "recent-activity",
           title: "Recent Activity",
           text:
-            "view the lastest activities of your students, including XP earned, gold recieved and quest completed",
+            "View the lastest activities of your students, including XP earned, gold recieved and quest completed",
         };
       case "Top-students":
       return {
