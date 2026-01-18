@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import feather from "feather-icons";
+import "../../styles/boss.css";
 
 const BossFight =() => {
   useEffect(() => {
@@ -9,6 +10,7 @@ const BossFight =() => {
 
   return (
     <div className="font-poppins bg-[url(https://wallpapercave.com/wp/wp3914096.jpg)] bg-cover bg-center bg-no-repeat min-h-screen">
+     {/**Nav Bar */}
           <nav className="bg-blue-700 text-white shadow-lg">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between h-16">
@@ -73,49 +75,31 @@ const BossFight =() => {
             </div>
       </div>
        {/** Action and Questions buttons */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 mr-25 ml-25">
                 <div className="battle-box">
-          <h2 className="text-xl font-bold mb-4">Battle Actions</h2>
-                <div className="grid grid-cols-2 gap-4 mb-6">
+          <h2 className="text-xl font-bold mb-4 justify-center flex">Battle Actions</h2>
+                <div className=" mb-5 justify-center flex">
                         <button className="battle-btn flex flex-col items-center justify-center hover:bg-red-800">
-                            <i data-feather="zap" className="h-8 w-8 mb-2 text-yellow-400"></i>
-                            <span>Attack</span>
-                            <span className="text-xs text-yellow-300 mt-1">-25 HP</span>
-                        </button>
-                        <button className="battle-btn flex flex-col items-center justify-center hover:bg-blue-800">
-                            <i data-feather="shield" className="h-8 w-8 mb-2 text-blue-300"></i>
+                            <i data-feather="shield" className="h-8 w-8 mb-1 text-blue-400"></i>
                             <span>Defend</span>
-                            <span className="text-xs text-blue-300 mt-1">+10 DEF</span>
-                        </button>
-                        <button className="battle-btn flex flex-col items-center justify-center hover:bg-green-800">
-                            <i data-feather="heart" className="h-8 w-8 mb-2 text-red-400"></i>
-                            <span>Heal</span>
-                            <span className="text-xs text-red-300 mt-1">+15 HP</span>
-                        </button>
-                        <button className="battle-btn flex flex-col items-center justify-center hover:bg-purple-800">
-                            <i data-feather="star" className="h-8 w-8 mb-2 text-purple-300"></i>
-                            <span>Special</span>
-                            <span className="text-xs text-purple-300 mt-1">50 Energy</span>
+                            <span className="text-xs text-blue-300 mt-1">-25 HP</span>
                         </button>
                   </div>
-
-                <h3 className="font-bold mb-2">Inventory</h3>
-                <div className="grid grid-cols-3 gap-2">
+                <h3 className="font-bold mb-2 justify-center flex">Inventory</h3>
+                <div className="justify-center flex gap-3">
                         <button className="battle-btn flex flex-col items-center justify-center p-2 hover:bg-green-800">
                             <i data-feather="eye" className="text-yellow-400 mb-1"></i>
-                            <span className="text-xs">Hint (2)</span>
+                            <span className="text-xs">Clue Token (2)</span>
                         </button>
                 </div>
-            </div>
-
-
+              </div>
                 <div className="battle-box border-2 border-yellow-500">
               <h2 className="text-xl font-bold mb-4">Problem</h2>
                 <div className="bg-gray-900 p-6 rounded-lg mb-4">
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
-                            <button className="battle-btn bg-gray-100 hover:bg-gray-200 text-gray-800 text-left">
+                        <button className="bg-gray-100 hover:bg-gray-200 p-4 rounded-lg text-left text-black">
                         </button>
                         <button className="bg-gray-100 hover:bg-gray-200 p-4 rounded-lg text-left text-black">
                         </button>

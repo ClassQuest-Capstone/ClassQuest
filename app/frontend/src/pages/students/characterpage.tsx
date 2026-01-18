@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState, useMemo } from "react";
 import feather from "feather-icons";
 import { Link } from "react-router-dom";
 import "../../styles/character.css";
+import { TutorialProvider } from "../components/tutorial/contextStudent"; 
+import { TutorialIntroModal } from "../components/tutorial/introModalStudent"; 
+import { TutorialOverlay } from "../components/tutorial/overlayStudent";
 
 type EquipmentSlot = "helmet" | "armour" | "shield" | "pet" | "background";
 
@@ -232,10 +235,13 @@ const CharacterPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white">
+      <TutorialProvider>
+        <TutorialIntroModal />
+        <TutorialOverlay />
       {/* Navigation */}
       <nav className="bg-blue-700 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
+          <div id="nav-tab" className="flex justify-between h-16">
             <div className="flex items-center">
               <div className="flex-shrink-0 flex items-center">
                 <Link
@@ -333,7 +339,7 @@ const CharacterPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold glow-text">My Character</h1>
-          <div className="flex items-center space-x-4">
+          <div id="guilds" className="flex items-center space-x-4">
             <div className="flex items-center bg-gradient-to-r from-yellow-600 to-yellow-500 px-4 py-2 rounded-full shadow-lg">
               <i data-feather="coins" className="mr-2 text-yellow-200" />
               <span className="font-bold text-white">1,245 Gold</span>
@@ -348,7 +354,7 @@ const CharacterPage: React.FC = () => {
         <div className="character-container p-8 mb-8 border border-gray-700">
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Equipment slots (left) */}
-            <div className="flex flex-col items-center lg:col-span-1">
+            <div id="equipment" className="flex flex-col items-center lg:col-span-1">
               <h2 className="text-2xl font-bold mb-4 text-yellow-300 glow-text">
                 Equipment
               </h2>
@@ -398,7 +404,7 @@ const CharacterPage: React.FC = () => {
                 <h2 className="text-2xl font-bold mb-4 text-yellow-300 glow-text">
                   Character Appearance
                 </h2>
-                <div className="relative mb-6 w-full h-[640px] flex items-center justify-center">
+                <div id="appear" className="relative mb-6 w-full h-[640px] flex items-center justify-center">
                   <div className="relative w-full h-full">
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-900/30 via-purple-900/30 to-pink-900/30 rounded-xl animate-pulse" />
                     <div className="relative h-full flex items-center justify-center">
@@ -474,7 +480,7 @@ const CharacterPage: React.FC = () => {
               </div>
 
               {/* Inventory Panel */}
-              <div className="w-full lg:w-80 bg-gray-800 rounded-xl p-6 h-full">
+              <div id="inventory" className="w-full lg:w-80 bg-gray-800 rounded-xl p-6 h-full">
                 <h2 className="text-2xl font-bold mb-4 text-yellow-400">
                   Inventory
                 </h2>
@@ -558,7 +564,7 @@ const CharacterPage: React.FC = () => {
             <div className="w-full max-w-6xl mx-auto px-4">
               <div className="grid grid-cols-2 gap-6">
                 {/* Stats */}
-                <div className="bg-gray-800 bg-opacity-80 rounded-xl p-6 w-full">
+                <div id="stats" className="bg-gray-800 bg-opacity-80 rounded-xl p-6 w-full">
                   <h3 className="text-xl font-bold text-center mb-4">
                     Alex the Brave
                   </h3>
@@ -611,7 +617,7 @@ const CharacterPage: React.FC = () => {
                 </div>
 
                 {/* Skills */}
-                <div className="bg-gray-800 bg-opacity-80 rounded-xl p-6 w-full">
+                <div id="skills" className="bg-gray-800 bg-opacity-80 rounded-xl p-6 w-full">
                   <h2 className="text-2xl font-bold mb-6 text-yellow-400 text-center">
                     Warrior Skills
                   </h2>
@@ -651,7 +657,7 @@ const CharacterPage: React.FC = () => {
 
               {/* --- TABS HEADER --- */}
               <div className="mt-8 mb-6 flex flex-wrap gap-3 items-center justify-between">
-                <div className="flex flex-wrap gap-3">
+                <div id="footer" className="flex flex-wrap gap-3">
                   <TabButton value="quests" label="Active Quests" icon="flag" />
                   <TabButton value="subjects" label="My Subjects" icon="grid" />
                   <TabButton value="rewards" label="Rewards" icon="gift" />
@@ -907,6 +913,7 @@ const CharacterPage: React.FC = () => {
           </div>
         </div>
       </div>
+      </TutorialProvider>
     </div>
   );
 };

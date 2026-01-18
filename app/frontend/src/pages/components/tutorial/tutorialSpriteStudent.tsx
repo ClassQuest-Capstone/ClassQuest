@@ -1,5 +1,5 @@
 import React from "react";
-import "./styles/Mage.css";
+import "./styles/Healer.css";
 
 interface SpriteProps {
   className?: string;
@@ -13,13 +13,13 @@ interface SpriteProps {
  *
  * @returns {React.ReactElement} - The rendered component.
  */
-export const MageSprite: React.FC<SpriteProps> = ({ className }) => {
+export const HealerSprite: React.FC<SpriteProps> = ({ className }) => {
   return (
-    <div className={`Mage-sprite ${className ?? ""}`}>
+    <div className={`Healer-sprite ${className ?? ""}`}>
       <img
-        src="/assets/cards/Mage_1.png"
+        src="/assets/cards/Healer_2.png"
         alt="ClassQuest"
-        className="Mage-img"
+        className="Healer-img"
       />
     </div>
   );

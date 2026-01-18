@@ -4,8 +4,8 @@
   inset: 0;
   background: rgba(5, 10, 25, 0.6);
   z-index: 9990;
-  /* Prevent interaction with elements behind */
-  pointer-events: auto;
+  /* Allow scroll events to pass through */
+  pointer-events: none;
   /* Prevent layout shifts */
   top: 0;
   left: 0;

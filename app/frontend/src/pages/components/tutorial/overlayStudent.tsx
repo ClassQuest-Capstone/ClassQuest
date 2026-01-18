@@ -1,6 +1,6 @@
 import React from "react";
-import { useTutorial } from "./context";
-import { MageSprite } from "./tutorialSprite";
+import { useTutorial } from "./contextStudent";
+import { HealerSprite } from "./tutorialSpriteStudent";
 import "./styles/tutorial.css";
 
 /**
@@ -15,7 +15,10 @@ export const TutorialOverlay: React.FC = () => {
 
   if (!currentStep) return null;
 
-  const isFinal = currentStep === "nav";
+  const isFinal = currentStep === "Footer";
+
+// TODO: Refactor repetitive config into data structure
+// TODO: The tutorial steps feels wonky and needs adjustment
 
 /**
  * Returns configuration for the current step in the tutorial.
@@ -26,33 +29,61 @@ export const TutorialOverlay: React.FC = () => {
  */
   const getConfig = () => {
     switch (currentStep) {
-      case "Active-Tabs":
+      case "Nav-Tabs":
         return {
-          targetId: "Active-tab",
-          title: "Active tabs",
+          targetId: "nav-tab",
+          title: "Navigation tabs",
           text:
-            "use these cards to monitor active quests, active students and completion rate of quests",
+            "Use these buttons to cehck out your guild activities, class leaderboards, and shop",
         };
-      case "recent-activity":
+      case "Guilds":
         return {
-          targetId: "recent-activity",
-          title: "Recent Activity",
+          targetId: "guilds",
+          title: "Gold & Guilds",
           text:
-            "view the lastest activities of your students, including XP earned, gold recieved and quest completed",
+            "These are your current gold amount and guilds you are part of. Join more guilds to take on new quests and challenges",
         };
-      case "Top-students":
+      case "Equipment":
+        return {
+          targetId: "equipment",
+          title: "Equipment",
+          text:
+            "View your currently equipped items and change them to customize your avatar",
+        };
+      case "Appearance":
+        return {
+          targetId: "appear",
+          title: "Character Appearance",
+          text:
+            "This is where you can see your character's appearance. Customize your look with different outfits",
+        };
+      case "Inventory":
       return {
-        targetId: "Top-students",
-        title: "Students ",
+        targetId: "inventory",
+        title: "Inventory ",
         text:
-          "View and manage your students, and track thier progress",
+          "Here is where all your collected items are stored. You can equip them from here",
       };
-      case "nav":
+      case "Stats":
         return {
-          targetId: "nav-menu",
-          title: "Navigation menu",
+          targetId: "stats",
+          title: "Stats",
           text:
-            "Use these links to view activity, manage students, view your profile, assign rewards and more",
+            "Track your character's progress, including strength, HP, intelligence",
+        };
+      case "Skills":
+        return {
+          targetId: "skills",
+          title: "Skills",
+          text:
+            "View your current skills and abilities. level up to unlock new skills",
+        };
+      case "Footer":
+        return {
+          targetId: "footer",
+          title: "Quests and Rewards",
+          text:
+            "Use these tabs to view Active quests, Quests based on subjects, and claim your rewards as you level up",
         };
       default:
         return null;
@@ -165,11 +196,11 @@ export const TutorialOverlay: React.FC = () => {
         />
       )}
 
-      {/* Mage + bubble */}
+      {/* Healer + bubble */}
       <div style={bubbleStyle} className="tutorial-bubble-container">
         <div className="tutorial-bubble">
           <div className="tutorial-header">
-            <MageSprite />
+            <HealerSprite />
             <div className="tutorial-title">{config.title}</div>
           </div>
           <p className="tutorial-text">{config.text}</p>
