@@ -19,12 +19,12 @@ export function ClassQuestStack({ stack }: StackContext) {
     // Users table
     const usersTable = new Table(stack, "Users", {
         fields: {
-        user_id: "string",
-        cognito_sub: "string",
-        role: "string",
-        status: "string",
-        created_at: "string",
-        last_login_at: "string",
+            user_id: "string",
+            cognito_sub: "string",
+            role: "string",
+            status: "string",
+            created_at: "string",
+            last_login_at: "string",
         },
         primaryIndex: { partitionKey: "user_id" },
         globalIndexes: {
