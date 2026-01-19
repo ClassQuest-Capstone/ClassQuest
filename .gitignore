@@ -22,11 +22,15 @@ build/
 out/
 coverage/
 *.tsbuildinfo
+**/.vite/
+**/.turbo/
+**/.cache/
 
 # ===== Environment / Secrets =====
 .env
 .env.*
 !.env.example
+
 
 # ===== SST / CDK / AWS =====
 .sst/
@@ -39,6 +43,7 @@ samconfig.toml
 # ===== Logs =====
 logs/
 *.log
+**/*.log
 
 # ===== Cache =====
 .cache/
@@ -66,11 +71,7 @@ __pycache__/
 .venv/
 venv/
 
-# ===== Terraform (if ever used) =====
-.terraform/
-*.tfstate
-*.tfstate.*
-crash.log
+
 
 # ===== Misc =====
 tmp/
