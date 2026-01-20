@@ -17,9 +17,6 @@ export const TutorialOverlay: React.FC = () => {
 
   const isFinal = currentStep === "Footer";
 
-// TODO: Refactor repetitive config into data structure
-// TODO: The tutorial steps feels wonky and needs adjustment
-
 /**
  * Returns configuration for the current step in the tutorial.
  * Configuration includes targetId (the DOM element to highlight),
@@ -41,7 +38,7 @@ export const TutorialOverlay: React.FC = () => {
           targetId: "guilds",
           title: "Gold & Guilds",
           text:
-            "These are your current gold amount and guilds you are part of. Join more guilds to take on new quests and challenges",
+            "These are your current gold amount and guilds you are part of. Join a guild to take on new quests and challenges with your friends",
         };
       case "Equipment":
         return {
@@ -94,7 +91,27 @@ export const TutorialOverlay: React.FC = () => {
   if (!config) return null;
 
   const targetEl = document.getElementById(config.targetId);
-  const rect = targetEl?.getBoundingClientRect();
+  const [rect, setRect] = React.useState<DOMRect | null>(null);
+
+// Scroll to target + measure rect AFTER scroll
+React.useEffect(() => {
+  if (!targetEl) return;
+
+  // Scroll into view
+  targetEl.scrollIntoView({
+    behavior: "smooth",
+    block: "center"
+  });
+
+  // Measure after scroll settles
+  const timeout = setTimeout(() => {
+    const r = targetEl.getBoundingClientRect();
+    setRect(r);
+  }, 250); 
+
+  return () => clearTimeout(timeout);
+}, [currentStep, targetEl]);
+
 
   // Bubble position with viewport boundary checks
   const getBubbleStyle = (): React.CSSProperties => {
@@ -114,7 +131,7 @@ export const TutorialOverlay: React.FC = () => {
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     
-    // search if target is nav menu
+    // Search if target is nav menu
     const isNavMenu = config.targetId === "nav-menu";
     
     // Positioning to the right or left of target
