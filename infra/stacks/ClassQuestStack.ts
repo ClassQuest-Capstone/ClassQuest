@@ -36,8 +36,8 @@ export function ClassQuestStack({ stack }: StackContext) {
 
     const api = new Api(stack, "HttpApi", {
         routes: {
-            "GET /health": "functions/src/health.handler",
-            "POST /debug": "functions/src/debug-create.handler",
+            "GET /health": "packages/functions/src/health.handler",
+            "POST /debug": "packages/functions/src/debug-create.handler",
         },
         defaults: {
             function: {
