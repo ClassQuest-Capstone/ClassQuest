@@ -17,16 +17,16 @@ export function createStudentProfile(input: {
     email: string;
     grade?: string;
 }) {
-  return api<{ ok: true; student_id: string }>("/student-profiles", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+    return api<{ ok: true; student_id: string }>("/student-profiles", {
+        method: "POST",
+        body: JSON.stringify(input),
+    });
 }
 
 export function getStudentProfile(student_id: string) {
-  return api<StudentProfile>(`/student-profiles/${encodeURIComponent(student_id)}`);
+    return api<StudentProfile>(`/student-profiles/${encodeURIComponent(student_id)}`);
 }
 
 export function listStudentsBySchool(school_id: string) {
-  return api<{ items: StudentProfile[] }>(`/schools/${encodeURIComponent(school_id)}/students`);
+    return api<{ items: StudentProfile[] }>(`/schools/${encodeURIComponent(school_id)}/students`);
 }
