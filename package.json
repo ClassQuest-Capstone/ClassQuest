@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.971.0",
-    "@aws-sdk/lib-dynamodb": "^3.971.0"
+    "@aws-sdk/lib-dynamodb": "^3.971.0",
+    "gitleaks": "^1.0.0"
   }
 }
