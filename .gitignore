@@ -44,6 +44,7 @@ samconfig.toml
 logs/
 *.log
 **/*.log
+debug.log
 
 # ===== Cache =====
 .cache/
