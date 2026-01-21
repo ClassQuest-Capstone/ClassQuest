@@ -1,14 +1,42 @@
 import { putTeacherProfile } from "./repo";
 
 export const handler = async (event: any) => {
-    const body = event.body ? JSON.parse(event.body) : {};
+    const rawBody = event?.body;
+    const body =
+        typeof rawBody === "string" && rawBody.length
+        ? JSON.parse(rawBody)
+        : (rawBody ?? {});
+
+    const teacher_id = body.teacher_id;
+    const school_id = body.school_id;
+    const display_name = body.display_name;
+    const email = body.email;
+
+    if (!teacher_id || !school_id || !display_name || !email) {
+        console.log("Bad request body:", {
+        rawBody,
+        received_keys: Object.keys(body || {}),
+        });
+
+        return {
+        statusCode: 400,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+            ok: false,
+            error: "MISSING_REQUIRED_FIELDS",
+            required: ["teacher_id", "school_id", "display_name", "email"],
+            received_keys: Object.keys(body || {}),
+        }),
+        };
+    }
+
     const now = new Date().toISOString();
 
     const item = {
-        teacher_id: body.teacher_id,
-        school_id: body.school_id,
-        display_name: body.display_name,
-        email: body.email,
+        teacher_id,
+        school_id,
+        display_name,
+        email,
         created_at: now,
         updated_at: now,
     };
@@ -18,6 +46,6 @@ export const handler = async (event: any) => {
     return {
         statusCode: 201,
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ok: true, teacher_id: item.teacher_id }),
+        body: JSON.stringify({ ok: true, teacher_id }),
     };
 };

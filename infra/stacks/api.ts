@@ -11,6 +11,12 @@ export function createApi(
     }
     ) {
     const api = new Api(stack, "HttpApi", {
+        cors: {
+            allowOrigins: ["http://localhost:5000"],
+            allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allowHeaders: ["content-type", "authorization"],
+        },
+        
         routes: {
         "GET /health": "packages/functions/src/health.handler",
 
