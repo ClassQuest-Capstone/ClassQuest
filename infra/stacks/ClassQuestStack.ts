@@ -1,59 +1,22 @@
-import { StackContext, Bucket, Table, Api } from "sst/constructs";
+import { StackContext, Bucket } from "sst/constructs";
+import { createTables } from "./tables";
+import { createApi } from "./api";
 
-export function ClassQuestStack({ stack }: StackContext) {
+export function ClassQuestStack(ctx: StackContext) {
+    const { stack } = ctx;
+
     const assetsBucket = new Bucket(stack, "Assets");
 
-    const gameTable = new Table(stack, "GameTable", {
-        fields: {
-            pk: "string",
-            sk: "string",
-            gsi1pk: "string",
-            gsi1sk: "string",
-        },
-        primaryIndex: { partitionKey: "pk", sortKey: "sk" },
-        globalIndexes: {
-            gsi1: { partitionKey: "gsi1pk", sortKey: "gsi1sk" },
-        },
-    });
-
-    // Users table
-    const usersTable = new Table(stack, "Users", {
-        fields: {
-            user_id: "string",
-            cognito_sub: "string",
-            role: "string",
-            status: "string",
-            created_at: "string",
-            last_login_at: "string",
-        },
-        primaryIndex: { partitionKey: "user_id" },
-        globalIndexes: {
-        // Lookup by Cognito ID (cognito_sub)
-        gsi1: { partitionKey: "cognito_sub" },
-        },
-    });
-
-
-    const api = new Api(stack, "HttpApi", {
-        routes: {
-            "GET /health": "packages/functions/src/health.handler",
-            "POST /debug": "packages/functions/src/debug-create.handler",
-        },
-        defaults: {
-            function: {
-                environment: {
-                    TABLE_NAME: gameTable.tableName,
-                },
-            },
-        },
-    });
-
-    api.attachPermissions([gameTable, usersTable]);
+    const tables = createTables(ctx);
+    const api = createApi(stack, tables);
 
     stack.addOutputs({
         AssetsBucketName: assetsBucket.bucketName,
-        GameTableName: gameTable.tableName,
-        UsersTableName: usersTable.tableName,
+        UsersTableName: tables.usersTable.tableName,
+        TeacherProfilesTableName: tables.teacherProfilesTable.tableName,
+        StudentProfilesTableName: tables.studentProfilesTable.tableName,
         ApiUrl: api.url,
     });
+
+    return { assetsBucket, ...tables, api };
 }
