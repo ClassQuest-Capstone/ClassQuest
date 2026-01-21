@@ -22,7 +22,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::715680702922:role/cdk-hnb659fds-deploy-role-715680702922-ca-central-1",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::715680702922:role/cdk-hnb659fds-cfn-exec-role-715680702922-ca-central-1",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-715680702922-ca-central-1/54b944c8f442bfcc18e9407a57d2aa601d9b223a77c42d830e039693d4811b19.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-715680702922-ca-central-1/0498e503f8f57ecfc5397cfa6feaff1c4cfd80eefb5ab03bef080668f321573a.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -103,6 +103,26 @@
             "data": "GameTableParametertableName93A396E7"
           }
         ],
+        "/dev-classquest-ClassQuestStack/Users/Table": [
+          {
+            "type": "aws:cdk:hasPhysicalName",
+            "data": {
+              "Ref": "UsersTable6D91A5EE"
+            }
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/Users/Table/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UsersTable6D91A5EE"
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/Users/Parameter_tableName/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UsersParametertableNameBE329B3D"
+          }
+        ],
         "/dev-classquest-ClassQuestStack/HttpApi/Api/Resource": [
           {
             "type": "aws:cdk:logicalId",
@@ -137,6 +157,12 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "HttpApiLambdaGEThealth784DBC8C"
+          }
+        ],
+        "/dev-classquest-ClassQuestStack/HttpApi/Lambda_GET_--health/EventInvokeConfig/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HttpApiLambdaGEThealthEventInvokeConfig90F5A1FF"
           }
         ],
         "/dev-classquest-ClassQuestStack/HttpApi/Route_GET_--health/Integration_GET_--health/Resource": [
@@ -175,6 +201,12 @@
             "data": "HttpApiLambdaPOSTdebugD8BD2648"
           }
         ],
+        "/dev-classquest-ClassQuestStack/HttpApi/Lambda_POST_--debug/EventInvokeConfig/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HttpApiLambdaPOSTdebugEventInvokeConfigD1B1F9C7"
+          }
+        ],
         "/dev-classquest-ClassQuestStack/HttpApi/Route_POST_--debug/Integration_POST_--debug/Resource": [
           {
             "type": "aws:cdk:logicalId",
@@ -211,6 +243,12 @@
             "data": "GameTableName"
           }
         ],
+        "/dev-classquest-ClassQuestStack/SSTStackOutputUsersTableName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UsersTableName"
+          }
+        ],
         "/dev-classquest-ClassQuestStack/SSTStackOutputApiUrl": [
           {
             "type": "aws:cdk:logicalId",
@@ -221,18 +259,6 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "SSTMetadata"
-          }
-        ],
-        "/dev-classquest-ClassQuestStack/SourcemapUploaderPolicy/Resource": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "SourcemapUploaderPolicy6476872E"
-          }
-        ],
-        "/dev-classquest-ClassQuestStack/SourcemapUploader/Default": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "SourcemapUploader"
           }
         ],
         "/dev-classquest-ClassQuestStack/BootstrapVersion": [

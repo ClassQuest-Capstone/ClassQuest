@@ -24,6 +24,15 @@ declare module "sst/node/table" {
   }
 }
 
+import "sst/node/table";
+declare module "sst/node/table" {
+  export interface TableResources {
+    "Users": {
+      tableName: string;
+    }
+  }
+}
+
 import "sst/node/api";
 declare module "sst/node/api" {
   export interface ApiResources {
