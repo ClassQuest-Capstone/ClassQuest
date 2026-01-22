@@ -20,6 +20,9 @@ import StudentShop from "./pages/students/studentshop";
 import Profile from './pages/teacher/profile';
 import Welcome from "./pages/students/welcome";
 
+//
+
+
 export default function App() {
   return (
     <BrowserRouter>
