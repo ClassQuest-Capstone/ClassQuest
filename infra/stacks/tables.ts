@@ -1,20 +1,7 @@
-import { StackContext, Bucket, Table, Api } from "sst/constructs";
+import { StackContext, Table } from "sst/constructs";
 
-export function ClassQuestStack({ stack }: StackContext) {
-    const assetsBucket = new Bucket(stack, "Assets");
-
-    const gameTable = new Table(stack, "GameTable", {
-        fields: {
-            pk: "string",
-            sk: "string",
-            gsi1pk: "string",
-            gsi1sk: "string",
-        },
-        primaryIndex: { partitionKey: "pk", sortKey: "sk" },
-        globalIndexes: {
-            gsi1: { partitionKey: "gsi1pk", sortKey: "gsi1sk" },
-        },
-    });
+export function createTables(ctx: StackContext) {
+    const { stack } = ctx;
 
     // Users table
     const usersTable = new Table(stack, "Users", {
@@ -32,10 +19,10 @@ export function ClassQuestStack({ stack }: StackContext) {
         },
     });
 
-    // TeacherProfiles table 
+    // TeacherProfiles table
     const teacherProfilesTable = new Table(stack, "TeacherProfiles", {
         fields: {
-            teacher_id: "string",  // equals Users.user_id
+            teacher_id: "string",
             school_id: "string",
             display_name: "string",
             email: "string",
@@ -44,15 +31,14 @@ export function ClassQuestStack({ stack }: StackContext) {
         },
         primaryIndex: { partitionKey: "teacher_id" },
         globalIndexes: {
-            // list all teachers in a school
             gsi1: { partitionKey: "school_id" },
         },
     });
 
-    // StudentProfiles table (Phase A)
+    // StudentProfiles table
     const studentProfilesTable = new Table(stack, "StudentProfiles", {
         fields: {
-            student_id: "string",  // equals Users.user_id
+            student_id: "string",
             school_id: "string",
             display_name: "string",
             email: "string",
@@ -62,38 +48,13 @@ export function ClassQuestStack({ stack }: StackContext) {
         },
         primaryIndex: { partitionKey: "student_id" },
         globalIndexes: {
-        // list all students in a school
-        gsi1: { partitionKey: "school_id" },
+            gsi1: { partitionKey: "school_id" },
         },
     });
 
-    const api = new Api(stack, "HttpApi", {
-        routes: {
-        "GET /health": "functions/src/health.handler",
-        "POST /debug": "functions/src/debug-create.handler",
-        },
-        defaults: {
-        function: {
-            environment: {
-            TABLE_NAME: gameTable.tableName,
-            USERS_TABLE_NAME: usersTable.tableName,
-            TEACHER_PROFILES_TABLE_NAME: teacherProfilesTable.tableName,
-            STUDENT_PROFILES_TABLE_NAME: studentProfilesTable.tableName,
-            },
-        },
-        },
-    });
-
-    api.attachPermissions([
-        gameTable, usersTable, teacherProfilesTable, studentProfilesTable
-    ]);
-
-    stack.addOutputs({
-        AssetsBucketName: assetsBucket.bucketName,
-        GameTableName: gameTable.tableName,
-        UsersTableName: usersTable.tableName,
-        TeacherProfilesTableName: teacherProfilesTable.tableName,
-        StudentProfilesTableName: studentProfilesTable.tableName,
-        ApiUrl: api.url,
-    });
+    return {
+        usersTable,
+        teacherProfilesTable,
+        studentProfilesTable,
+    };
 }
