@@ -20,13 +20,20 @@ import StudentShop from "./pages/students/studentshop";
 import Profile from './pages/teacher/profile';
 import Welcome from "./pages/students/welcome";
 
-//
+//-------------- api test component --------------
+import ApiSmoke from "./pages/api/ApiSmoke";
+1//-------------- end api test component --------------
 
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+
+        {/*-------------- api test route --------------*/}
+        <Route path="/api/api-smoke" element={<ApiSmoke />} />
+        {/*-------------- end api test route --------------*/}
+
         <Route path="/" element={<Home />} />
         <Route path="/role" element={<Role />} />
         <Route path="/StudentLogin" element={<StudentLogin />} />

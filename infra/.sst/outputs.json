@@ -1,8 +1,0 @@
-{
-  "dev-classquest-ClassQuestStack": {
-    "ApiUrl": "https://bmg91q00wi.execute-api.ca-central-1.amazonaws.com",
-    "UsersTableName": "dev-classquest-Users",
-    "AssetsBucketName": "dev-classquest-classqueststac-assetsbucket252b3df7-eosnvutg4sda",
-    "GameTableName": "dev-classquest-GameTable"
-  }
-}
