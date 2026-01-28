@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import feather from "feather-icons";
-import { Amplify } from "aws-amplify"; // Todo: aws exports not configured yet
-import { signIn } from "aws-amplify/auth"; 
+import { signIn, fetchUserAttributes } from "aws-amplify/auth";
+import { getStudentProfile } from "../../api/studentProfiles";
 
-export default function Login() {
+// Input validation helper
+const validateInputs = (username: string, password: string): string | null => {
+  if (!username.trim()) {
+    return "Username is required.";
+  }
+  if (!password) {
+    return "Password is required.";
+  }
+  return null;
+};
+
+export default function StudentLogin() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -16,43 +27,92 @@ export default function Login() {
     feather.replace();
   }, []);
 
-//   "const handleLogin = async (e: React.FormEvent) => {
-//    e.preventDefault();
-//    setError("");
-//    setIsLoading(true);
-//
-//    try {
-//      const { isSignedIn } = await signIn({ username, password });
-//      
-//      if (isSignedIn) {
-//        console.log("Signed in successfully");
-//        navigate("/StudentDashboard");
-//      } else {
-//        // MFA, etc. HERE
-//        setError("Additional verification required. Please check your email or follow the prompts.");
-//      }
-//    } catch (err: any) {
-//      console.error("Login error:", err);
-//      if (err.name === "UserNotConfirmedException") {
-//        setError("Account not confirmed. Please check your email for the confirmation code.");
-//      } else if (err.name === "NotAuthorizedException") {
-//        setError("Invalid username or password.");
-//      } else if (err.name === "UserNotFoundException") {
-//        setError("User not found. Please check your username or sign up.");
-//      } else {
-//        setError(err.message || "An error occurred during login. Please try again.");
-//      }
-//    } finally {
-//      setIsLoading(false);
-//    }
-//  }; 
+  // Load saved username if rememberMe was previously enabled
+  useEffect(() => {
+    const savedUsername = localStorage.getItem("student_username_remembered");
+    if (savedUsername) {
+      setUsername(savedUsername);
+      setRememberMe(true);
+    }
+  }, []);
 
-const handleLogin = (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
 
-  // ignore actual auth for now, just go to character page
-  navigate("/character");
-};
+    // Validate inputs before making API calls
+    const validationError = validateInputs(username, password);
+    if (validationError) {
+      setError(validationError);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // Sign in with Cognito
+      const { isSignedIn } = await signIn({ username, password });
+
+      if (!isSignedIn) {
+        setError("Authentication failed. Please check your credentials.");
+        setIsLoading(false);
+        return;
+      }
+
+      // Get Cognito user attributes
+      const userAttributes = await fetchUserAttributes();
+      const cognito_sub = userAttributes.sub;
+
+      if (!cognito_sub) {
+        setError("Failed to retrieve user identity.");
+        return;
+      }
+
+      // Fetch student profile from backend
+      let profile = null;
+
+      try {
+        profile = await getStudentProfile(cognito_sub);
+      } catch (err) {
+        profile = null; // API returns 404 -> no profile
+      }
+
+      if (!profile) {
+        setError("No profile found. Please contact support.");
+        return;
+      }
+
+      // Handle rememberMe: Save username for next login if enabled
+      if (rememberMe) {
+        localStorage.setItem("student_username_remembered", username);
+      } else {
+        localStorage.removeItem("student_username_remembered");
+      }
+
+      // Session storage (TODO: Replace with HTTP-only cookies for security)
+      localStorage.setItem("student_id", profile.student_id);
+      localStorage.setItem("school_id", profile.school_id);
+      localStorage.setItem("display_name", profile.display_name);
+      localStorage.setItem("email", profile.email);
+
+      // Navigate to dashboard
+      navigate("/welcome");
+
+    } catch (err: any) {
+      if (err.name === "NotAuthorizedException") {
+        setError("Invalid username or password.");
+      } else if (err.name === "UserNotFoundException") {
+        setError("User not found.");
+      } else if (err.name === "LimitExceededException") {
+        setError("Too many login attempts. Try again later.");
+      } else {
+        setError(err.message || "An error occurred during login.");
+      }
+
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
 
   return (
@@ -157,18 +217,13 @@ const handleLogin = (e: React.FormEvent) => {
                         </Link>
                       </div>
                       <div>
-                       {/* <button 
+                        <button 
                           type="submit" 
                           disabled={isLoading}
                           className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isLoading ? "Signing in..." : "Sign In"}
-                        </button>*/}
-                         <div >
-                            <Link to="/welcome" className=" w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed">
-                            Sign In
-                            </Link>
-                          </div>
+                        </button>
                       </div>
                       </form>
                 </div>

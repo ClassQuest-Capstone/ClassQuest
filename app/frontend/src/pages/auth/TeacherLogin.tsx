@@ -1,8 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import feather from "feather-icons";
-import { Amplify } from "aws-amplify"; // Todo: aws exports not configured yet
-import { signIn } from "aws-amplify/auth"; 
+import { signIn, fetchUserAttributes } from "aws-amplify/auth";
+import { getTeacherProfile } from "../../api/teacherProfiles";
+
+// Input validation helper
+const validateInputs = (username: string, password: string): string | null => {
+  if (!username.trim()) {
+    return "Username is required.";
+  }
+  if (!password) {
+    return "Password is required.";
+  }
+  return null;
+};
 
 export default function TeacherLogin() {
   const navigate = useNavigate();
@@ -16,36 +27,93 @@ export default function TeacherLogin() {
     feather.replace();
   }, []);
 
+  // Load saved username if rememberMe was previously enabled
+  useEffect(() => {
+    const savedUsername = localStorage.getItem("teacher_username_remembered");
+    if (savedUsername) {
+      setUsername(savedUsername);
+      setRememberMe(true);
+    }
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
 
+    // Validate inputs before making API calls
+    const validationError = validateInputs(username, password);
+    if (validationError) {
+      setError(validationError);
+      setIsLoading(false);
+      return;
+    }
+
     try {
+      // Sign in with Cognito
       const { isSignedIn } = await signIn({ username, password });
-      
-      if (isSignedIn) {
-        console.log("Signed in successfully");
-        navigate("/TeacherDashboard");
-      } else {
-        // MFA, etc. HERE
-        setError("Additional verification required. Please check your email or follow the prompts.");
+
+      if (!isSignedIn) {
+        setError("Authentication failed. Please check your credentials.");
+        setIsLoading(false);
+        return;
       }
+
+      // Get Cognito user attributes
+      const userAttributes = await fetchUserAttributes();
+      const cognito_sub = userAttributes.sub;
+
+      if (!cognito_sub) {
+        setError("Failed to retrieve user identity.");
+        return;
+      }
+
+      // Fetch teacher profile from backend
+      let profile = null;
+
+      try {
+        profile = await getTeacherProfile(cognito_sub);
+      } catch (err) {
+        profile = null; // API returns 404 -> no profile
+      }
+
+      if (!profile) {
+        setError("No teacher profile found. Please contact support.");
+        return;
+      }
+
+      // Handle rememberMe: Save username for next login if enabled
+      if (rememberMe) {
+        localStorage.setItem("teacher_username_remembered", username);
+      } else {
+        localStorage.removeItem("teacher_username_remembered");
+      }
+
+      // Session storage (TODO: Replace with HTTP-only cookies for security)
+      localStorage.setItem("teacher_id", profile.teacher_id);
+      localStorage.setItem("school_id", profile.school_id);
+      localStorage.setItem("display_name", profile.display_name);
+      localStorage.setItem("email", profile.email);
+
+      // Navigate to dashboard
+      navigate("/TeacherDashboard");
+
     } catch (err: any) {
-      console.error("Login error:", err);
-      if (err.name === "UserNotConfirmedException") {
-        setError("Account not confirmed. Please check your email for the confirmation code.");
-      } else if (err.name === "NotAuthorizedException") {
+      if (err.name === "NotAuthorizedException") {
         setError("Invalid username or password.");
       } else if (err.name === "UserNotFoundException") {
-        setError("User not found. Please check your username or sign up.");
+        setError("User not found.");
+      } else if (err.name === "LimitExceededException") {
+        setError("Too many login attempts. Try again later.");
       } else {
-        setError(err.message || "An error occurred during login. Please try again.");
+        setError(err.message || "An error occurred during login.");
       }
+
     } finally {
       setIsLoading(false);
     }
   };
+
 
   return (
     <div className="font-poppins min-h-screen bg-gray-50 text-gray-900">
@@ -161,7 +229,7 @@ export default function TeacherLogin() {
                             Forgot password?
                           </Link>         
                       </div>
-                      {/* <div>
+                      <div>
                         <button 
                           type="submit" 
                           disabled={isLoading}
@@ -169,11 +237,6 @@ export default function TeacherLogin() {
                         >
                           {isLoading ? "Signing in..." : "Sign In"}
                         </button>
-                      </div> */}
-                      <div >
-                        <Link to="/TeacherDashboard" className=" w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed">
-                        Sign In
-                        </Link>
                       </div>
                       <div className="mt-6 text-center">
                         <p className="text-sm text-gray-600">

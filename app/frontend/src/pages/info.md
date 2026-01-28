@@ -84,3 +84,9 @@ Settings: (DONE)
 
 for boss fight
 - if boss fight assign boss based on subject
+
+Current TODO:
+1. Login & logout implementation 
+2. Signup implementation
+3. Quest creation implementation
+4. adding quests to students side
