@@ -1,4 +1,4 @@
-import { Amplify } from "aws-amplify";
+//import { Amplify } from "aws-amplify";
 // import awsExports from "./aws-exports";
 //Amplify.configure(awsExports); (Todo: enable when aws export is setup)
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
@@ -22,7 +22,7 @@ import Welcome from "./pages/students/welcome";
 
 //-------------- api test component --------------
 import ApiSmoke from "./pages/api/ApiSmoke";
-1//-------------- end api test component --------------
+//-------------- end api test component --------------
 
 
 export default function App() {
