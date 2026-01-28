@@ -10,13 +10,13 @@ export function ClassQuestStack(ctx: StackContext) {
     const tables = createTables(ctx);
     const api = createApi(stack, tables);
 
-    stack.addOutputs({
-        AssetsBucketName: assetsBucket.bucketName,
-        UsersTableName: tables.usersTable.tableName,
-        TeacherProfilesTableName: tables.teacherProfilesTable.tableName,
-        StudentProfilesTableName: tables.studentProfilesTable.tableName,
-        ApiUrl: api.url,
-    });
+    // stack.addOutputs({
+    //     AssetsBucketName: assetsBucket.bucketName,
+    //     UsersTableName: tables.usersTable.tableName,
+    //     TeacherProfilesTableName: tables.teacherProfilesTable.tableName,
+    //     StudentProfilesTableName: tables.studentProfilesTable.tableName,
+    //     ApiUrl: api.url,
+    // });
 
     return { assetsBucket, ...tables, api };
 }

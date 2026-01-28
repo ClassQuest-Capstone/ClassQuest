@@ -21,7 +21,7 @@
 
 
 
-//working code for intial push
+
 import { SSTConfig } from "sst";
 import { ClassQuestStack } from "./stacks/ClassQuestStack";
 
