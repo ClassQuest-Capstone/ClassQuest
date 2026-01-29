@@ -1,139 +1,253 @@
-import React, { useState, useEffect } from "react";
+// signup.tsx
+import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import feather from "feather-icons";
-//import { Amplify } from "aws-amplify";
-import { signUp, confirmSignUp } from "aws-amplify/auth";
+import { signUp, confirmSignUp, signIn, fetchAuthSession, signOut } from "aws-amplify/auth";
+
+import { createStudentProfile } from "../../api/studentProfiles";
+import { createTeacherProfile } from "../../api/teacherProfiles";
+
+// ✅ local class “DB”
+import { classExists, ensureClassExists, joinClass } from "../../utils/classStore";
 
 type UserType = "teacher" | "student";
 
+function generateClassCode(length: number = 6) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // avoid I,O,0,1 confusion
+  let code = "";
+  for (let i = 0; i < length; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+// --------------------
+// Local-only student auth (DEV ONLY)
+// --------------------
+type LocalStudentAccount = {
+  id: string;
+  username: string; // student-chosen username
+  displayName: string;
+  joinedClassCode: string;
+  password: string; // DEV ONLY (plain text)
+  createdAt: number;
+};
+
+function loadLocalStudents(): Record<string, LocalStudentAccount> {
+  try {
+    return JSON.parse(localStorage.getItem("cq_localStudents") || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveLocalStudents(data: Record<string, LocalStudentAccount>) {
+  localStorage.setItem("cq_localStudents", JSON.stringify(data));
+}
+
+function makeLocalId(prefix: string) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
 export default function Signup() {
   const navigate = useNavigate();
-  const [username, setUsername] = useState("");
+
+  // Form fields
+  const [userType, setUserType] = useState<UserType>("student");
+  const [classCode, setClassCode] = useState(""); // required if student
+  const [displayName, setDisplayName] = useState("");
+
+  // teacher only
+  const [email, setEmail] = useState(""); // teacher login (cognito username)
+  const [teacherGeneratedCode, setTeacherGeneratedCode] = useState("");
+
+  // student only (no email)
+  const [studentUsername, setStudentUsername] = useState("");
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [userType, setUserType] = useState<UserType>("student");
+
+  // Confirm step (teacher only)
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirmationCode, setConfirmationCode] = useState("");
+
+  // UI state
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [confirmationCode, setConfirmationCode] = useState("");
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [studentCode, setStudentCode] = useState("");
+
+  // Snapshot values for confirm step (teacher only)
+  const [pendingUserType, setPendingUserType] = useState<UserType>("student");
+  const [pendingClassCode, setPendingClassCode] = useState("");
+  const [pendingDisplayName, setPendingDisplayName] = useState("");
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [pendingPassword, setPendingPassword] = useState("");
 
   useEffect(() => {
     feather.replace();
   }, []);
 
-  // Generating unique student code
-  const generateStudentCode = (): string => {
-    const prefix = "ST";
-    const randomNum = Math.floor(100000 + Math.random() * 900000);
-    return `${prefix}-${randomNum}`;
-  };
+  useEffect(() => {
+    // reset things when switching type
+    setError("");
+    setSuccess("");
+    setShowConfirmation(false);
+    setConfirmationCode("");
+
+    if (userType !== "student") {
+      setClassCode("");
+      setStudentUsername("");
+    }
+    if (userType !== "teacher") {
+      setEmail("");
+    }
+  }, [userType]);
+
+  useEffect(() => {
+    if (userType === "teacher") {
+      setTeacherGeneratedCode((prev) => (prev ? prev : generateClassCode(6)));
+    } else {
+      setTeacherGeneratedCode("");
+    }
+  }, [userType]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
+
+    const cleanedDisplay = displayName.trim();
+    const cleanedStudentCode = classCode.trim().toUpperCase();
+    const cleanedTeacherEmail = email.trim();
+    const cleanedStudentUsername = studentUsername.trim();
+
+    // Common validation
+    if (!cleanedDisplay) return setError("Display name is required.");
+
+    if (password !== confirmPassword) return setError("Passwords do not match.");
+    if (password.length < 6) return setError("Password must be at least 6 characters long.");
+
+    // ----------------------------
+    // STUDENT SIGNUP (NO COGNITO)
+    // ----------------------------
+    if (userType === "student") {
+      if (!cleanedStudentCode) return setError("Class code is required for student accounts.");
+      if (!classExists(cleanedStudentCode)) {
+        return setError("Invalid class code. Ask your teacher for the correct code.");
+      }
+      if (!cleanedStudentUsername) return setError("Student username is required.");
+
+      const all = loadLocalStudents();
+
+      // prevent duplicate usernames (case-insensitive)
+      const usernameKey = cleanedStudentUsername.toLowerCase();
+      const alreadyUsed = Object.values(all).some(
+        (s) => s.username.toLowerCase() === usernameKey
+      );
+      if (alreadyUsed) return setError("That student username is already taken.");
+
+      setIsLoading(true);
+      try {
+        const studentId = makeLocalId("student");
+
+        const account: LocalStudentAccount = {
+          id: studentId,
+          username: cleanedStudentUsername,
+          displayName: cleanedDisplay,
+          joinedClassCode: cleanedStudentCode,
+          password, // DEV ONLY
+          createdAt: Date.now(),
+        };
+
+        // Save student account locally
+        all[studentId] = account;
+        saveLocalStudents(all);
+
+        // Join class in your local class DB (so teacher can see them)
+        joinClass(cleanedStudentCode, studentId);
+
+        // Set current user session locally
+        localStorage.setItem(
+          "cq_currentUser",
+          JSON.stringify({
+            id: studentId,
+            role: "student",
+            displayName: cleanedDisplay,
+            username: cleanedStudentUsername,
+            joinedClassCode: cleanedStudentCode,
+          })
+        );
+
+        // Optional: create backend profile (won't have real Cognito sub, but keeps your DB flow)
+        // If your backend requires a Cognito sub, you can remove this block.
+        try {
+          await createStudentProfile({
+            student_id: studentId,
+            school_id: cleanedStudentCode,
+            display_name: cleanedDisplay,
+            email: "", // student has no email
+          });
+        } catch (profileErr) {
+          console.warn("Student profile creation (backend) skipped/failed:", profileErr);
+        }
+
+        setSuccess("Student account created! Joining class...");
+        // Go straight to student dashboard (since no login/confirmation)
+        setTimeout(() => navigate("/character", { replace: true }), 300);
+      } catch (err: any) {
+        console.error(err);
+        setError(err?.message || "Could not create student account.");
+      } finally {
+        setIsLoading(false);
+      }
+
       return;
     }
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters long");
-      return;
-    }
+    // ----------------------------
+    // TEACHER SIGNUP (COGNITO)
+    // ----------------------------
+    if (!cleanedTeacherEmail) return setError("Email is required for teacher accounts.");
 
     setIsLoading(true);
-
     try {
-      // Generate student code if user is a student
-      let code = "";
-      if (userType === "student") {
-        code = generateStudentCode();
-        setStudentCode(code);
-      }
-      
-      // Sign up with AWS Amplify (Todo: Replace with API endpoint when backend is configured)
-      const { userId, nextStep } = await signUp({
-        username,
+      const finalTeacherCode = (teacherGeneratedCode || generateClassCode(6)).toUpperCase();
+
+      // Snapshot for confirm step
+      setPendingUserType("teacher");
+      setPendingClassCode(finalTeacherCode);
+      setPendingDisplayName(cleanedDisplay);
+      setPendingEmail(cleanedTeacherEmail);
+      setPendingPassword(password);
+
+      // Store teacher code early so dashboard can show it
+      localStorage.setItem("cq_teacherClassCode", finalTeacherCode);
+
+      const { nextStep } = await signUp({
+        username: cleanedTeacherEmail,
         password,
         options: {
           userAttributes: {
-            "custom:userType": userType,
-            "custom:studentCode": code || "",
+            email: cleanedTeacherEmail,
           },
         },
       });
 
-      console.log("Sign up successful:", userId);
-
-      // Store user data in backend (Not working)
-      try {
-        const userData = {
-          username,
-          userType,
-          studentCode: code || null,
-          userId,
-        }; 
-
-        /* Todo: Replace with API endpoint when backend is configured
-         const apiUrl = process.env.REACT_APP_API_URL || "";
-         await fetch(`${apiUrl}/users/signup`, {
-           method: "POST",
-           headers: {
-             "Content-Type": "application/json",
-           },
-           body: JSON.stringify(userData),
-         });*/
-
-         //Log the user data 
-        console.log("User data:", userData);
-
-        // If student, also send code to teacher dashboard endpoint
-        if (userType === "student" && code) {
-          /* Todo: Replace with API endpoint
-           await fetch(`${apiUrl}/teachers/student-codes`, {
-             method: "POST",
-             headers: {
-               "Content-Type": "application/json",
-             },
-             body: JSON.stringify({
-               studentCode: code,
-              username,
-               userId,
-             }),
-           });*/
-          console.log("Student code sent to teacher dashboard:", code);
-        }
-      } catch (backendError) {
-        console.error("Backend storage error:", backendError);
-        // Continue even if backend storage fails
-      }
-
       if (nextStep.signUpStep === "CONFIRM_SIGN_UP") {
         setShowConfirmation(true);
         setSuccess(
-          `Account created! Please check your email for the confirmation code.${
-            userType === "student" ? ` Your student code is: ${code}` : ""
-          }`
+          `Teacher account created! Your class code is ${finalTeacherCode}. Check your email for the confirmation code.`
         );
       } else {
-        setSuccess("Account created successfully!");
-        if (userType === "student") {
-          navigate("/StudentLogin");
-        } else {
-          navigate("/TeacherLogin");
-        }
+        setSuccess("Teacher account created successfully!");
+        navigate("/TeacherLogin");
       }
     } catch (err: any) {
       console.error("Signup error:", err);
-      if (err.name === "UsernameExistsException") {
-        setError("Username already exists. Please choose a different one.");
-      } else if (err.name === "InvalidPasswordException") {
+      if (err?.name === "UsernameExistsException") {
+        setError("An account with that email already exists. Try logging in instead.");
+      } else if (err?.name === "InvalidPasswordException") {
         setError("Password does not meet requirements.");
       } else {
-        setError(err.message || "An error occurred during signup");
+        setError(err?.message || "An error occurred during signup.");
       }
     } finally {
       setIsLoading(false);
@@ -143,27 +257,67 @@ export default function Signup() {
   const handleConfirmation = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
     setIsLoading(true);
 
     try {
       const { isSignUpComplete } = await confirmSignUp({
-        username,
-        confirmationCode,
+        username: pendingEmail,
+        confirmationCode: confirmationCode.trim(),
       });
 
-      if (isSignUpComplete) {
-        setSuccess("Account confirmed successfully!");
-        setTimeout(() => {
-          if (userType === "student") {
-            navigate("/StudentLogin");
-          } else {
-            navigate("/TeacherLogin");
-          }
-        }, 2000);
+      if (!isSignUpComplete) {
+        setError("Confirmation not complete. Please try again.");
+        return;
       }
+
+      // Clear session before signIn (fix "already signed in user")
+      try {
+        await signOut();
+      } catch {}
+
+      // sign in to read sub
+      await signIn({ username: pendingEmail, password: pendingPassword });
+
+      const session = await fetchAuthSession();
+      const payload = session.tokens?.idToken?.payload;
+      const sub = String(payload?.sub || "");
+      if (!sub) throw new Error("Could not read Cognito user id (sub).");
+
+      const code = pendingClassCode.trim().toUpperCase();
+
+      // Local class linking
+      ensureClassExists(code, sub);
+
+      localStorage.setItem(
+        "cq_currentUser",
+        JSON.stringify({
+          id: sub,
+          role: "teacher",
+          displayName: pendingDisplayName,
+          email: pendingEmail,
+          classCode: code,
+        })
+      );
+      localStorage.setItem("cq_teacherClassCode", code);
+
+      // Create DB profile (teacher)
+      try {
+        await createTeacherProfile({
+          teacher_id: sub,
+          school_id: "school-001",
+          display_name: pendingDisplayName,
+          email: pendingEmail,
+        });
+      } catch (profileErr: any) {
+        console.error("Teacher profile creation failed:", profileErr);
+      }
+
+      setSuccess("Teacher account confirmed! Redirecting to login...");
+      setTimeout(() => navigate("/TeacherLogin"), 600);
     } catch (err: any) {
       console.error("Confirmation error:", err);
-      setError(err.message || "Invalid confirmation code");
+      setError(err?.message || "Invalid confirmation code.");
     } finally {
       setIsLoading(false);
     }
@@ -184,17 +338,11 @@ export default function Signup() {
                 <span className="text-xl font-bold"> ClassQuest</span>
               </Link>
             </div>
-            <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
-              <Link
-                to="/role"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
+            <div className="hidden md:flex md:items-center md:space-x-4">
+              <Link to="/role" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                 Login
               </Link>
-              <Link
-                to="/Signup"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
+              <Link to="/Signup" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                 Register
               </Link>
             </div>
@@ -209,45 +357,34 @@ export default function Signup() {
 
       {/* Back button */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <Link
-          to="/"
-          className="inline-flex items-center text-gray-700 hover:text-indigo-600 transition-colors"
-        >
+        <Link to="/" className="inline-flex items-center text-gray-700 hover:text-indigo-600 transition-colors">
           <i data-feather="arrow-left" className="w-5 h-5 mr-2"></i>
           <span className="text-sm font-medium">Back</span>
         </Link>
       </div>
 
-      {/* Signup form */}
+      {/* Signup card */}
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         <div className="max-w-lg w-full space-y-8 p-5 pt-2">
           <div className="bg-white p-7 rounded-xl shadow-lg login-card">
             <div className="text-center mb-6">
-              <i
-                data-feather="user-plus"
-                className="mx-auto h-12 w-12 text-secondary-600 text-gray-900"
-              ></i>
-              <h3 className="text-2xl font-bold text-gray-900">
-                Create Account
-              </h3>
-              <p className="mt-2 text-sm text-gray-600">
-                Join ClassQuest and start your learning journey
-              </p>
+              <i data-feather="user-plus" className="mx-auto h-12 w-12 text-gray-900"></i>
+              <h3 className="text-2xl font-bold text-gray-900">Create Account</h3>
+              <p className="mt-2 text-sm text-gray-600">Join ClassQuest and start your learning journey</p>
             </div>
 
+            {/* Student never sees confirmation screen */}
             {!showConfirmation ? (
               <form onSubmit={handleSignup} className="mt-8 space-y-6">
                 <div className="space-y-4 text-gray-900">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1 text-left">
-                      User Type
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 text-left">Account Type</label>
                     <select
                       id="userType"
                       name="userType"
                       value={userType}
                       onChange={(e) => setUserType(e.target.value as UserType)}
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white"
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white"
                       required
                     >
                       <option value="student">Student</option>
@@ -255,27 +392,82 @@ export default function Signup() {
                     </select>
                   </div>
 
+                  {userType === "student" && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1 text-left">Class Code</label>
+                        <input
+                          id="classCode"
+                          name="classCode"
+                          type="text"
+                          required
+                          value={classCode}
+                          onChange={(e) => setClassCode(e.target.value.toUpperCase())}
+                          className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          placeholder="Enter the class code from your teacher"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1 text-left">Student Username</label>
+                        <input
+                          id="studentUsername"
+                          name="studentUsername"
+                          type="text"
+                          required
+                          value={studentUsername}
+                          onChange={(e) => setStudentUsername(e.target.value)}
+                          className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                          placeholder="Pick a username (no email needed)"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {userType === "teacher" && (
+                    <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md text-sm text-left">
+                      <p className="font-medium">Your Class Code (auto-generated):</p>
+                      <p className="text-lg font-extrabold mt-1 tracking-[0.25em]">
+                        {teacherGeneratedCode || "------"}
+                      </p>
+                      <p className="mt-2 text-xs">Students will use this code to join your class.</p>
+                    </div>
+                  )}
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1 text-left">
-                      Username
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 text-left">Display Name</label>
                     <input
-                      id="username"
-                      name="username"
+                      id="displayName"
+                      name="displayName"
                       type="text"
-                      autoComplete="username"
                       required
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      placeholder="Enter your username"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Enter your name"
                     />
                   </div>
 
+                  {/* Teacher needs email; students do not */}
+                  {userType === "teacher" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 text-left">Email (used to log in)</label>
+                      <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        autoComplete="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        placeholder="Enter your email"
+                      />
+                    </div>
+                  )}
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1 text-left">
-                      Password
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 text-left">Password</label>
                     <input
                       id="password"
                       name="password"
@@ -284,15 +476,13 @@ export default function Signup() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      placeholder="Enter your password (min. 8 characters)"
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="Enter your password"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1 text-left">
-                      Confirm Password
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 text-left">Confirm Password</label>
                     <input
                       id="confirmPassword"
                       name="confirmPassword"
@@ -301,7 +491,7 @@ export default function Signup() {
                       required
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                       placeholder="Confirm your password"
                     />
                   </div>
@@ -312,36 +502,22 @@ export default function Signup() {
                     {error}
                   </div>
                 )}
-
                 {success && (
                   <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm">
                     {success}
                   </div>
                 )}
 
-                <div>
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isLoading ? "Creating Account..." : "Sign Up"}
-                  </button>
-                </div>
-
-                <div className="mt-6 text-center">
-                  <p className="text-sm text-gray-600">
-                    Already have an account?{" "}
-                    <Link
-                      to="/role"
-                      className="text-blue-600 hover:text-blue-500 text-sm font-medium"
-                    >
-                      Sign in
-                    </Link>
-                  </p>
-                </div>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? "Creating Account..." : "Sign Up"}
+                </button>
               </form>
             ) : (
+              // Teacher confirmation only
               <form onSubmit={handleConfirmation} className="mt-8 space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1 text-left">
@@ -354,45 +530,29 @@ export default function Signup() {
                     required
                     value={confirmationCode}
                     onChange={(e) => setConfirmationCode(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="Enter confirmation code from email"
                   />
-                  <p className="mt-2 text-sm text-gray-500">
-                    Please check your email for the confirmation code.
-                  </p>
                 </div>
-
-                {userType === "student" && studentCode && (
-                  <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md text-sm">
-                    <p className="font-medium">Your Student Code:</p>
-                    <p className="text-lg font-bold mt-1">{studentCode}</p>
-                    <p className="mt-2 text-xs">
-                      Share this code with your teacher to Join thier class
-                    </p>
-                  </div>
-                )}
 
                 {error && (
                   <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
                     {error}
                   </div>
                 )}
-
                 {success && (
                   <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm">
                     {success}
                   </div>
                 )}
 
-                <div>
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isLoading ? "Confirming..." : "Confirm Account"}
-                  </button>
-                </div>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? "Confirming..." : "Confirm Teacher Account"}
+                </button>
               </form>
             )}
           </div>
