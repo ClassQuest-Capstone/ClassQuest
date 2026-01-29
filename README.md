@@ -14,7 +14,7 @@ The project was initiated as a Capstone at the **University of Regina**.
 
 ## Project Directory
 1. Project related documents: [Docs](https://github.com/ClassQuest-Capstone/ClassQuest/tree/main/Project%20Management%20Documents)
-2. Aws Infra: [Infra](https://github.com/ClassQuest-Capstone/ClassQuest/tree/main/infra)
+2. Aws Infra (Backend): [Infra](https://github.com/ClassQuest-Capstone/ClassQuest/tree/main/infra)
 3. Frontend: [Frontend](https://github.com/ClassQuest-Capstone/ClassQuest/tree/main/app/frontend)
 
 ## Vlogs
