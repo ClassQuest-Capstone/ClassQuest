@@ -4,11 +4,11 @@ import { useNavigate, Link } from "react-router-dom";
 import feather from "feather-icons";
 import { signUp, confirmSignUp, signIn, fetchAuthSession, signOut } from "aws-amplify/auth";
 
-import { createStudentProfile } from "../../api/studentProfiles";
-import { createTeacherProfile } from "../../api/teacherProfiles";
+import { createStudentProfile } from "../../api/studentProfiles.js";
+import { createTeacherProfile } from "../../api/teacherProfiles.js";
 
 // ✅ local class “DB”
-import { classExists, ensureClassExists, joinClass } from "../../utils/classStore";
+import { classExists, ensureClassExists, joinClass } from "../../utils/classStore.js";
 
 type UserType = "teacher" | "student";
 
