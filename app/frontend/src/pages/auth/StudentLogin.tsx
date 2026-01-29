@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import feather from "feather-icons";
 import { signIn, fetchUserAttributes } from "aws-amplify/auth";
-import { getStudentProfile } from "../../api/studentProfiles";
+import { getStudentProfile } from "../../api/studentProfiles.js";
 
 // Input validation helper
 const validateInputs = (username: string, password: string): string | null => {

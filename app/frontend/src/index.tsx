@@ -1,12 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./app";
+import App from "./app.tsx";
 import "./index.css";
 
 //------------------------------
 // Authentication Setup
 import { Amplify } from "aws-amplify";
-import awsExports from "./aws-exports";
+import awsExports from "./aws-exports.js";
 
 Amplify.configure(awsExports);
 //------------------------------

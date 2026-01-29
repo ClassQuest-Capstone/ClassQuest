@@ -32,7 +32,7 @@ export const GROUPS = {
             studentCode: new cognito.StringAttribute({ mutable: true }),
         },
 
-        removalPolicy: RemovalPolicy.DESTROY, // change to RETAIN for prod later
+        //removalPolicy: RemovalPolicy.DESTROY, // change to RETAIN for prod later
     });
 
     const userPoolClient = new cognito.UserPoolClient(stack, "UserPoolClient", {
