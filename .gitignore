@@ -78,3 +78,6 @@ venv/
 tmp/
 temp/
 *.sarif
+.claude/
+*.md
+CLAUDE.md

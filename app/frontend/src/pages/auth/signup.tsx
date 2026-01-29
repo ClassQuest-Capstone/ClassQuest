@@ -126,7 +126,7 @@ export default function Signup() {
     if (password.length < 6) return setError("Password must be at least 6 characters long.");
 
     // ----------------------------
-    // STUDENT SIGNUP (NO COGNITO)
+    // STUDENT SIGNUP (COGNITO)
     // ----------------------------
     if (userType === "student") {
       if (!cleanedStudentCode) return setError("Class code is required for student accounts.");
@@ -135,38 +135,52 @@ export default function Signup() {
       }
       if (!cleanedStudentUsername) return setError("Student username is required.");
 
-      const all = loadLocalStudents();
-
-      // prevent duplicate usernames (case-insensitive)
-      const usernameKey = cleanedStudentUsername.toLowerCase();
-      const alreadyUsed = Object.values(all).some((s) => s.username.toLowerCase() === usernameKey);
-      if (alreadyUsed) return setError("That student username is already taken.");
-
       setIsLoading(true);
       try {
-        const studentId = makeLocalId("student");
-
-        const account: LocalStudentAccount = {
-          id: studentId,
+        // Sign up with Cognito (auto-confirmed by preSignUp trigger)
+        const { isSignUpComplete } = await signUp({
           username: cleanedStudentUsername,
-          displayName: cleanedDisplay,
-          joinedClassCode: cleanedStudentCode,
-          password, // DEV ONLY
-          createdAt: Date.now(),
-        };
+          password,
+          options: {
+            userAttributes: {
+              "custom:userType": "student",
+              "custom:studentCode": cleanedStudentCode,
+            },
+          },
+        });
 
-        // Save student account locally
-        all[studentId] = account;
-        saveLocalStudents(all);
+        if (!isSignUpComplete) {
+          setError("Student signup failed. Please try again.");
+          return;
+        }
 
-        // Join class in your local class DB (so teacher can see them)
-        joinClass(cleanedStudentCode, studentId);
+        // Students are auto-confirmed, so sign in immediately to get sub
+        await signIn({ username: cleanedStudentUsername, password });
+
+        const session = await fetchAuthSession();
+        const sub = String(session.tokens?.idToken?.payload?.sub || "");
+
+        if (!sub) {
+          setError("Failed to retrieve user identity.");
+          return;
+        }
+
+        // Create student profile in DynamoDB
+        await createStudentProfile({
+          student_id: sub,
+          school_id: cleanedStudentCode,
+          display_name: cleanedDisplay,
+          email: "",
+        });
+
+        // Join class in local class DB (so teacher can see them)
+        joinClass(cleanedStudentCode, sub);
 
         // Set current user session locally
         localStorage.setItem(
           "cq_currentUser",
           JSON.stringify({
-            id: studentId,
+            id: sub,
             role: "student",
             displayName: cleanedDisplay,
             username: cleanedStudentUsername,
@@ -174,23 +188,17 @@ export default function Signup() {
           })
         );
 
-        try {
-          await createStudentProfile({
-            student_id: studentId,
-            school_id: cleanedStudentCode, 
-            display_name: cleanedDisplay,
-            email: "", 
-          });
-        } catch (profileErr) {
-          console.warn("Student profile creation (backend) skipped/failed:", profileErr);
-        }
-
         setSuccess("Student account created! Joining class...");
-        // Go straight to student dashboard (since no login/confirmation)
         setTimeout(() => navigate("/character", { replace: true }), 300);
       } catch (err: any) {
         console.error(err);
-        setError(err?.message || "Could not create student account.");
+        if (err?.name === "UsernameExistsException") {
+          setError("That username is already taken. Please choose a different one.");
+        } else if (err?.name === "InvalidPasswordException") {
+          setError("Password does not meet requirements.");
+        } else {
+          setError(err?.message || "Could not create student account.");
+        }
       } finally {
         setIsLoading(false);
       }
@@ -223,6 +231,7 @@ export default function Signup() {
         options: {
           userAttributes: {
             email: cleanedTeacherEmail,
+            "custom:userType": "teacher",
           },
         },
       });

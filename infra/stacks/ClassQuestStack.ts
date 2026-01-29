@@ -8,9 +8,10 @@ export function ClassQuestStack(ctx: StackContext) {
 
     const assetsBucket = new Bucket(stack, "Assets");
 
-    const { userPool, userPoolClient } = createAuth(ctx);
-
     const tables = createTables(ctx);
+
+    const { userPool, userPoolClient } = createAuth(ctx, tables.usersTable);
+
     const api = createApi(stack, tables);
 
     stack.addOutputs({
