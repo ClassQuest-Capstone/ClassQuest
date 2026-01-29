@@ -24,10 +24,10 @@ function generateClassCode(length: number = 6) {
 // --------------------
 type LocalStudentAccount = {
   id: string;
-  username: string; // student-chosen username
+  username: string; 
   displayName: string;
   joinedClassCode: string;
-  password: string; // DEV ONLY (plain text)
+  password: string; 
   createdAt: number;
 };
 
@@ -139,9 +139,7 @@ export default function Signup() {
 
       // prevent duplicate usernames (case-insensitive)
       const usernameKey = cleanedStudentUsername.toLowerCase();
-      const alreadyUsed = Object.values(all).some(
-        (s) => s.username.toLowerCase() === usernameKey
-      );
+      const alreadyUsed = Object.values(all).some((s) => s.username.toLowerCase() === usernameKey);
       if (alreadyUsed) return setError("That student username is already taken.");
 
       setIsLoading(true);
@@ -176,14 +174,12 @@ export default function Signup() {
           })
         );
 
-        // Optional: create backend profile (won't have real Cognito sub, but keeps your DB flow)
-        // If your backend requires a Cognito sub, you can remove this block.
         try {
           await createStudentProfile({
             student_id: studentId,
-            school_id: cleanedStudentCode,
+            school_id: cleanedStudentCode, 
             display_name: cleanedDisplay,
-            email: "", // student has no email
+            email: "", 
           });
         } catch (profileErr) {
           console.warn("Student profile creation (backend) skipped/failed:", profileErr);
@@ -301,11 +297,11 @@ export default function Signup() {
       );
       localStorage.setItem("cq_teacherClassCode", code);
 
-      // Create DB profile (teacher)
+      // Create DB profile (teacher) - use class code as school_id bucket
       try {
         await createTeacherProfile({
           teacher_id: sub,
-          school_id: "school-001",
+          school_id: code, 
           display_name: pendingDisplayName,
           email: pendingEmail,
         });
