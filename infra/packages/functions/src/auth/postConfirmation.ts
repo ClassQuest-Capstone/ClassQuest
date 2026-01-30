@@ -18,27 +18,24 @@ export const handler = async (event: PostConfirmationTriggerEvent) => {
     const username = event.userName;
     const sub = event.request.userAttributes?.sub || "";
 
-    const rawUserType = event.request.userAttributes?.["custom:userType"];
+    const role = event.request.userAttributes?.["custom:role"];
 
-    if (!rawUserType) {
-        console.error("[postConfirmation] MISSING custom:userType attribute", {
+    if (!role) {
+        console.error("[postConfirmation] MISSING custom:role attribute", {
             username,
             sub,
             allAttributes: event.request.userAttributes,
         });
-        // Log loudly but proceed with default
+        throw new Error("Missing custom:role attribute");
     }
 
-    const userType = rawUserType?.toLowerCase() ?? "student";
-
     const targetGroup =
-        userType === "teacher" ? groupTeachersPending : groupStudents;
+        role === "TEACHER" ? groupTeachersPending : groupStudents;
 
     console.log("[postConfirmation] Assigning user to group", {
         username,
         sub,
-        "custom:userType": rawUserType || "(missing)",
-        resolvedUserType: userType,
+        "custom:role": role,
         targetGroup,
     });
 
@@ -59,7 +56,7 @@ export const handler = async (event: PostConfirmationTriggerEvent) => {
                 Item: {
                     user_id: sub,
                     cognito_sub: sub,
-                    role: userType,
+                    role: role.toLowerCase(),
                     status: "active",
                     created_at: now,
                 },
@@ -68,7 +65,7 @@ export const handler = async (event: PostConfirmationTriggerEvent) => {
         );
         console.log("[postConfirmation] User record created in DynamoDB", {
             user_id: sub,
-            role: userType,
+            role: role,
         });
     } catch (err: any) {
         if (err?.name === "ConditionalCheckFailedException") {

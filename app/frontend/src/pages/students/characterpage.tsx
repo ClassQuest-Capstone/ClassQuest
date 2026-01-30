@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState, useMemo } from "react";
 import feather from "feather-icons";
 import { Link } from "react-router-dom";
 import "../../styles/character.css";
-import { TutorialProvider } from "../components/tutorial/contextStudent"; 
-import { TutorialIntroModal } from "../components/tutorial/introModalStudent"; 
-import { TutorialOverlay } from "../components/tutorial/overlayStudent";
+import { TutorialProvider } from "../components/tutorial/contextStudent.tsx"; 
+import { TutorialIntroModal } from "../components/tutorial/introModalStudent.tsx"; 
+import { TutorialOverlay } from "../components/tutorial/overlayStudent.tsx";
 
 type EquipmentSlot = "helmet" | "armour" | "shield" | "pet" | "background";
 

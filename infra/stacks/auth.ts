@@ -16,7 +16,8 @@ export const GROUPS = {
     const userPool = new cognito.UserPool(stack, "UserPool", {
         selfSignUpEnabled: true,
         signInAliases: { email: true, username: true },
-        autoVerify: { email: true },
+        // Email verification handled conditionally in preSignUp trigger
+        autoVerify: { email: false },
 
         passwordPolicy: {
             minLength: 8,
@@ -26,13 +27,13 @@ export const GROUPS = {
             requireSymbols: false,
         },
 
-        // Frontend sends these at signup, so they MUST exist
+        // Custom attributes for role-based signup
         customAttributes: {
-            userType: new cognito.StringAttribute({ mutable: true }),
+            role: new cognito.StringAttribute({ mutable: true }),
             studentCode: new cognito.StringAttribute({ mutable: true }),
         },
 
-        //removalPolicy: RemovalPolicy.DESTROY, // change to RETAIN for prod later
+        removalPolicy: RemovalPolicy.DESTROY, // change to RETAIN for prod later
     });
 
     const userPoolClient = new cognito.UserPoolClient(stack, "UserPoolClient", {

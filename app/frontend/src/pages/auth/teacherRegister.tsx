@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { generateClassCode } from "../../utils/classCode";
+import { generateClassCode } from "../../utils/classCode.js";
 
 type TeacherUser = {
   id: string;
