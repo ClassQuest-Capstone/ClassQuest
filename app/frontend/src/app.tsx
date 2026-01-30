@@ -1,28 +1,28 @@
 // app.tsx
 import { Amplify } from "aws-amplify";
-import awsExports from "./aws-exports";
+import awsExports from "./aws-exports.js";
 
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Home from "./home";
-import { StudentLogin, TeacherLogin, Signup, Role } from "./pages/auth";
-import StudentDashboard from "./pages/students/studentDashboard";
-import TeacherDashboard from "./pages/teacher/teacherDashboard";
-import CharacterPage from "./pages/students/characterpage";
-import Subjects from "./pages/teacher/subjects";
-import Quests from "./pages/teacher/quests";
-import Rewards from "./pages/teacher/rewards";
-import Students from "./pages/teacher/students";
-import Activity from "./pages/teacher/Activity";
-import BossFight from "./pages/students/bossFight";
-import ProblemSolve from "./pages/students/problemsolve";
-import Leaderboards from "./pages/students/leaderboards";
-import Guild from "./pages/students/guilds";
-import StudentShop from "./pages/students/studentshop";
-import Profile from "./pages/teacher/profile";
-import Welcome from "./pages/students/welcome";
+import Home from "./home.js";
+import { StudentLogin, TeacherLogin, Signup, Role } from "./pages/auth/index.js";
+import StudentDashboard from "./pages/students/studentDashboard.js";
+import TeacherDashboard from "./pages/teacher/teacherDashboard.js";
+import CharacterPage from "./pages/students/characterpage.js";
+import Subjects from "./pages/teacher/subjects.js";
+import Quests from "./pages/teacher/quests.js";
+import Rewards from "./pages/teacher/rewards.js";
+import Students from "./pages/teacher/students.js";
+import Activity from "./pages/teacher/Activity.js";
+import BossFight from "./pages/students/bossFight.js";
+import ProblemSolve from "./pages/students/problemsolve.js";
+import Leaderboards from "./pages/students/leaderboards.js";
+import Guild from "./pages/students/guilds.js";
+import StudentShop from "./pages/students/studentshop.js";
+import Profile from "./pages/teacher/profile.js";
+import Welcome from "./pages/students/welcome.js";
 
 // -------------- api test component --------------
-import ApiSmoke from "./pages/api/ApiSmoke";
+import ApiSmoke from "./pages/api/ApiSmoke.js";
 // -------------- end api test component --------------
 
 // ✅ Enable Amplify Auth (Cognito User Pool config)

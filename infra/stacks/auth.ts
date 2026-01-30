@@ -1,4 +1,4 @@
-import { StackContext, Function } from "sst/constructs";
+import { StackContext, Function, Table } from "sst/constructs";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import { RemovalPolicy } from "aws-cdk-lib";
 import * as iam from "aws-cdk-lib/aws-iam";
@@ -10,12 +10,12 @@ export const GROUPS = {
     Teachers: "Teachers",
     } as const;
 
-    export function createAuth(ctx: StackContext) {
+    export function createAuth(ctx: StackContext, usersTable: Table) {
     const { stack } = ctx;
 
     const userPool = new cognito.UserPool(stack, "UserPool", {
         selfSignUpEnabled: true,
-        signInAliases: { email: true },
+        signInAliases: { email: true, username: true },
         autoVerify: { email: true },
 
         passwordPolicy: {
@@ -32,7 +32,7 @@ export const GROUPS = {
             studentCode: new cognito.StringAttribute({ mutable: true }),
         },
 
-        removalPolicy: RemovalPolicy.DESTROY, // change to RETAIN for prod later
+        //removalPolicy: RemovalPolicy.DESTROY, // change to RETAIN for prod later
     });
 
     const userPoolClient = new cognito.UserPoolClient(stack, "UserPoolClient", {
@@ -66,10 +66,12 @@ export const GROUPS = {
     // Trigger: after a user confirms signup, auto-place them in the right group
     const postConfirmationFn = new Function(stack, "PostConfirmationFn", {
         handler: "packages/functions/src/auth/postConfirmation.handler",
+        bind: [usersTable],
         environment: {
-        
+
             GROUP_STUDENTS: GROUPS.Students,
             GROUP_TEACHERS_PENDING: GROUPS.TeachersPending,
+            USERS_TABLE_NAME: usersTable.tableName,
         },
     });
 

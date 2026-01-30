@@ -11,7 +11,7 @@ export type TeacherProfile = {
 
 export function createTeacherProfile(input: {
     teacher_id: string;
-    school_id: string;
+    school_id?: string | null;
     display_name: string;
     email: string;
     }) {

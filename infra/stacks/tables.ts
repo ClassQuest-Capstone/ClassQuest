@@ -52,9 +52,24 @@ export function createTables(ctx: StackContext) {
         },
     });
 
+    // Schools table
+    const schoolsTable = new Table(stack, "Schools", {
+        fields: {
+            school_id: "string",
+            name: "string",
+            division: "string",
+            city: "string",
+            province: "string",
+            created_at: "string",
+            updated_at: "string",
+        },
+        primaryIndex: { partitionKey: "school_id" },
+    });
+
     return {
         usersTable,
         teacherProfilesTable,
         studentProfilesTable,
+        schoolsTable,
     };
 }

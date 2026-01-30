@@ -8,6 +8,7 @@ export function createApi(
         usersTable: Table;
         studentProfilesTable: Table;
         teacherProfilesTable: Table;
+        schoolsTable: Table;
     }
     ) {
     const api = new Api(stack, "HttpApi", {
@@ -19,6 +20,10 @@ export function createApi(
         
         routes: {
         "GET /health": "packages/functions/src/health.handler",
+
+        // Schools
+        "POST /schools": "packages/functions/src/schools/create.handler",
+        "GET /schools/{school_id}": "packages/functions/src/schools/get.handler",
 
         // StudentProfiles
         "POST /student-profiles": "packages/functions/src/student-profiles/create.handler",
@@ -38,6 +43,7 @@ export function createApi(
             USERS_TABLE_NAME: tables.usersTable.tableName,
             STUDENT_PROFILES_TABLE_NAME: tables.studentProfilesTable.tableName,
             TEACHER_PROFILES_TABLE_NAME: tables.teacherProfilesTable.tableName,
+            SCHOOLS_TABLE_NAME: tables.schoolsTable.tableName,
             },
         },
         },
@@ -48,6 +54,7 @@ export function createApi(
         tables.usersTable,
         tables.studentProfilesTable,
         tables.teacherProfilesTable,
+        tables.schoolsTable,
     ]);
 
     return api;
