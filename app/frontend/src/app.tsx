@@ -14,7 +14,7 @@ import Rewards from "./pages/teacher/rewards.js";
 import Students from "./pages/teacher/students.js";
 import Activity from "./pages/teacher/Activity.js";
 import BossFight from "./pages/students/bossFight.js";
-import ProblemSolve from "./pages/students/problemsolve.js";
+import ProblemSolve from "./pages/students/problemsolve.js"; 
 import Leaderboards from "./pages/students/leaderboards.js";
 import Guild from "./pages/students/guilds.js";
 import StudentShop from "./pages/students/studentshop.js";

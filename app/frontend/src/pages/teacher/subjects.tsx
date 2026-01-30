@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
-import DropDownProfile from "../features/teacher/dropDownProfile";
+import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
 
 
 type QuestCard = {

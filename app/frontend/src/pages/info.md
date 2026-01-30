@@ -86,7 +86,23 @@ for boss fight
 - if boss fight assign boss based on subject
 
 Current TODO:
-1. Login & logout implementation 
-2. Signup implementation
-3. Quest creation implementation
+1. Login & logout implementation (Alsmost Done)
+2. Signup implementation (Almost done)
+3. Quest creation implementation (started)
 4. adding quests to students side
+
+Dynamic (TODO:)
+
+Dynamic XP scaling
+
+Dynamic question generation / question pools
+
+Dynamic class/party assignment
+
+Dynamic profile syncing (Cognito → DynamoDB)
+
+Dynamic UI components (React/Tailwind)
+
+Dynamic quest/event triggers
+
+Dynamic teacher dashboards

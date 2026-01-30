@@ -9,7 +9,7 @@ const BossFight =() => {
   }, []);
 
   return (
-    <div className="font-poppins bg-[url(https://wallpapercave.com/wp/wp3914096.jpg)] bg-cover bg-center bg-no-repeat min-h-screen">
+    <div className="font-poppins bg-[url(public/assets/boss-bckgnd.png)] bg-cover bg-center bg-no-repeat min-h-screen">
      {/**Nav Bar */}
           <nav className="bg-blue-700 text-white shadow-lg">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

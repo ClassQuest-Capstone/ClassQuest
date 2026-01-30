@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import PieChart from "../../components/teacher/chart";
+import PieChart from "../../components/teacher/chart.tsx";
 
 // Stats structure 
 interface QuizStats {
@@ -23,7 +23,7 @@ export default function QuizStatsPieChart() {
       try {
         setLoading(true);
 
-        const response = await fetch("https://your-api-url.amazonaws.com/activity");
+        const response = await fetch("https://0ey6pkaq2m.execute-api.ca-central-1.amazonaws.com/ /activity");
         const data = await response.json();
 
         setStats({
