@@ -2,7 +2,7 @@
 
 export { default as StudentLogin } from './StudentLogin';
 export { default as TeacherLogin } from './TeacherLogin';
-export { default as Signup } from './Signup';
+export { default as Signup } from './signup';
 export { default as Role } from './role';
 
 
