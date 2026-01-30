@@ -101,18 +101,20 @@ export default function Signup() {
     }
   }, [userType]);
 
-  useEffect(() => {
-    if (userType === "teacher") {
-      setTeacherGeneratedCode((prev) => (prev ? prev : generateClassCode(6)));
-    } else {
-      setTeacherGeneratedCode("");
-    }
-  }, [userType]);
+  // No class code generation for teachers at signup
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
+
+    // Clear any stale auth session before signup
+    console.log("[signup] Clearing any existing auth session");
+    try {
+      await signOut();
+    } catch (err) {
+      console.log("[signup] No existing session to clear (expected)");
+    }
 
     const cleanedDisplay = displayName.trim();
     const cleanedStudentCode = classCode.trim().toUpperCase();
@@ -135,10 +137,20 @@ export default function Signup() {
       }
       if (!cleanedStudentUsername) return setError("Student username is required.");
 
+      // Students use plain usernames (not emails)
+      if (cleanedStudentUsername.includes("@")) {
+        return setError("Student username should not be an email. Use a simple username like 'john123'.");
+      }
+
       setIsLoading(true);
       try {
+        console.log("[signup] Starting student signup", {
+          username: cleanedStudentUsername,
+          classCode: cleanedStudentCode,
+        });
+
         // Sign up with Cognito (auto-confirmed by preSignUp trigger)
-        const { isSignUpComplete } = await signUp({
+        const signUpResult = await signUp({
           username: cleanedStudentUsername,
           password,
           options: {
@@ -149,16 +161,28 @@ export default function Signup() {
           },
         });
 
-        if (!isSignUpComplete) {
+        console.log("[signup] signUp result", {
+          isSignUpComplete: signUpResult.isSignUpComplete,
+          nextStep: signUpResult.nextStep,
+        });
+
+        if (!signUpResult.isSignUpComplete) {
           setError("Student signup failed. Please try again.");
           return;
         }
 
-        // Students are auto-confirmed, so sign in immediately to get sub
-        await signIn({ username: cleanedStudentUsername, password });
+        // Students are auto-confirmed, sign in to get session
+        console.log("[signup] Signing in to obtain Cognito sub");
+        const signInResult = await signIn({ username: cleanedStudentUsername, password });
+
+        console.log("[signup] signIn result", {
+          isSignedIn: signInResult.isSignedIn,
+        });
 
         const session = await fetchAuthSession();
         const sub = String(session.tokens?.idToken?.payload?.sub || "");
+
+        console.log("[signup] Obtained Cognito sub", { sub });
 
         if (!sub) {
           setError("Failed to retrieve user identity.");
@@ -166,6 +190,7 @@ export default function Signup() {
         }
 
         // Create student profile in DynamoDB
+        console.log("[signup] Creating student profile in DynamoDB");
         await createStudentProfile({
           student_id: sub,
           school_id: cleanedStudentCode,
@@ -188,14 +213,22 @@ export default function Signup() {
           })
         );
 
+        console.log("[signup] Student signup complete, navigating to /welcome");
         setSuccess("Student account created! Joining class...");
-        setTimeout(() => navigate("/character", { replace: true }), 300);
+        setTimeout(() => navigate("/welcome", { replace: true }), 300);
       } catch (err: any) {
-        console.error(err);
+        console.error("[signup] Student signup error", {
+          name: err?.name,
+          message: err?.message,
+          error: err,
+        });
+
         if (err?.name === "UsernameExistsException") {
           setError("That username is already taken. Please choose a different one.");
         } else if (err?.name === "InvalidPasswordException") {
           setError("Password does not meet requirements.");
+        } else if (err?.message?.toLowerCase().includes("already a signed in user")) {
+          setError("Auth error detected. Please refresh the page and try again.");
         } else {
           setError(err?.message || "Could not create student account.");
         }
@@ -213,17 +246,11 @@ export default function Signup() {
 
     setIsLoading(true);
     try {
-      const finalTeacherCode = (teacherGeneratedCode || generateClassCode(6)).toUpperCase();
-
       // Snapshot for confirm step
       setPendingUserType("teacher");
-      setPendingClassCode(finalTeacherCode);
       setPendingDisplayName(cleanedDisplay);
       setPendingEmail(cleanedTeacherEmail);
       setPendingPassword(password);
-
-      // Store teacher code early so dashboard can show it
-      localStorage.setItem("cq_teacherClassCode", finalTeacherCode);
 
       const { nextStep } = await signUp({
         username: cleanedTeacherEmail,
@@ -239,7 +266,7 @@ export default function Signup() {
       if (nextStep.signUpStep === "CONFIRM_SIGN_UP") {
         setShowConfirmation(true);
         setSuccess(
-          `Teacher account created! Your class code is ${finalTeacherCode}. Check your email for the confirmation code.`
+          "Teacher account created! Check your email for the confirmation code."
         );
       } else {
         setSuccess("Teacher account created successfully!");
@@ -289,11 +316,6 @@ export default function Signup() {
       const sub = String(payload?.sub || "");
       if (!sub) throw new Error("Could not read Cognito user id (sub).");
 
-      const code = pendingClassCode.trim().toUpperCase();
-
-      // Local class linking
-      ensureClassExists(code, sub);
-
       localStorage.setItem(
         "cq_currentUser",
         JSON.stringify({
@@ -301,22 +323,15 @@ export default function Signup() {
           role: "teacher",
           displayName: pendingDisplayName,
           email: pendingEmail,
-          classCode: code,
         })
       );
-      localStorage.setItem("cq_teacherClassCode", code);
 
-      // Create DB profile (teacher) - use class code as school_id bucket
-      try {
-        await createTeacherProfile({
-          teacher_id: sub,
-          school_id: code, 
-          display_name: pendingDisplayName,
-          email: pendingEmail,
-        });
-      } catch (profileErr: any) {
-        console.error("Teacher profile creation failed:", profileErr);
-      }
+      // Create DB profile (teacher) - no school_id at signup
+      await createTeacherProfile({
+        teacher_id: sub,
+        display_name: pendingDisplayName,
+        email: pendingEmail,
+      });
 
       setSuccess("Teacher account confirmed! Redirecting to login...");
       setTimeout(() => navigate("/TeacherLogin"), 600);
@@ -427,16 +442,6 @@ export default function Signup() {
                         />
                       </div>
                     </>
-                  )}
-
-                  {userType === "teacher" && (
-                    <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md text-sm text-left">
-                      <p className="font-medium">Your Class Code (auto-generated):</p>
-                      <p className="text-lg font-extrabold mt-1 tracking-[0.25em]">
-                        {teacherGeneratedCode || "------"}
-                      </p>
-                      <p className="mt-2 text-xs">Students will use this code to join your class.</p>
-                    </div>
                   )}
 
                   <div>

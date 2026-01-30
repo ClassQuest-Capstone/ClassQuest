@@ -8,11 +8,11 @@ export const handler = async (event: any) => {
         : (rawBody ?? {});
 
     const teacher_id = body.teacher_id;
-    const school_id = body.school_id;
+    const school_id = body.school_id || null;
     const display_name = body.display_name;
     const email = body.email;
 
-    if (!teacher_id || !school_id || !display_name || !email) {
+    if (!teacher_id || !display_name || !email) {
         console.log("Bad request body:", {
         rawBody,
         received_keys: Object.keys(body || {}),
@@ -24,7 +24,7 @@ export const handler = async (event: any) => {
         body: JSON.stringify({
             ok: false,
             error: "MISSING_REQUIRED_FIELDS",
-            required: ["teacher_id", "school_id", "display_name", "email"],
+            required: ["teacher_id", "display_name", "email"],
             received_keys: Object.keys(body || {}),
         }),
         };

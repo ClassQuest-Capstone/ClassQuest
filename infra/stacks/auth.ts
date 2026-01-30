@@ -15,7 +15,7 @@ export const GROUPS = {
 
     const userPool = new cognito.UserPool(stack, "UserPool", {
         selfSignUpEnabled: true,
-        signInAliases: { email: true },
+        signInAliases: { email: true, username: true },
         autoVerify: { email: true },
 
         passwordPolicy: {
