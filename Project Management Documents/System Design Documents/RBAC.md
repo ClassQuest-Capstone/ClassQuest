@@ -17,7 +17,7 @@ flowchart TD
     B --> B1[Create / Manage Classes]
     B --> B2[Generate Class Code]
     B --> B3[View Class Roster]
-    B --> B4[Manage Students (XP, Badges, Quests)]
+    B --> B4[Manage Students - XP, Badges, Quests]
     B --> B5[Create Boss Battles / Quests]
     B --> B6[View Student Progress]
     B --> B7[Edit Own Profile]
