@@ -34,9 +34,10 @@ flowchart TD
     classDef perm fill:#E8F0FE,stroke:#4C8BF5,color:#000;
 
     class A,B,C,D role;
-    class A1,A2,A3,A4,A5,
-          B1,B2,B3,B4,B5,B6,B7,
-          C1,C2,C3,C4,C5 perm;
+    class A1,A2,A3,A4,A5 perm;
+    class B1,B2,B3,B4,B5,B6,B7 perm;
+    class C1,C2,C3,C4,C5 perm;
+
 ```
 
 **Roles**
