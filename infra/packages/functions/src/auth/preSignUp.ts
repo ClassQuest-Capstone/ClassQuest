@@ -30,11 +30,14 @@ export const handler = async (event: PreSignUpTriggerEvent) => {
         );
     }
 
+    // Always initialize a valid response
+    event.response.autoConfirmUser = false;
+    event.response.autoVerifyEmail = false;
+
     if (role === "STUDENT") {
         // Students: username-only signup, auto-confirm, no email verification
         event.response.autoConfirmUser = true;
         event.response.autoVerifyEmail = false;
-        event.response.autoVerifyPhone = false;
         console.log("[preSignUp] Auto-confirming student (username-only)");
     } else if (role === "TEACHER") {
         // Teachers: username + email signup, require email verification
@@ -44,7 +47,7 @@ export const handler = async (event: PreSignUpTriggerEvent) => {
         }
         // Email will be verified via confirmation code
         event.response.autoConfirmUser = false;
-        event.response.autoVerifyEmail = true;
+        event.response.autoVerifyEmail = false;
         console.log("[preSignUp] Teacher signup - email verification required", {
             username,
             email,

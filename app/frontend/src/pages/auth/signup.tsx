@@ -80,6 +80,7 @@ export default function Signup() {
   const [pendingDisplayName, setPendingDisplayName] = useState("");
   const [pendingEmail, setPendingEmail] = useState("");
   const [pendingPassword, setPendingPassword] = useState("");
+  const [pendingTeacherUsername, setPendingTeacherUsername] = useState(""); // Opaque Cognito username
 
   useEffect(() => {
     feather.replace();
@@ -155,7 +156,7 @@ export default function Signup() {
           password,
           options: {
             userAttributes: {
-              "custom:userType": "student",
+              "custom:role": "STUDENT",
               "custom:studentCode": cleanedStudentCode,
             },
           },
@@ -246,19 +247,23 @@ export default function Signup() {
 
     setIsLoading(true);
     try {
+      // Generate opaque Cognito username (internal only, teachers sign in with email)
+      const generatedUsername = `teacher_${crypto.randomUUID()}`;
+
       // Snapshot for confirm step
       setPendingUserType("teacher");
       setPendingDisplayName(cleanedDisplay);
       setPendingEmail(cleanedTeacherEmail);
       setPendingPassword(password);
+      setPendingTeacherUsername(generatedUsername);
 
       const { nextStep } = await signUp({
-        username: cleanedTeacherEmail,
+        username: generatedUsername,
         password,
         options: {
           userAttributes: {
             email: cleanedTeacherEmail,
-            "custom:userType": "teacher",
+            "custom:role": "TEACHER",
           },
         },
       });
@@ -294,7 +299,7 @@ export default function Signup() {
 
     try {
       const { isSignUpComplete } = await confirmSignUp({
-        username: pendingEmail,
+        username: pendingTeacherUsername,
         confirmationCode: confirmationCode.trim(),
       });
 

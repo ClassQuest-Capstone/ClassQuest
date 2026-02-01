@@ -23,7 +23,7 @@ export function createTables(ctx: StackContext) {
     const teacherProfilesTable = new Table(stack, "TeacherProfiles", {
         fields: {
             teacher_id: "string",
-            school_id: "string",
+            //school_id: "string",
             display_name: "string",
             email: "string",
             created_at: "string",

@@ -8,7 +8,7 @@ export const handler = async (event: any) => {
         : (rawBody ?? {});
 
     const teacher_id = body.teacher_id;
-    const school_id = body.school_id || null;
+    //const school_id = body.school_id || null;
     const display_name = body.display_name;
     const email = body.email;
 
@@ -34,7 +34,7 @@ export const handler = async (event: any) => {
 
     const item = {
         teacher_id,
-        school_id,
+        //school_id,
         display_name,
         email,
         created_at: now,
