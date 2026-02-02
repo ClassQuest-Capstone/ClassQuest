@@ -1,5 +1,6 @@
+**Role Based Access Control Chart**
 ```mermaid
-flowchart TD
+flowchart LR
 
     %% Roles
     A[Student]:::role
@@ -30,14 +31,13 @@ flowchart TD
     C --> C5[Override Permissions]
 
     %% Styling
-    classDef role fill:#4C8BF5,stroke:#1A4BB3,color:#fff,font-weight:bold;
-    classDef perm fill:#E8F0FE,stroke:#4C8BF5,color:#000;
+    classDef role fill:#4C8BF5,stroke:#1A4BB3,color:#fff,font-weight:bold, font-size:50px;
+    classDef perm fill:#E8F0FE,stroke:#4C8BF5,color:#000, font-size:25px;
 
     class A,B,C,D role;
     class A1,A2,A3,A4,A5 perm;
     class B1,B2,B3,B4,B5,B6,B7 perm;
     class C1,C2,C3,C4,C5 perm;
-
 ```
 
 **Roles**
@@ -54,7 +54,7 @@ flowchart TD
 | Log in | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 | Join Class | :heavy_check_mark: | :heavy_multiplication_x: | :heavy_multiplication_x: |
 | View Profile | :heavy_check_mark: | :heavy_check_mark: | :heavy_multiplication_x: |
-| Edit Own Profile | :heavy_multiplication_x: | Limited | :heavy_check_mark: |
+| Edit Own Profile | :heavy_multiplication_x: | :heavy_check_mark: | :heavy_check_mark: |
 | Create/Delete class | :heavy_multiplication_x: | :heavy_check_mark: | :heavy_check_mark: |
 | Generate Class Code | :heavy_multiplication_x: | :heavy_check_mark: | :heavy_multiplication_x: |
 | View student list | :heavy_multiplication_x: | :heavy_check_mark: | :heavy_check_mark: |
