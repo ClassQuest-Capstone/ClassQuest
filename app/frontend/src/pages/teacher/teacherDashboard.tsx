@@ -234,7 +234,7 @@ const TeacherDashboard = () => {
                         src="/assets/warrior-head.png"
                         alt="Profile"
                       />
-                      <p className="text-white"> Profile </p>
+                      <p className="text-white"> {teacher?.displayName} </p>
                     </div>
                   </div>
                 </a>
@@ -275,7 +275,7 @@ const TeacherDashboard = () => {
           <main className="flex-1 overflow-y-auto p-4 ml-3 mr-3">
             <p className="text-2xl font-bold text-indigo-600">Teacher Dashboard</p>
 
-            {/* ✅ CLASS CODE */}
+            {/* CLASS CODE */}
             <div className="mt-4 max-w-xl p-4 bg-white/300 rounded-lg shadow-md">
               <p className="text-sm tracking-widest text-gray-800 font-semibold">CLASS CODE</p>
               <div className="mt-2 flex items-center justify-between gap-3">
@@ -305,7 +305,7 @@ const TeacherDashboard = () => {
               </div>
             )}
 
-            {/* Recent Activity (unchanged) */}
+            {/* Recent Activity */}
             <div id="recent-activity">
               <p className="text-2xl font-bold text-indigo-500 mt-6"> Recent Activity</p>
               <div className="mt-4 p-4 bg-white/300 rounded-lg shadow-md">
@@ -382,7 +382,7 @@ const TeacherDashboard = () => {
               </div>
             </div>
 
-            {/* Top Students (unchanged) */}
+            {/* Top Students */}
             <div className="mt-5">
               <p id="Top-students" className="text-2xl font-bold text-indigo-500 mt-6">
                 Top Students

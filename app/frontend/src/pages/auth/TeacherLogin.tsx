@@ -22,7 +22,7 @@ export default function TeacherLogin() {
     setIsLoading(true);
 
     try {
-      // ✅ If Cognito thinks someone is already signed in, clear that session first
+      // If Cognito thinks someone is already signed in, clear that session first
       try {
         await signOut();
       } catch {
@@ -76,7 +76,7 @@ export default function TeacherLogin() {
           })
         );
 
-        // ✅ Your canonical route (matches app.tsx)
+        // Canonical route (app.tsx)
         navigate("/teacher/dashboard", { replace: true });
       } else {
         setError(

@@ -1,8 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
-import DropDownProfile from "../features/teacher/dropDownProfile";
-import QuizStats from "../features/teacher/quizStats";
+import DropDownProfile from "../features/teacher/dropDownProfile.js";
+import QuizStats from "../features/teacher/quizStats.js";
+
+type TeacherUser = {
+  id: string;
+  role: "teacher";
+  displayName?: string;
+  email?: string;
+  classCode?: string;
+};
 
 type Tab = "Activity" | "Stats";
 
@@ -10,11 +18,25 @@ const ActivityPage = () => {
   const navigate = useNavigate(); 
   const [activeTab, setActiveTab] = useState<Tab>("Activity"); // Default to activity tab
   const [recentActivity, setRecentActivity] = useState<any[]>([]); // Recent activity data
-  const [loading, setLoading] = useState(false); // Loading state
+  const [loading, setIsLoading] = useState(false); // Loading state
+  const [teacher, setTeacher] = useState<TeacherUser | null>(null);
 
   useEffect(() => {
     feather.replace();
   });
+
+  // Load teacher data from localStorage
+  useEffect(() => {
+    const currentUserJson = localStorage.getItem("cq_currentUser");
+    if (currentUserJson) {
+      try {
+        const teacherData = JSON.parse(currentUserJson) as TeacherUser;
+        setTeacher(teacherData);
+      } catch (error) {
+        console.error("Failed to parse teacher data from localStorage:", error);
+      }
+    }
+  }, []);
 
   // Fetch recent activity from AWS
   useEffect(() => {
@@ -22,7 +44,7 @@ const ActivityPage = () => {
 
     const fetchActivity = async () => {
       try {
-        setLoading(true);
+        setIsLoading(true);
 
         const response = await fetch(
           "https://your-api-url.amazonaws.com/activity" // Replace with AWS endpoint (TODO:)
@@ -33,7 +55,7 @@ const ActivityPage = () => {
       } catch (error) {
         console.error("Error fetching activity:", error);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
@@ -83,7 +105,13 @@ const ActivityPage = () => {
                       >
                         Profile
                       </Link>
-                      <DropDownProfile username="user"onLogout={() => {console.log("Logging out"); /**TODO: Logout logic */}}/>
+                      <DropDownProfile
+                                    username={teacher?.displayName || "user"}
+                                    onLogout={() => {
+                                      localStorage.removeItem("cq_currentUser");
+                                      navigate("/TeacherLogin");
+                                    }}
+                                  />
                     </div>
                   </div>
                 </div> 

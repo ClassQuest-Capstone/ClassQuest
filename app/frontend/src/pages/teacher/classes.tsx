@@ -17,7 +17,7 @@ type TeacherClass = ClassItem;
 const Classes = () => {
   const navigate = useNavigate();
 
-  // ✅ Teacher guard (same pattern as your dashboard)
+  // Teacher guard (same pattern as dashboard)
   const teacher = useMemo<TeacherUser | null>(() => {
     const raw = localStorage.getItem("cq_currentUser");
     if (!raw) return null;
@@ -42,7 +42,7 @@ const Classes = () => {
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
 
-  // ✅ Load classes from backend on mount
+  // Load classes from backend on mount
   useEffect(() => {
     const loadClasses = async () => {
       try {
@@ -62,7 +62,7 @@ const Classes = () => {
     loadClasses();
   }, [teacherId]);
 
-  // ✅ icons
+  // icons
   useEffect(() => {
     feather.replace();
   }, []);

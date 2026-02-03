@@ -18,10 +18,25 @@ const Profile = () => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const profile = {}
+  const [loading, setIsLoading] = useState(false); // Loading state
+  const [teacher, setTeacher] = useState<TeacherUser | null>(null);
 
   useEffect(() => {
     feather.replace();
   }, []);
+
+  // Load teacher data from localStorage
+    useEffect(() => {
+      const currentUserJson = localStorage.getItem("cq_currentUser");
+      if (currentUserJson) {
+        try {
+          const teacherData = JSON.parse(currentUserJson) as TeacherUser;
+          setTeacher(teacherData);
+        } catch (error) {
+          console.error("Failed to parse teacher data from localStorage:", error);
+        }
+      }
+    }, []);
 
 
 <button onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}>
@@ -35,7 +50,13 @@ const Profile = () => {
     <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Quests</Link>
     <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Activity</Link>
     <Link to="/rewards" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Rewards</Link>
-    <DropDownProfile username="user" onLogout={() => console.log("Logging out")} />
+    <DropDownProfile
+                                    username={teacher?.displayName || "user"}
+                                    onLogout={() => {
+                                      localStorage.removeItem("cq_currentUser");
+                                      navigate("/TeacherLogin");
+                                    }}
+                                  />
   </div>
 )}
 
@@ -62,7 +83,13 @@ const Profile = () => {
               <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Quests</Link>
               <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Activity</Link>
               <Link to="/rewards" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Rewards</Link>
-              <DropDownProfile username="user" onLogout={() => console.log("Logging out")} />
+              <DropDownProfile
+                                    username={teacher?.displayName || "user"}
+                                    onLogout={() => {
+                                      localStorage.removeItem("cq_currentUser");
+                                      navigate("/TeacherLogin");
+                                    }}
+                                  />
             </div>
           </div>
         </div>
@@ -95,7 +122,6 @@ const Profile = () => {
       <p className="text-white text-lg font-bold items-center justify-between">
         Password: {/*{showPassword ? profile.password : "••••••••"}*/}
       </p>
-      <p className="mt-0.5 text-lg font-bold text-white"> ClassCode: </p>
       <i
         data-feather="edit"
         className="mt-3 flex cursor-pointer"
