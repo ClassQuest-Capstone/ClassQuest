@@ -2,11 +2,32 @@
 import React, { useEffect } from "react";
 import feather from "feather-icons";
 import { Link } from "react-router-dom";
+import { usePlayerProgression, type PlayerProfile } from "../hooks/students/usePlayerProgression.js";
 
 const Guild: React.FC = () => {
   useEffect(() => {
     feather.replace();
   }, []);
+  const {
+      profile,
+      loading,
+      gainXP,
+      purchaseReward,
+      getRewardsWithStatus,
+      getXPProgress,
+      getMilestoneProgress,
+    } = usePlayerProgression({
+      studentId: "student-001",
+      level: 1,
+      totalXP: 300,
+      gold: 0,
+      stats: {
+        hp: 55,
+        strength: 17,
+        intelligence: 17,
+        speed: 17,
+      },
+    });
 
   const pageBg =
     "min-h-screen bg-cover bg-center bg-fixed bg-no-repeat bg-gray-900";
@@ -68,7 +89,7 @@ const Guild: React.FC = () => {
                 />
 
                 {/* Amount */}
-                <span className="text-white font-medium">1,245</span>
+                <span className="text-white font-medium">{profile.gold.toLocaleString()}</span>
             </Link>
             </div>
 

@@ -277,12 +277,8 @@ const handleCreateQuest = (event: React.FormEvent<HTMLFormElement>) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Reward</label>
                   <select name="reward" className="w-full border border-gray-300 rounded-lg px-4 py-2" required>
-                    <option>10 Gold</option>
-                    <option>25 Gold</option>
-                    <option>50 Gold</option>
+                    <option>30 Gold</option>
                     <option>100 Gold</option>
-                    <option>Rare Item</option>
-                    <option>Legendary Item</option>
                   </select>
                 </div>
               </div>

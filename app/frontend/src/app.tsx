@@ -5,7 +5,6 @@ import awsExports from "./aws-exports.js";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Home from "./home.js";
 import { StudentLogin, TeacherLogin, Signup, Role } from "./pages/auth/index.js";
-import StudentDashboard from "./pages/students/studentDashboard.js";
 import TeacherDashboard from "./pages/teacher/teacherDashboard.js";
 import CharacterPage from "./pages/students/characterpage.js";
 import Subjects from "./pages/teacher/subjects.js";
@@ -43,7 +42,6 @@ export default function App() {
         <Route path="/TeacherLogin" element={<TeacherLogin />} />
         <Route path="/Signup" element={<Signup />} />
 
-        <Route path="/StudentDashboard" element={<StudentDashboard />} />
 
         {/* ✅ Teacher Dashboard (canonical route) */}
         <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
@@ -71,7 +69,6 @@ export default function App() {
         <Route path="/character" element={<CharacterPage />} />
         <Route path="/subjects" element={<Subjects />} />
         <Route path="/quests" element={<Quests />} />
-
         <Route path="/problemsolve" element={<ProblemSolve />} />
         <Route path="/leaderboards" element={<Leaderboards />} />
         <Route path="/guilds" element={<Guild />} />
