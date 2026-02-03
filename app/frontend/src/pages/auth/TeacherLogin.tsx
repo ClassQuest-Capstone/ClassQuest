@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import feather from "feather-icons";
-import { signIn, signOut } from "aws-amplify/auth";
+import { signIn, signOut, fetchUserAttributes } from "aws-amplify/auth";
+import { getTeacherProfile } from "../../api/teacherProfiles.js";
 
 export default function TeacherLogin() {
   const navigate = useNavigate();
@@ -33,17 +34,45 @@ export default function TeacherLogin() {
       if (isSignedIn) {
         console.log("Signed in successfully");
 
-        // ✅ TEMP local "session" so TeacherDashboard can read teacher + class code
-        const existingCode = localStorage.getItem("cq_teacherClassCode") || "";
+        // Get Cognito user attributes
+        const userAttributes = await fetchUserAttributes();
+        const cognito_sub = userAttributes.sub;
 
+        if (!cognito_sub) {
+          setError("Failed to retrieve user identity.");
+          return;
+        }
+
+        // Fetch teacher profile from backend
+        let profile = null;
+
+        try {
+          profile = await getTeacherProfile(cognito_sub);
+        } catch (err) {
+          profile = null; // API returns 404 -> no profile
+        }
+
+        if (!profile) {
+          setError("No teacher profile found. Please contact support.");
+          return;
+        }
+
+        // Handle rememberMe: Save username for next login if enabled
+        if (rememberMe) {
+          localStorage.setItem("teacher_username_remembered", username);
+        } else {
+          localStorage.removeItem("teacher_username_remembered");
+        }
+
+        // Store teacher profile data from backend
         localStorage.setItem(
           "cq_currentUser",
           JSON.stringify({
-            id: username, // temp; later replace with Cognito sub
+            id: cognito_sub,
             role: "teacher",
-            displayName: username, // temp
-            email: username,
-            classCode: existingCode,
+            displayName: profile.display_name,
+            email: profile.email,
+            teacher_id: profile.teacher_id,
           })
         );
 

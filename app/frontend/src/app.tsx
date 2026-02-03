@@ -8,6 +8,7 @@ import { StudentLogin, TeacherLogin, Signup, Role } from "./pages/auth/index.js"
 import TeacherDashboard from "./pages/teacher/teacherDashboard.js";
 import CharacterPage from "./pages/students/characterpage.js";
 import Subjects from "./pages/teacher/subjects.js";
+import Classes from "./pages/teacher/classes.js"
 import Quests from "./pages/teacher/quests.js";
 import Rewards from "./pages/teacher/rewards.js";
 import Students from "./pages/teacher/students.js";
@@ -63,7 +64,7 @@ export default function App() {
         <Route path="/rewards" element={<Rewards />} />
         <Route path="/students" element={<Students />} />
         <Route path="/Activity" element={<Activity />} />
-
+        <Route path='/classes' element={<Classes />} />
         <Route path="/bossFight" element={<BossFight />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/character" element={<CharacterPage />} />

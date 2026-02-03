@@ -3,10 +3,27 @@ import { Link } from "react-router-dom";
 import feather from "feather-icons";
 import "../../styles/boss.css";
 
+/*const [presentStudents, setPresentStudents] = useState([]);
+const [activeBoss, setActiveBoss] = useState(null);
+const classId = '1'; // to be obtained from backend
+const BossFight =() => {
+  useEffect(() => {
+    async function loadData() {
+    const studentsRes = await fetch(`${import.meta.env.VITE_API_URL}/class/${classId}/present-students`);
+    const bossRes = await fetch(`${import.meta.env.VITE_API_URL}/boss/current`);
+
+    setPresentStudents(await studentsRes.json());
+    setActiveBoss(await bossRes.json());
+  }
+
+  loadData();
+}, [classId]);*/
+
 const BossFight =() => {
   useEffect(() => {
     feather.replace();
   }, []);
+
 
   return (
     <div className="font-poppins bg-[url(public/assets/boss-bckgnd.png)] bg-cover bg-center bg-no-repeat min-h-screen">
@@ -72,17 +89,50 @@ const BossFight =() => {
             {/** Boss and charcaters */}
             <div className="relative h-[500px] w-[1300px] mx-auto mb-8">
                 {/** Background */}
-                <div className="absolute inset-0 bg-black/30 rounded-xl backdrop-blur-sm">
                 {/** TODO:Dynamically add present students(left) characters and type of boss (right) here */}
-                
-                </div>
+                    {/*<div className="absolute inset-0 bg-black/30 rounded-xl backdrop-blur-sm flex">
+                        {/* Left: Present Students */}
+                        {/*<div className="w-1/2 flex flex-col gap-3 p-4">
+                          {presentStudents.map((s) => (
+                            <div key={s.id} className="flex items-center gap-3">
+                              <img
+                                src={s.avatarUrl}
+                                alt={s.name}
+                                className="h-10 w-10 rounded-full border border-white/40"
+                              />
+                              <span className="text-white font-medium">{s.name}</span>
+                              <p className="mt-1 text-sm text-emerald-300">HP: {s.hp}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Right: Active Boss */}
+                        {/*<div className="w-1/2 flex flex-col items-center justify-center p-4">
+                          {activeBoss && (
+                            <>
+                              <img
+                                src={activeBoss.spriteUrl}
+                                alt={activeBoss.name}
+                                className="h-32 object-contain drop-shadow-[0_0_20px_rgba(0,0,0,0.7)]"
+                              />
+                              <div className="mt-3 text-center">
+                                <p className="text-sm uppercase tracking-wide text-white/70">
+                                  {activeBoss.type} Boss
+                                </p>
+                                <p className="text-xl font-semibold text-white">{activeBoss.name}</p>
+                                <p className="mt-1 text-sm text-emerald-300">HP: {activeBoss.hp}</p>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
              {/** Battle log TODO: implement players and boss actions here */}
             <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-4 h-32 overflow-y-auto border-t-2 border-yellow-500">
                 <div className="text-sm font-mono">
                 </div>
             </div>
       </div>
-       {/** Action and Questions buttons */}
+       {/** Action and Questions buttons  TODO: switch action to match character ability*/}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 mr-25 ml-25">
                 <div className="battle-box">
           <h2 className="text-xl font-bold mb-4 justify-center flex">Battle Actions</h2>

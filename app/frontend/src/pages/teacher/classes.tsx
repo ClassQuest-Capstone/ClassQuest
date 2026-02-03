@@ -1,54 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
-
+import { createClass, listClassesByTeacher, deactivateClass, type ClassItem } from "../../api/classes.js";
 
 type TeacherUser = {
   id: string;
   role: "teacher";
+  school_id: string;
   displayName?: string;
   email?: string;
 };
 
-export type TeacherClass = {
-  id: string;
-  teacherId: string;
-  name: string;
-  code: string;
-  createdAt: string;
-};
-
-function generateClassCode(length: number = 6) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-  for (let i = 0; i < length; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
-}
-
-function makeStorageKey(teacherId: string) {
-  return `cq_teacherClasses_${teacherId}`;
-}
-
-function loadTeacherClasses(teacherId: string): TeacherClass[] {
-  const raw = localStorage.getItem(makeStorageKey(teacherId));
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveTeacherClasses(teacherId: string, classes: TeacherClass[]) {
-  localStorage.setItem(makeStorageKey(teacherId), JSON.stringify(classes));
-}
-
-function makeUniqueCode(existing: Set<string>) {
-  let code = generateClassCode(6);
-  while (existing.has(code)) code = generateClassCode(6);
-  return code;
-}
+// Map backend ClassItem to component's expected structure
+type TeacherClass = ClassItem;
 
 const Classes = () => {
   const navigate = useNavigate();
@@ -66,12 +30,37 @@ const Classes = () => {
 
   if (!teacher) return <Navigate to="/TeacherLogin" replace />;
 
-  const teacherId = teacher.id || "teacher-123";
+  const teacherId = teacher.id;
+  const schoolId = teacher.school_id;
 
-  const [classes, setClasses] = useState<TeacherClass[]>(() => loadTeacherClasses(teacherId));
+  const [classes, setClasses] = useState<TeacherClass[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [className, setClassName] = useState("");
+  const [gradeLevel, setGradeLevel] = useState<number>(6);
+  const [subject, setSubject] = useState<string>("");
   const [error, setError] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+
+  // ✅ Load classes from backend on mount
+  useEffect(() => {
+    const loadClasses = async () => {
+      try {
+        setLoading(true);
+        const response = await listClassesByTeacher(teacherId);
+        // Filter to only show active classes
+        const activeClasses = response.items.filter((c) => c.is_active);
+        setClasses(activeClasses);
+      } catch (err) {
+        console.error("Error loading classes:", err);
+        setError("Failed to load classes. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadClasses();
+  }, [teacherId]);
 
   // ✅ icons
   useEffect(() => {
@@ -82,18 +71,15 @@ const Classes = () => {
     feather.replace();
   }, [isModalOpen, classes]);
 
-  // ✅ persist to localStorage
-  useEffect(() => {
-    saveTeacherClasses(teacherId, classes);
-  }, [teacherId, classes]);
-
   function handleOpenModal() {
     setError("");
     setClassName("");
+    setGradeLevel(6);
+    setSubject("");
     setIsModalOpen(true);
   }
 
-  function handleCreateClass(e: React.FormEvent<HTMLFormElement>) {
+  async function handleCreateClass(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
 
@@ -103,30 +89,46 @@ const Classes = () => {
       return;
     }
 
-    const existingCodes = new Set(classes.map((c) => c.code.toUpperCase()));
-    const code = makeUniqueCode(existingCodes);
-
-    const newClass: TeacherClass = {
-      id: crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random()}`,
-      teacherId,
-      name,
-      code,
-      createdAt: new Date().toISOString(),
-    };
-
-    // ✅ keep your current local join system working (safe to remove later)
-    try {
-      ensureClassExists(code, teacherId);
-    } catch {
-      // ignore if classStore path changes
+    if (gradeLevel < 5 || gradeLevel > 8) {
+      setError("Grade level must be between 5 and 8.");
+      return;
     }
 
-    setClasses((prev) => [newClass, ...prev]);
-    setIsModalOpen(false);
+    try {
+      setIsCreating(true);
+      const newClass = await createClass({
+        school_id: schoolId,
+        name,
+        grade_level: gradeLevel,
+        created_by_teacher_id: teacherId,
+        subject: subject || undefined,
+      });
+
+      setClasses((prev) => [newClass, ...prev]);
+      setIsModalOpen(false);
+      setClassName("");
+      setGradeLevel(6);
+      setSubject("");
+    } catch (err: any) {
+      console.error("Error creating class:", err);
+      setError(err.message || "Failed to create class. Please try again.");
+    } finally {
+      setIsCreating(false);
+    }
   }
 
-  function handleDeleteClass(id: string) {
-    setClasses((prev) => prev.filter((c) => c.id !== id));
+  async function handleDeleteClass(classId: string) {
+    if (!confirm("Are you sure you want to delete this class? This cannot be undone.")) {
+      return;
+    }
+
+    try {
+      await deactivateClass(classId);
+      setClasses((prev) => prev.filter((c) => c.class_id !== classId));
+    } catch (err: any) {
+      console.error("Error deleting class:", err);
+      setError(err.message || "Failed to delete class. Please try again.");
+    }
   }
 
   function handleCopy(code: string) {
@@ -210,14 +212,18 @@ const Classes = () => {
         </div>
 
         {/* Cards */}
-        {classes.length === 0 ? (
+        {loading ? (
+          <div className="bg-white rounded-xl shadow-md p-6 text-gray-700 text-center">
+            <p>Loading classes...</p>
+          </div>
+        ) : classes.length === 0 ? (
           <div className="bg-white rounded-xl shadow-md p-6 text-gray-700">
             No classes yet. Click <b>Create Class</b> to get started.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {classes.map((c) => (
-              <div key={c.id} className="bg-white rounded-xl shadow-md overflow-hidden transition duration-300">
+              <div key={c.class_id} className="bg-white rounded-xl shadow-md overflow-hidden transition duration-300">
                 {/* Card header gradient */}
                 <div className="bg-linear-to-r from-blue-500 to-indigo-600 p-6 text-white text-center">
                   <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4">
@@ -225,7 +231,7 @@ const Classes = () => {
                   </div>
                   <h3 className="text-xl font-bold">{c.name}</h3>
                   <p className="text-white/80 text-sm">
-                    Created {new Date(c.createdAt).toLocaleDateString()}
+                    Created {new Date(c.created_at).toLocaleDateString()}
                   </p>
                 </div>
 
@@ -236,6 +242,12 @@ const Classes = () => {
                     <p className="mt-1 text-lg font-bold text-indigo-900">{c.name}</p>
                   </div>
 
+                  {/* Grade Level */}
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                    <p className="text-xs tracking-widest text-purple-700 font-semibold">GRADE LEVEL</p>
+                    <p className="mt-1 text-lg font-bold text-purple-900">Grade {c.grade_level}</p>
+                  </div>
+
                   {/* Code */}
                   <div className="bg-gray-50 border rounded-lg p-4">
                     <p className="text-xs tracking-widest text-gray-500 font-semibold">CLASS CODE</p>
@@ -244,9 +256,9 @@ const Classes = () => {
                     </p>
 
                     <div className="mt-2 flex items-center justify-between gap-3">
-                      <p className="text-2xl font-extrabold tracking-[0.35em] text-indigo-700">{c.code}</p>
+                      <p className="text-2xl font-extrabold tracking-[0.35em] text-indigo-700">{c.join_code}</p>
                       <button
-                        onClick={() => handleCopy(c.code)}
+                        onClick={() => handleCopy(c.join_code)}
                         className="px-3 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
                       >
                         Copy
@@ -262,7 +274,7 @@ const Classes = () => {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       className="bg-green-600 hover:bg-green-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
-                      onClick={() => navigate(`/students?classCode=${encodeURIComponent(c.code)}`)}
+                      onClick={() => navigate(`/students?classCode=${encodeURIComponent(c.join_code)}`)}
                     >
                       <i data-feather="users" className="mr-1 w-4 h-4"></i> Students
                     </button>
@@ -283,7 +295,7 @@ const Classes = () => {
 
                     <button
                       className="col-span-2 bg-gray-100 hover:bg-gray-200 text-red-600 border border-red-600 px-2 py-2 rounded-lg text-sm flex items-center justify-center"
-                      onClick={() => handleDeleteClass(c.id)}
+                      onClick={() => handleDeleteClass(c.class_id)}
                     >
                       <i data-feather="trash-2" className="mr-1 w-4 h-4"></i> Delete Class
                     </button>
@@ -307,6 +319,8 @@ const Classes = () => {
             </div>
 
             <form className="space-y-4" onSubmit={handleCreateClass}>
+              {error && <p className="text-sm text-red-600 bg-red-50 p-3 rounded">{error}</p>}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Class Name</label>
                 <input
@@ -319,18 +333,46 @@ const Classes = () => {
                 />
               </div>
 
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Grade Level</label>
+                <select
+                  value={gradeLevel}
+                  onChange={(e) => setGradeLevel(Number(e.target.value))}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                >
+                  <option value={5}>Grade 5</option>
+                  <option value={6}>Grade 6</option>
+                  <option value={7}>Grade 7</option>
+                  <option value={8}>Grade 8</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Subject (Optional)</label>
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                  placeholder="e.g. Mathematics"
+                />
+              </div>
 
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-500"
+                  disabled={isCreating}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
-                  Create Class
+                <button
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg disabled:opacity-50"
+                  disabled={isCreating}
+                >
+                  {isCreating ? "Creating..." : "Create Class"}
                 </button>
               </div>
             </form>

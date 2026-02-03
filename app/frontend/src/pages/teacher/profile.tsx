@@ -3,11 +3,21 @@ import { Link, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
 
+type TeacherUser = {
+  id: string;
+  role: "teacher";
+  displayName?: string;
+  email?: string;
+  classCode?: string;
+};
+
+
 const Profile = () => {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const profile = {}
 
   useEffect(() => {
     feather.replace();

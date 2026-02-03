@@ -1,6 +1,5 @@
-// signup.tsx
 import React, { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import feather from "feather-icons";
 import { signUp, confirmSignUp, signIn, fetchAuthSession, signOut } from "aws-amplify/auth";
 
@@ -49,6 +48,7 @@ function makeLocalId(prefix: string) {
 
 export default function Signup() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // Form fields
   const [userType, setUserType] = useState<UserType>("student");
@@ -85,6 +85,16 @@ export default function Signup() {
   useEffect(() => {
     feather.replace();
   }, []);
+
+  // Check URL params for role selection
+  useEffect(() => {
+    const role = searchParams.get("role");
+    if (role === "teacher") {
+      setUserType("teacher");
+    } else if (role === "student") {
+      setUserType("student");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     // reset things when switching type
