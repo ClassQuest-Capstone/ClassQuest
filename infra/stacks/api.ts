@@ -9,12 +9,13 @@ export function createApi(
         studentProfilesTable: Table;
         teacherProfilesTable: Table;
         schoolsTable: Table;
+        classesTable: Table;
     }
     ) {
     const api = new Api(stack, "HttpApi", {
         cors: {
             allowOrigins: ["http://localhost:5000"],
-            allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             allowHeaders: ["content-type", "authorization"],
         },
         
@@ -36,6 +37,14 @@ export function createApi(
         "GET /teacher-profiles/{teacher_id}": "packages/functions/src/teacher-profiles/get.handler",
         "GET /schools/{school_id}/teachers":
             "packages/functions/src/teacher-profiles/list-by-school.handler",
+
+        // Classes
+        "POST /classes": "packages/functions/src/classes/create.handler",
+        "GET /classes/{class_id}": "packages/functions/src/classes/get.handler",
+        "GET /classes/join/{join_code}": "packages/functions/src/classes/get-by-join-code.handler",
+        "GET /teachers/{teacher_id}/classes": "packages/functions/src/classes/list-by-teacher.handler",
+        "GET /schools/{school_id}/classes": "packages/functions/src/classes/list-by-school.handler",
+        "PATCH /classes/{class_id}/deactivate": "packages/functions/src/classes/deactivate.handler",
         },
         defaults: {
         function: {
@@ -44,6 +53,7 @@ export function createApi(
             STUDENT_PROFILES_TABLE_NAME: tables.studentProfilesTable.tableName,
             TEACHER_PROFILES_TABLE_NAME: tables.teacherProfilesTable.tableName,
             SCHOOLS_TABLE_NAME: tables.schoolsTable.tableName,
+            CLASSES_TABLE_NAME: tables.classesTable.tableName,
             },
         },
         },
@@ -55,6 +65,7 @@ export function createApi(
         tables.studentProfilesTable,
         tables.teacherProfilesTable,
         tables.schoolsTable,
+        tables.classesTable,
     ]);
 
     return api;

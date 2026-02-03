@@ -66,10 +66,27 @@ export function createTables(ctx: StackContext) {
         primaryIndex: { partitionKey: "school_id" },
     });
 
+    // Classes table
+    const classesTable = new Table(stack, "Classes", {
+        fields: {
+            class_id: "string",
+            created_by_teacher_id: "string",
+            school_id: "string",
+            join_code: "string",
+        },
+        primaryIndex: { partitionKey: "class_id" },
+        globalIndexes: {
+            GSI1: { partitionKey: "created_by_teacher_id" }, // by teacher
+            GSI2: { partitionKey: "school_id" },             // by school
+            GSI3: { partitionKey: "join_code" },             // by join code
+        },
+    });
+
     return {
         usersTable,
         teacherProfilesTable,
         studentProfilesTable,
         schoolsTable,
+        classesTable,
     };
 }

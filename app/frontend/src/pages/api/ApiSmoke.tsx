@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { createStudentProfile, getStudentProfile, listStudentsBySchool } from "../../api/studentProfiles";
-import { createTeacherProfile, getTeacherProfile, listTeachersBySchool } from "../../api/teacherProfiles";
+import { createStudentProfile, getStudentProfile, listStudentsBySchool } from "../../api/studentProfiles.js";
+import { createTeacherProfile, getTeacherProfile, listTeachersBySchool } from "../../api/teacherProfiles.js";
 
 export default function ApiSmoke() {
     const [out, setOut] = useState<any>({ status: "running" });

@@ -1,4 +1,4 @@
-import { CardProps } from './card'
+import { CardProps } from './card.js'
 
 // Card data for feature cards
 

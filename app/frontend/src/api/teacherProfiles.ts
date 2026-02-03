@@ -1,4 +1,4 @@
-import { api } from "./http";
+import { api } from "./http.js";
 
 export type TeacherProfile = {
     teacher_id: string;
