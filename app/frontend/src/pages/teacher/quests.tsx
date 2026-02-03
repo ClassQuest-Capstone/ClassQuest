@@ -31,7 +31,6 @@ interface Question {
   hint: string;
   tags: string;
   timeLimit: number;
-  goldReward: number;
 }
 
 interface QuestData {
@@ -83,7 +82,6 @@ const Quests = () => {
   const [hint, setHint] = useState("");
   const [tags, setTags] = useState(questDataFromModal?.subject || "");
   const [timeLimit, setTimeLimit] = useState(120);
-  const [goldReward, setGoldReward] = useState(15);
 
   useEffect(() => {
     feather.replace();
@@ -109,7 +107,6 @@ const Quests = () => {
     setHint("");
     setTags("");
     setTimeLimit(120);
-    setGoldReward(15);
     setSelectedQuestion(null);
   };
 
@@ -136,7 +133,6 @@ const Quests = () => {
       hint,
       tags,
       timeLimit,
-      goldReward,
     };
 
     if (selectedQuestion) {
@@ -176,7 +172,6 @@ const Quests = () => {
     setHint(question.hint);
     setTags(question.tags);
     setTimeLimit(question.timeLimit);
-    setGoldReward(question.goldReward);
     setIsCreating(true);
   };
 
@@ -602,17 +597,6 @@ const Quests = () => {
                         className="w-full border border-gray-300 rounded-lg px-4 py-2"
                         value={timeLimit}
                         onChange={(e) => setTimeLimit(Number(e.target.value))}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Gold Reward
-                      </label>
-                      <input
-                        type="number"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                        value={goldReward}
-                        onChange={(e) => setGoldReward(Number(e.target.value))}
                       />
                     </div>
                   </div>

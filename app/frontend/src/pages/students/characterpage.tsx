@@ -5,6 +5,7 @@ import "../../styles/character.css";
 import { TutorialProvider } from "../components/tutorial/contextStudent.tsx"; 
 import { TutorialIntroModal } from "../components/tutorial/introModalStudent.tsx"; 
 import { TutorialOverlay } from "../components/tutorial/overlayStudent.tsx";
+import { usePlayerProgression, type PlayerProfile } from "../hooks/students/usePlayerProgression.js";
 
 type EquipmentSlot = "helmet" | "armour" | "shield" | "pet" | "background";
 
@@ -97,11 +98,108 @@ const INITIAL_INVENTORY: EquipmentItem[] = [
 // --------------------
 type TabKey = "quests" | "subjects" | "rewards";
 
-type RewardMilestone = {
-  level: number; // increments of 5
-  title: string;
-  description?: string;
+// Subject color mapping
+const SUBJECT_COLORS = {
+  mathematics: {
+    gradient: "from-blue-600 to-blue-800",
+    text: "text-blue-100",
+    bar: "bg-blue-400",
+    label: "Mathematics",
+  },
+  science: {
+    gradient: "from-green-600 to-green-800",
+    text: "text-green-100",
+    bar: "bg-green-400",
+    label: "Science",
+  },
+  history: {
+    gradient: "from-red-600 to-red-800",
+    text: "text-red-100",
+    bar: "bg-red-400",
+    label: "History",
+  },
+  ELA: {
+    gradient: "from-purple-600 to-purple-800",
+    text: "text-purple-100",
+    bar: "bg-purple-400",
+    label: "ELA",
+  },
 };
+
+// Quest interface
+interface Quest {
+  id: string;
+  title: string;
+  description: string;
+  subject: keyof typeof SUBJECT_COLORS;
+  completed: number;
+  total: number;
+  reward: string;
+  action: string;
+}
+
+const SAMPLE_QUESTS: Quest[] = [
+  {
+    id: "quest-1",
+    title: "Algebraic Equations",
+    description: "Complete 5 questions to boost Intelligence",
+    subject: "mathematics",
+    completed: 0,
+    total: 5,
+    reward: "+15 Int",
+    action: "Continue",
+  },
+  {
+    id: "quest-2",
+    title: "Geometry Mastery",
+    description: "Solve 3 geometry problems",
+    subject: "mathematics",
+    completed: 2,
+    total: 3,
+    reward: "+12 Strength",
+    action: "Continue",
+  },
+  {
+    id: "quest-3",
+    title: "History Research",
+    description: "Read 5 chapters to boost Wisdom",
+    subject: "history",
+    completed: 4,
+    total: 5,
+    reward: "+10 Wis",
+    action: "Continue",
+  },
+  {
+    id: "quest-4",
+    title: "World Exploration",
+    description: "Discover facts about 10 countries",
+    subject: "history",
+    completed: 6,
+    total: 10,
+    reward: "+8 Wis",
+    action: "Continue",
+  },
+  {
+    id: "quest-5",
+    title: "Chemistry Lab",
+    description: "Complete 4 chemistry experiments",
+    subject: "science",
+    completed: 1,
+    total: 4,
+    reward: "+14 Int",
+    action: "Continue",
+  },
+  {
+    id: "quest-6",
+    title: "Physics Challenge",
+    description: "Solve 6 physics problems",
+    subject: "science",
+    completed: 3,
+    total: 6,
+    reward: "+11 Strength",
+    action: "Continue",
+  },
+];
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -125,30 +223,34 @@ const CharacterPage: React.FC = () => {
 
   // Tabs state
   const [tab, setTab] = useState<TabKey>("quests");
+  const [showAllQuests, setShowAllQuests] = useState(false);
 
-  // Rewards demo data (teacher decided later)
-  const rewardMilestones: RewardMilestone[] = useMemo(
-    () => [
-      { level: 5, title: "Music Time", description: "Pick a class playlist (5 min)" },
-      { level: 10, title: "Phone Time", description: "Phone break (5 min)" },
-      { level: 15, title: "Seat Choice", description: "Choose your seat for the day" },
-      { level: 20, title: "Partner Pick", description: "Choose your partner once" },
-      { level: 25, title: "Snack Pass", description: "Snack during independent work" },
-      { level: 30, title: "Game Time", description: "Quick classroom game (10 min)" },
-    ],
-    []
-  );
+  // Initialize player progression hook with demo data
+  const {
+    profile,
+    loading,
+    gainXP,
+    purchaseReward,
+    getRewardsWithStatus,
+    getXPProgress,
+    getMilestoneProgress,
+  } = usePlayerProgression({
+    studentId: "student-001",
+    level: 1,
+    totalXP: 300,
+    gold: 0,
+    stats: {
+      hp: 55,
+      strength: 17,
+      intelligence: 17,
+      speed: 17,
+    },
+  });
 
-  // Simple XP system (you can wire this to your backend later)
-  const xpPerLevel = 200; // change if you want slower/faster leveling
-  const currentXp = 1245; // demo value
-  const currentLevel = Math.floor(currentXp / xpPerLevel) + 1;
-  const xpIntoLevel = currentXp % xpPerLevel;
-  const progressPct = clamp((xpIntoLevel / xpPerLevel) * 100, 0, 100);
-
-  // How far along the "milestone road" the student is (0..1)
-  const lastMilestone = rewardMilestones[rewardMilestones.length - 1]?.level ?? 5;
-  const milestoneProgressPct = clamp((currentLevel / lastMilestone) * 100, 0, 100);
+  // Get current XP progress for bars
+  const xpProgress = getXPProgress();
+  const milestoneProgress = getMilestoneProgress();
+  const rewards = getRewardsWithStatus();
 
   useEffect(() => {
     feather.replace();
@@ -285,7 +387,7 @@ const CharacterPage: React.FC = () => {
                   />
 
                   {/* Amount */}
-                  <span className="text-white font-medium">1,245</span>
+                  <span className="text-white font-medium">{profile.gold.toLocaleString()}</span>
                 </Link>
               </div>
               <div className="relative ml-3" ref={userMenuRef}>
@@ -342,7 +444,7 @@ const CharacterPage: React.FC = () => {
           <div id="guilds" className="flex items-center space-x-4">
             <div className="flex items-center bg-gradient-to-r from-yellow-600 to-yellow-500 px-4 py-2 rounded-full shadow-lg">
               <i data-feather="coins" className="mr-2 text-yellow-200" />
-              <span className="font-bold text-white">1,245 Gold</span>
+              <span className="font-bold text-white">{profile.gold.toLocaleString()} Gold</span>
             </div>
             <div className="flex items-center bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 rounded-full shadow-lg">
               <i data-feather="users" className="mr-2 text-blue-200" />
@@ -428,7 +530,7 @@ const CharacterPage: React.FC = () => {
 
                   {/* Level Badge */}
                   <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 level-badge px-6 py-1 rounded-full">
-                    <span className="font-bold text-lg text-white">Level 5 Warrior</span>
+                    <span className="font-bold text-lg text-white">Level {profile.level} Warrior</span>
                   </div>
 
                   {/* XP Bar (game style) */}
@@ -436,7 +538,7 @@ const CharacterPage: React.FC = () => {
                     <div className="bg-gray-950/70 border border-blue-400/40 backdrop-blur rounded-xl px-4 py-3 shadow-lg">
                       <div className="flex justify-between text-xs mb-2 text-gray-200">
                         <span className="tracking-wide uppercase">XP</span>
-                        <span className="font-semibold text-blue-200">1,245 / 2,000</span>
+                        <span className="font-semibold text-blue-200">{xpProgress.current.toLocaleString()} / {xpProgress.needed.toLocaleString()}</span>
                       </div>
 
                       {/* Outer bar frame */}
@@ -446,8 +548,8 @@ const CharacterPage: React.FC = () => {
 
                         {/* Filled progress */}
                         <div
-                          className="relative h-full rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500"
-                          style={{ width: "62%" }}
+                          className="relative h-full rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 transition-all duration-500"
+                          style={{ width: `${xpProgress.percentage}%` }}
                         >
                           {/* Shine highlight */}
                           <div className="absolute inset-0 opacity-30 bg-gradient-to-b from-white to-transparent" />
@@ -459,7 +561,7 @@ const CharacterPage: React.FC = () => {
 
                       <div className="flex justify-between mt-2 text-[11px] text-gray-300">
                         <span>Next Level</span>
-                        <span className="text-blue-200 font-semibold">+755 XP needed</span>
+                        <span className="text-blue-200 font-semibold">+{(xpProgress.needed - xpProgress.current).toLocaleString()} XP needed</span>
                       </div>
                     </div>
                   </div>
@@ -577,40 +679,40 @@ const CharacterPage: React.FC = () => {
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span className="font-medium">Strength</span>
-                        <span>85/100</span>
+                        <span>{profile.stats.strength}/100</span>
                       </div>
                       <div className="w-full bg-gray-700 rounded-full h-2.5">
-                        <div className="bg-red-500 h-2.5 rounded-full" style={{ width: "85%" }} />
+                        <div className="bg-red-500 h-2.5 rounded-full" style={{ width: `${profile.stats.strength}%` }} />
                       </div>
                     </div>
 
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span className="font-medium">Intelligence</span>
-                        <span>72/100</span>
+                        <span>{profile.stats.intelligence}/100</span>
                       </div>
                       <div className="w-full bg-gray-700 rounded-full h-2.5">
-                        <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: "72%" }} />
+                        <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: `${profile.stats.intelligence}%` }} />
                       </div>
                     </div>
 
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span className="font-medium">HP</span>
-                        <span>75/100</span>
+                        <span>{profile.stats.hp}/{100 + profile.level * 5}</span>
                       </div>
                       <div className="w-full bg-gray-700 rounded-full h-2.5">
-                        <div className="bg-green-500 h-2.5 rounded-full" style={{ width: "75%" }} />
+                        <div className="bg-green-500 h-2.5 rounded-full" style={{ width: `${(profile.stats.hp / (100 + profile.level * 5)) * 100}%` }} />
                       </div>
                     </div>
 
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span className="font-medium">Speed</span>
-                        <span>78/100</span>
+                        <span>{profile.stats.speed}/100</span>
                       </div>
                       <div className="w-full bg-gray-700 rounded-full h-2.5">
-                        <div className="bg-purple-500 h-2.5 rounded-full" style={{ width: "78%" }} />
+                        <div className="bg-purple-500 h-2.5 rounded-full" style={{ width: `${profile.stats.speed}%` }} />
                       </div>
                     </div>
                   </div>
@@ -667,65 +769,145 @@ const CharacterPage: React.FC = () => {
                 <div className="text-sm text-gray-300 flex items-center gap-2">
                   <i data-feather="trending-up" className="w-4 h-4" />
                   <span>
-                    Level <span className="text-yellow-300 font-bold">{currentLevel}</span>{" "}
-                    • {xpIntoLevel}/{xpPerLevel} XP to next level
+                    Level <span className="text-yellow-300 font-bold">{profile.level}</span>{" "}
+                    • {xpProgress.current.toLocaleString()}/{xpProgress.needed.toLocaleString()} XP to next level
                   </span>
                 </div>
               </div>
 
               {/* --- TAB CONTENT --- */}
-              {tab === "quests" && (
+              {tab === "quests" && !showAllQuests && (
                 <>
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold text-yellow-400">
                       Active Quests
                     </h2>
-                    <span className="text-sm text-gray-400">
-                      Complete quests to boost your stats
-                    </span>
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm text-gray-400">
+                        Complete quests to boost your stats
+                      </span>
+                      <button
+                        onClick={() => setShowAllQuests(true)}
+                        className="bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded-full text-xs font-bold transition"
+                      >
+                        View More
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-4 rounded-lg border-2 border-yellow-400 shadow-lg">
-                      <h3 className="font-bold text-white">Algebraic Equations</h3>
-                      <p className="text-blue-100 text-sm mb-3">
-                        Complete 5 questions to boost Intelligence
-                      </p>
-                      <div className="flex items-center mb-2">
-                        <div className="w-full bg-gray-700 rounded-full h-2">
-                          <div className="bg-blue-400 h-2 rounded-full" style={{ width: "0%" }} />
-                        </div>
-                        <span className="ml-2 text-xs text-white">0/5</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-yellow-300 text-sm">+15 Int</span>
-                        <Link
-                          to="/problemsolve"
-                          className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-1 rounded-full text-xs font-bold"
+                    {SAMPLE_QUESTS.slice(0, 2).map((quest) => {
+                      const colors = SUBJECT_COLORS[quest.subject];
+                      const progressPercentage = (quest.completed / quest.total) * 100;
+                      return (
+                        <div
+                          key={quest.id}
+                          className={`bg-gradient-to-r ${colors.gradient} p-4 rounded-lg border-2 border-yellow-400 shadow-lg`}
                         >
-                          Continue
-                        </Link>
-                      </div>
-                    </div>
-
-                    <div className="bg-gradient-to-r from-red-600 to-red-800 p-4 rounded-lg border-2 border-yellow-400 shadow-lg">
-                      <h3 className="font-bold text-white">History Research</h3>
-                      <p className="text-red-100 text-sm mb-3">
-                        Read 5 chapters to boost Wisdom
-                      </p>
-                      <div className="flex items-center mb-2">
-                        <div className="w-full bg-gray-700 rounded-full h-2">
-                          <div className="bg-red-400 h-2 rounded-full" style={{ width: "80%" }} />
+                          <h3 className="font-bold text-white">{quest.title}</h3>
+                          <p className={`${colors.text} text-sm mb-3`}>
+                            {quest.description}
+                          </p>
+                          <div className="flex items-center mb-2">
+                            <div className="w-full bg-gray-700 rounded-full h-2">
+                              <div
+                                className={`${colors.bar} h-2 rounded-full`}
+                                style={{ width: `${progressPercentage}%` }}
+                              />
+                            </div>
+                            <span className="ml-2 text-xs text-white">
+                              {quest.completed}/{quest.total}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-yellow-300 text-sm">
+                              {quest.reward}
+                            </span>
+                            <Link
+                              to="/problemsolve"
+                              className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-1 rounded-full text-xs font-bold"
+                            >
+                              {quest.action}
+                            </Link>
+                          </div>
                         </div>
-                        <span className="ml-2 text-xs text-white">4/5</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-yellow-300 text-sm">+10 Wis</span>
-                        <button className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-1 rounded-full text-xs font-bold">
-                          Continue
-                        </button>
-                      </div>
-                    </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {tab === "quests" && showAllQuests && (
+                <>
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-yellow-400">
+                      All Quests
+                    </h2>
+                    <button
+                      onClick={() => setShowAllQuests(false)}
+                      className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-full text-xs font-bold transition"
+                    >
+                      Back
+                    </button>
+                  </div>
+
+                  {/* Group quests by subject */}
+                  <div className="space-y-8">
+                    {Object.entries(SUBJECT_COLORS).map(([subjectKey, colors]) => {
+                      const subjectQuests = SAMPLE_QUESTS.filter(
+                        (q) => q.subject === subjectKey
+                      );
+                      if (subjectQuests.length === 0) return null;
+
+                      return (
+                        <div key={subjectKey}>
+                          <h3 className={`text-xl font-bold mb-4 capitalize text-${colors.bar.split("-")[1]}-300`}>
+                            {colors.label} Quests
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {subjectQuests.map((quest) => {
+                              const progressPercentage =
+                                (quest.completed / quest.total) * 100;
+                              return (
+                                <div
+                                  key={quest.id}
+                                  className={`bg-gradient-to-r ${colors.gradient} p-4 rounded-lg border-2 border-yellow-400 shadow-lg hover:shadow-xl transition-shadow`}
+                                >
+                                  <h4 className="font-bold text-white mb-2">
+                                    {quest.title}
+                                  </h4>
+                                  <p className={`${colors.text} text-xs mb-3`}>
+                                    {quest.description}
+                                  </p>
+                                  <div className="flex items-center mb-3">
+                                    <div className="w-full bg-gray-700 rounded-full h-2">
+                                      <div
+                                        className={`${colors.bar} h-2 rounded-full`}
+                                        style={{ width: `${progressPercentage}%` }}
+                                      />
+                                    </div>
+                                    <span className="ml-2 text-xs text-white font-semibold">
+                                      {quest.completed}/{quest.total}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-xs">
+                                    <span className="text-yellow-300 font-medium">
+                                      {quest.reward}
+                                    </span>
+                                    <Link
+                                      to="/problemsolve"
+                                      className="bg-yellow-500 hover:bg-yellow-600 text-black px-2 py-1 rounded-full font-bold"
+                                    >
+                                      Start
+                                    </Link>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </>
               )}
@@ -809,43 +991,42 @@ const CharacterPage: React.FC = () => {
                     <div className="flex items-center justify-between mb-2">
                       <div className="font-bold">
                         Current Level:{" "}
-                        <span className="text-yellow-300">{currentLevel}</span>
+                        <span className="text-yellow-300">{profile.level}</span>
                       </div>
                       <div className="text-sm text-gray-300">
-                        XP: {currentXp} • Next level in{" "}
-                        {xpPerLevel - xpIntoLevel} XP
+                        XP: {profile.totalXP.toLocaleString()} • Next level in{" "}
+                        {(xpProgress.needed - xpProgress.current).toLocaleString()} XP
                       </div>
                     </div>
 
                     <div className="w-full bg-gray-700 rounded-full h-4 overflow-hidden">
                       <div
-                        className="bg-yellow-500 h-4 rounded-full"
-                        style={{ width: `${milestoneProgressPct}%` }}
+                        className="bg-yellow-500 h-4 rounded-full transition-all duration-500"
+                        style={{ width: `${milestoneProgress.percentage}%` }}
                       />
                     </div>
 
                     <div className="flex justify-between text-xs text-gray-300 mt-2">
                       <span>Level 1</span>
-                      <span>Level {lastMilestone}</span>
+                      <span>Level 30</span>
                     </div>
 
                     {/* Milestone markers */}
                     <div className="relative mt-4">
                       <div className="flex justify-between">
-                        {rewardMilestones.map((m) => {
-                          const unlocked = currentLevel >= m.level;
+                        {rewards.map((m: any) => {
                           return (
                             <div key={m.level} className="flex flex-col items-center w-full">
                               <div
                                 className={`w-3 h-3 rounded-full border ${
-                                  unlocked
+                                  m.unlocked
                                     ? "bg-yellow-500 border-yellow-300"
                                     : "bg-gray-600 border-gray-500"
                                 }`}
                                 title={`Level ${m.level}`}
                               />
                               <div className="mt-2 text-[11px] text-center text-gray-200">
-                                <span className={`${unlocked ? "text-yellow-300 font-bold" : ""}`}>
+                                <span className={`${m.unlocked ? "text-yellow-300 font-bold" : ""}`}>
                                   L{m.level}
                                 </span>
                               </div>
@@ -858,13 +1039,12 @@ const CharacterPage: React.FC = () => {
 
                   {/* Reward list */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {rewardMilestones.map((r) => {
-                      const unlocked = currentLevel >= r.level;
+                    {rewards.map((r: any) => {
                       return (
                         <div
                           key={r.level}
                           className={`rounded-lg p-4 border-2 shadow-lg ${
-                            unlocked
+                            r.unlocked
                               ? "bg-gradient-to-r from-yellow-600 to-yellow-500 border-yellow-300 text-black"
                               : "bg-gray-900 border-gray-700 text-white"
                           }`}
@@ -875,7 +1055,7 @@ const CharacterPage: React.FC = () => {
                             </div>
                             <div
                               className={`text-xs font-bold px-3 py-1 rounded-full ${
-                                unlocked ? "bg-black/20" : "bg-gray-700"
+                                r.unlocked ? "bg-black/20" : "bg-gray-700"
                               }`}
                             >
                               Level {r.level}
@@ -883,24 +1063,31 @@ const CharacterPage: React.FC = () => {
                           </div>
 
                           {r.description && (
-                            <p className={`mt-2 text-sm ${unlocked ? "text-black/80" : "text-gray-300"}`}>
+                            <p className={`mt-2 text-sm ${r.unlocked ? "text-black/80" : "text-gray-300"}`}>
                               {r.description}
                             </p>
                           )}
 
                           <div className="mt-4 flex justify-between items-center">
-                            <span className={`text-xs ${unlocked ? "text-black/70" : "text-gray-400"}`}>
-                              {unlocked ? "Unlocked" : "Locked"}
+                            <span className={`text-xs ${r.unlocked ? "text-black/70" : "text-gray-400"}`}>
+                              {r.purchased ? "Purchased" : r.unlocked ? `${r.cost} gold` : "Locked"}
                             </span>
                             <button
                               className={`px-3 py-1 rounded-full text-xs font-bold transition ${
-                                unlocked
-                                  ? "bg-black text-yellow-300 hover:opacity-90"
+                                r.unlocked && !r.purchased
+                                  ? "bg-black text-yellow-300 hover:opacity-90 cursor-pointer"
+                                  : r.purchased
+                                  ? "bg-green-700 text-white cursor-default"
                                   : "bg-gray-700 text-gray-300 cursor-not-allowed"
                               }`}
-                              disabled={!unlocked}
+                              disabled={!r.unlocked || r.purchased}
+                              onClick={() => {
+                                if (r.unlocked && !r.purchased && profile.gold >= r.cost) {
+                                  purchaseReward(r.level).catch((err: any) => console.error("Purchase failed:", err));
+                                }
+                              }}
                             >
-                              {unlocked ? "Claim" : "Reach Level"}
+                              {r.purchased ? "Owned" : r.unlocked ? "Purchase" : "Reach Level"}
                             </button>
                           </div>
                         </div>

@@ -56,17 +56,25 @@ const BossFight =() => {
           </nav>
             {/* Back button */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-              <Link to="/guilds" className="inline-flex items-center bg-lime-700 text-white border-2 border-lime-600 rounded-md px-3 py-2 hover:bg-[#78283E]">
+              <button
+                onClick={() => {
+                  const confirmLeave = window.confirm("Are you sure you want to flee the battle?");
+                  if (confirmLeave) {
+                    window.location.href = "/guilds";
+                  }
+                }}
+                className="inline-flex items-center bg-lime-700 text-white border-2 border-lime-600 rounded-md px-3 py-2 hover:bg-[#78283E]"
+                >
                 <i data-feather="x" className="mr-2"></i>
                 <span className="text-sm font-medium">Flee Battle</span>
-                {/* TODO: add alert to confrim that they want to leave battle */}
-              </Link>
+              </button>
             </div>
             {/** Boss and charcaters */}
             <div className="relative h-[500px] w-[1300px] mx-auto mb-8">
                 {/** Background */}
                 <div className="absolute inset-0 bg-black/30 rounded-xl backdrop-blur-sm">
-                {/** TODO:Dynamically add present student characters and type of boss here */}
+                {/** TODO:Dynamically add present students(left) characters and type of boss (right) here */}
+                
                 </div>
              {/** Battle log TODO: implement players and boss actions here */}
             <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-4 h-32 overflow-y-auto border-t-2 border-yellow-500">

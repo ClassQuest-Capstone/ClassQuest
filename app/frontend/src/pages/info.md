@@ -93,6 +93,9 @@ Current TODO:
 
 Dynamic (TODO:)
 
+GOLD: +30 per quests / +100 per boss battles (remove individual dolg reward option from quests creation)
+XP: +100 per quests / +300 per boss battles
+
 Dynamic XP scaling
 
 Dynamic question generation / question pools
@@ -106,3 +109,5 @@ Dynamic UI components (React/Tailwind)
 Dynamic quest/event triggers
 
 Dynamic teacher dashboards
+
+TODO: fix gold reward from per question to total gold form subjects

@@ -1,4 +1,4 @@
-**Role Based Access Control Chart**
+**Role Based Access Control Chart (RBAC)**
 ```mermaid
 flowchart LR
 
@@ -44,7 +44,7 @@ flowchart LR
 | Role | Description |
 | ----------- | ----------- |
 | Student | Join class using teachers class code to participate in quests and boss battles |
-| Teacher | Create classes, generate class codes, and manage students |
+| Teacher | Create classes & quests, generate class codes, and manage students |
 | Admin | Internal system administrators for debugging, moderation, or support |
 
 **Permissions Table**
