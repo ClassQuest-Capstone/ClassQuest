@@ -23,7 +23,7 @@ export function createTables(ctx: StackContext) {
     const teacherProfilesTable = new Table(stack, "TeacherProfiles", {
         fields: {
             teacher_id: "string",
-            //school_id: "string",
+            school_id: "string",
             display_name: "string",
             email: "string",
             created_at: "string",
@@ -31,7 +31,7 @@ export function createTables(ctx: StackContext) {
         },
         primaryIndex: { partitionKey: "teacher_id" },
         globalIndexes: {
-            //gsi1: { partitionKey: "school_id" },
+            //gsi1: { partitionKey: "school_id" },     //fix for the sign up process!!!!
         },
     });
 
@@ -82,11 +82,28 @@ export function createTables(ctx: StackContext) {
         },
     });
 
+    // ClassEnrollments table - links students to classes
+    const classEnrollmentsTable = new Table(stack, "ClassEnrollments", {
+    fields: {
+        enrollment_id: "string",
+        class_id: "string",
+        student_id: "string",
+        joined_at: "string",
+        status: "string",
+    },
+    primaryIndex: { partitionKey: "enrollment_id" },
+    globalIndexes: {
+        gsi1: { partitionKey: "class_id" },   // by class
+        gsi2: { partitionKey: "student_id" }, // by student
+    },
+    });
+
     return {
         usersTable,
         teacherProfilesTable,
         studentProfilesTable,
         schoolsTable,
         classesTable,
+        classEnrollmentsTable,
     };
 }

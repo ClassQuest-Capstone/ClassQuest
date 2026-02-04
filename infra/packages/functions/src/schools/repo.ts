@@ -1,5 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, PutCommand, GetCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
@@ -34,4 +34,18 @@ export async function getSchool(school_id: string): Promise<SchoolItem | null> {
         })
     );
     return (res.Item as SchoolItem) ?? null;
+}
+
+/**
+ * List all schools
+ * Uses Scan operation since Schools table has no GSI
+ * For production with many schools, consider adding pagination or GSI
+ */
+export async function listSchools(): Promise<SchoolItem[]> {
+    const res = await ddb.send(
+        new ScanCommand({
+            TableName: TABLE,
+        })
+    );
+    return (res.Items as SchoolItem[]) ?? [];
 }
