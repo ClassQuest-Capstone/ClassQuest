@@ -11,6 +11,8 @@ export function createApi(
         schoolsTable: Table;
         classesTable: Table;
         classEnrollmentsTable: Table;
+        questTemplatesTable: Table;
+        questQuestionsTable: Table;
     }
     ) {
     const api = new Api(stack, "HttpApi", {
@@ -54,6 +56,20 @@ export function createApi(
         "GET /classes/{class_id}/students": "packages/functions/src/classEnrollments/list-by-class.handler",
         "GET /students/{student_id}/classes": "packages/functions/src/classEnrollments/list-by-student.handler",
         "GET /enrollments/{enrollment_id}": "packages/functions/src/classEnrollments/get.handler",
+
+        // QuestTemplates
+        "POST /quest-templates": "packages/functions/src/questTemplates/create.handler",
+        "GET /quest-templates/public": "packages/functions/src/questTemplates/list-public.handler",
+        "GET /quest-templates/{quest_template_id}": "packages/functions/src/questTemplates/get.handler",
+        "GET /teachers/{teacher_id}/quest-templates": "packages/functions/src/questTemplates/list-by-owner.handler",
+        "PATCH /quest-templates/{quest_template_id}": "packages/functions/src/questTemplates/update.handler",
+
+        // QuestQuestions
+        "POST /quest-templates/{template_id}/questions": "packages/functions/src/questQuestions/create.handler",
+        "GET /quest-templates/{template_id}/questions": "packages/functions/src/questQuestions/list-by-template.handler",
+        "GET /quest-questions/{question_id}": "packages/functions/src/questQuestions/get.handler",
+        "PATCH /quest-questions/{question_id}": "packages/functions/src/questQuestions/update.handler",
+        "DELETE /quest-questions/{question_id}": "packages/functions/src/questQuestions/delete.handler",
         },
         defaults: {
         function: {
@@ -64,6 +80,8 @@ export function createApi(
             SCHOOLS_TABLE_NAME: tables.schoolsTable.tableName,
             CLASSES_TABLE_NAME: tables.classesTable.tableName,
             CLASS_ENROLLMENTS_TABLE_NAME: tables.classEnrollmentsTable.tableName,
+            QUEST_TEMPLATES_TABLE_NAME: tables.questTemplatesTable.tableName,
+            QUEST_QUESTIONS_TABLE_NAME: tables.questQuestionsTable.tableName,
             },
         },
         },
@@ -77,6 +95,8 @@ export function createApi(
         tables.schoolsTable,
         tables.classesTable,
         tables.classEnrollmentsTable,
+        tables.questTemplatesTable,
+        tables.questQuestionsTable,
     ]);
 
     return api;

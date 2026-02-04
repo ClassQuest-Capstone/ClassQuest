@@ -98,6 +98,40 @@ export function createTables(ctx: StackContext) {
     },
     });
 
+    // QuestTemplates table - reusable quest templates for teachers
+    const questTemplatesTable = new Table(stack, "QuestTemplates", {
+        fields: {
+            quest_template_id: "string",
+            owner_teacher_id: "string",
+            visibility_pk: "string",    // "PUBLIC" or "PRIVATE"
+            public_sort: "string",      // subject#grade#difficulty#created_at
+        },
+        primaryIndex: { partitionKey: "quest_template_id" },
+        globalIndexes: {
+            gsi1: { partitionKey: "owner_teacher_id" },  // list by teacher
+            gsi2: {                                       // public library with filtering
+                partitionKey: "visibility_pk",
+                sortKey: "public_sort",
+            },
+        },
+    });
+
+    // QuestQuestions table - questions belonging to quest templates
+    const questQuestionsTable = new Table(stack, "QuestQuestions", {
+        fields: {
+            question_id: "string",
+            quest_template_id: "string",
+            order_key: "string",  // zero-padded like "0001" for ordering
+        },
+        primaryIndex: { partitionKey: "question_id" },
+        globalIndexes: {
+            gsi1: {  // list questions by template in order
+                partitionKey: "quest_template_id",
+                sortKey: "order_key",
+            },
+        },
+    });
+
     return {
         usersTable,
         teacherProfilesTable,
@@ -105,5 +139,7 @@ export function createTables(ctx: StackContext) {
         schoolsTable,
         classesTable,
         classEnrollmentsTable,
+        questTemplatesTable,
+        questQuestionsTable,
     };
 }

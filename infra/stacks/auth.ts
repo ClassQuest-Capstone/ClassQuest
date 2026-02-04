@@ -17,18 +17,25 @@ export const GROUPS = {
         selfSignUpEnabled: true,
         signInAliases: { email: true, username: true },
         // Email verification handled conditionally in preSignUp trigger
-        mfa: cognito.Mfa.OFF,
+        autoVerify: { email: true, phone: false },
+
+        mfa: cognito.Mfa.OPTIONAL,      // later switch to REQUIRED
+        mfaSecondFactor: { otp: true, sms: false },
         accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
-        autoVerify: { email: false, phone: false },
+        
 
         passwordPolicy: {
             minLength: 8,
             requireDigits: true,
             requireLowercase: true,
-            requireUppercase: false,
-            requireSymbols: false,
+            requireUppercase: true,
+            requireSymbols: true,
         },
 
+        // Make phone non-required explicitly
+        standardAttributes: {
+            phoneNumber: { required: false, mutable: true },
+        },
         // Custom attributes for role-based signup
         customAttributes: {
             role: new cognito.StringAttribute({ mutable: true }),
