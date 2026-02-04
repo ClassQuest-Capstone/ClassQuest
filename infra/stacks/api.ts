@@ -10,6 +10,7 @@ export function createApi(
         teacherProfilesTable: Table;
         schoolsTable: Table;
         classesTable: Table;
+        classEnrollmentsTable: Table;
     }
     ) {
     const api = new Api(stack, "HttpApi", {
@@ -45,6 +46,13 @@ export function createApi(
         "GET /teachers/{teacher_id}/classes": "packages/functions/src/classes/list-by-teacher.handler",
         "GET /schools/{school_id}/classes": "packages/functions/src/classes/list-by-school.handler",
         "PATCH /classes/{class_id}/deactivate": "packages/functions/src/classes/deactivate.handler",
+
+        // ClassEnrollments
+        "POST /classes/{class_id}/enroll": "packages/functions/src/classEnrollments/enroll.handler",
+        "DELETE /enrollments/{enrollment_id}": "packages/functions/src/classEnrollments/unenroll.handler",
+        "GET /classes/{class_id}/students": "packages/functions/src/classEnrollments/list-by-class.handler",
+        "GET /students/{student_id}/classes": "packages/functions/src/classEnrollments/list-by-student.handler",
+        "GET /enrollments/{enrollment_id}": "packages/functions/src/classEnrollments/get.handler",
         },
         defaults: {
         function: {
@@ -54,6 +62,7 @@ export function createApi(
             TEACHER_PROFILES_TABLE_NAME: tables.teacherProfilesTable.tableName,
             SCHOOLS_TABLE_NAME: tables.schoolsTable.tableName,
             CLASSES_TABLE_NAME: tables.classesTable.tableName,
+            CLASS_ENROLLMENTS_TABLE_NAME: tables.classEnrollmentsTable.tableName,
             },
         },
         },
@@ -66,6 +75,7 @@ export function createApi(
         tables.teacherProfilesTable,
         tables.schoolsTable,
         tables.classesTable,
+        tables.classEnrollmentsTable,
     ]);
 
     return api;

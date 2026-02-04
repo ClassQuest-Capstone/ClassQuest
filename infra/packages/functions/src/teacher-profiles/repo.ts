@@ -8,7 +8,7 @@ if (!TABLE) throw new Error("Missing TEACHER_PROFILES_TABLE_NAME");
 
 export type TeacherProfileItem = {
     teacher_id: string;     // Users.user_id
-    //school_id: string;
+    school_id: string;
     display_name: string;
     email: string;
     created_at: string;
@@ -40,8 +40,8 @@ export async function listTeachersBySchool(school_id: string): Promise<TeacherPr
         new QueryCommand({
         TableName: TABLE,
         IndexName: "gsi1",
-        //KeyConditionExpression: "school_id = :sid",
-        ExpressionAttributeValues: { ":sid": school_id },
+        //KeyConditionExpression: "school_id = :sid",                   ///// fix later fonce signup implemented
+        //ExpressionAttributeValues: { ":sid": school_id },
         })
     );
     return (res.Items as TeacherProfileItem[]) ?? [];
