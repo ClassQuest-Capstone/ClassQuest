@@ -118,9 +118,9 @@ const Profile = () => {
     </div>
     {/** Character name and role */}
     <div className="rounded-2xl p-4 bg-indigo-600 max-w-80 mx-auto mt-3 mb-5">
-      <p className="mt-0.5 text-lg font-bold text-white"> Name: </p>
+      <p className="mt-0.5 text-lg font-bold text-white"> Name: {teacher?.displayName}</p>
       <p className="text-white text-lg font-bold items-center justify-between">
-        Password: {/*{showPassword ? profile.password : "••••••••"}*/}
+        Password: •••••••• {/*{showPassword ? profile.password : "••••••••"}*/}
       </p>
       <i
         data-feather="edit"

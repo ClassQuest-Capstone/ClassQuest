@@ -5,19 +5,11 @@ Assign profile pictures to students based off which of the 3 characters to selec
 **Create QuestButton should save tags and still create quests**
 
 
-Frontend has error handling: teacherService.tsx falls back to default values.
-Infrastructure is set up: DynamoDB table, API Gateway, and Lambda functions exist.
-Signup endpoints are commented out, so they won’t break.
-
-ISSUES
-Not compatible. The frontend calls /api/teacher/${teacherId}/stats, but the backend doesn’t define it. The dashboard will show zeros and console errors. Add the missing endpoint in the infrastructure stack to make it work.
-
-
 TODO:
 Teachers:
 Dashboard: 
 - profile picture to pick from 
-- dynamic recent activity feed
+- dynamic recent activity feed (Almost done)
 - dynamic student cards (top student)
 
 Quests (subjects):
@@ -89,22 +81,21 @@ Current TODO:
 1. Login & logout implementation (Alsmost Done)
 2. Signup implementation (Almost done)
 3. Quest creation implementation (started)
-4. adding quests to students side
+4. adding quests to students side 
 
 Dynamic (TODO:)
 
 GOLD: +30 per quests / +100 per boss battles (remove individual dolg reward option from quests creation)
 
 
-Dynamic question generation / question pools
+Dynamic question generation / question pools (Future work)
+
+Dynamic profile syncing (Cognito → DynamoDB) (in progress)
+
+Dynamic UI components (React/Tailwind) (Done)
 
 
-Dynamic profile syncing (Cognito → DynamoDB)
-
-Dynamic UI components (React/Tailwind)
-
-
-Dynamic teacher dashboards
+Dynamic teacher dashboards (Almost done waiting on backend)
 
 TODO: fix gold reward from per question to total gold form subjects
 
@@ -112,4 +103,10 @@ infra ---> stacks ---> api.ts folder
 
 TODO:
 
-Document tutorial and fix so it only shows on first signup
+Document tutorial and fix so it only shows on first signup (DONE)
+
+TODO: fix the missing information on classes page and start work on restructuring quests apge and implementing backend
+
+npx sst dev --stage local1
+
+pwd: Dev12345!

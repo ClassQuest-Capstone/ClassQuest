@@ -1,8 +1,19 @@
+// src/pages/teacher/classes.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
-import { createClass, listClassesByTeacher, deactivateClass, type ClassItem } from "../../api/classes.js";
+import { fetchAuthSession } from "aws-amplify/auth";
 
+import {
+  createClass,
+  listClassesByTeacher,
+  deactivateClass,
+  type ClassItem,
+} from "../../api/classes";
+
+import { getTeacherProfile } from "../../api/teacherProfiles";
+
+// ✅ keep your preferred “TeacherUser” interface + guard
 type TeacherUser = {
   id: string;
   role: "teacher";
@@ -11,8 +22,55 @@ type TeacherUser = {
   email?: string;
 };
 
-// Map backend ClassItem to component's expected structure
+// ✅ but also add the resolved context (from Amplify + profile) like the other version
+type TeacherContext = {
+  teacher_id: string;
+  school_id: string;
+};
+
 type TeacherClass = ClassItem;
+
+function getTeacherIdFromLocalStorage(): string | null {
+  const raw = localStorage.getItem("cq_currentUser");
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    return (
+      parsed?.id ??
+      parsed?.teacher_id ??
+      parsed?.userId ??
+      parsed?.sub ??
+      parsed?.username ??
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
+async function resolveTeacherContext(): Promise<TeacherContext> {
+  // 1) try localStorage (TeacherUser id)
+  let teacher_id = getTeacherIdFromLocalStorage();
+
+  // 2) fallback to Amplify session sub
+  if (!teacher_id) {
+    const session = await fetchAuthSession();
+    const sub =
+      (session as any)?.userSub ??
+      (session as any)?.tokens?.idToken?.payload?.sub ??
+      null;
+
+    if (!sub) throw new Error("Could not determine teacher_id. Please log in again.");
+    teacher_id = sub;
+  }
+
+  // 3) teacher profile is source of truth for school_id
+  const profile = await getTeacherProfile(teacher_id);
+  if (!profile?.school_id) throw new Error("Teacher profile missing school_id.");
+
+  return { teacher_id, school_id: profile.school_id };
+}
 
 const Classes = () => {
   const navigate = useNavigate();
@@ -23,15 +81,15 @@ const Classes = () => {
     if (!raw) return null;
     try {
       const parsed = JSON.parse(raw);
-      if (parsed?.role === "teacher") return parsed;
+      if (parsed?.role === "teacher") return parsed as TeacherUser;
     } catch {}
     return null;
   }, []);
 
   if (!teacher) return <Navigate to="/TeacherLogin" replace />;
 
-  const teacherId = teacher.id;
-  const schoolId = teacher.school_id;
+  // ✅ we’ll prefer the resolved context values (so school_id is always correct)
+  const [teacherCtx, setTeacherCtx] = useState<TeacherContext | null>(null);
 
   const [classes, setClasses] = useState<TeacherClass[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -42,34 +100,49 @@ const Classes = () => {
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
 
-  // Load classes from backend on mount
+  const activeClasses = useMemo(
+    () => classes.filter((c) => c.is_active !== false),
+    [classes]
+  );
+
+  async function refreshClasses(teacherId: string) {
+    const response = await listClassesByTeacher(teacherId);
+    setClasses(response.items || []);
+  }
+
+  // Load teacher context + classes on mount
   useEffect(() => {
-    const loadClasses = async () => {
+    let mounted = true;
+
+    (async () => {
       try {
         setLoading(true);
-        const response = await listClassesByTeacher(teacherId);
-        // Filter to only show active classes
-        const activeClasses = response.items.filter((c) => c.is_active);
-        setClasses(activeClasses);
-      } catch (err) {
+        setError("");
+
+        const ctx = await resolveTeacherContext();
+        if (!mounted) return;
+        setTeacherCtx(ctx);
+
+        await refreshClasses(ctx.teacher_id);
+      } catch (err: any) {
         console.error("Error loading classes:", err);
-        setError("Failed to load classes. Please try again.");
+        if (!mounted) return;
+        setError(err?.message || "Failed to load classes. Please try again.");
       } finally {
+        if (!mounted) return;
         setLoading(false);
       }
-    };
+    })();
 
-    loadClasses();
-  }, [teacherId]);
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // icons
   useEffect(() => {
     feather.replace();
-  }, []);
-
-  useEffect(() => {
-    feather.replace();
-  }, [isModalOpen, classes]);
+  }, [isModalOpen, classes, loading]);
 
   function handleOpenModal() {
     setError("");
@@ -82,6 +155,11 @@ const Classes = () => {
   async function handleCreateClass(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
+
+    if (!teacherCtx) {
+      setError("Teacher context not loaded yet. Try again in a second.");
+      return;
+    }
 
     const name = className.trim();
     if (!name) {
@@ -96,38 +174,50 @@ const Classes = () => {
 
     try {
       setIsCreating(true);
+
       const newClass = await createClass({
-        school_id: schoolId,
+        school_id: teacherCtx.school_id,
         name,
         grade_level: gradeLevel,
-        created_by_teacher_id: teacherId,
-        subject: subject || undefined,
+        created_by_teacher_id: teacherCtx.teacher_id,
+        subject: subject.trim() ? subject.trim() : undefined,
       });
 
+      // optimistic add
       setClasses((prev) => [newClass, ...prev]);
+
       setIsModalOpen(false);
       setClassName("");
       setGradeLevel(6);
       setSubject("");
+
+      // refresh to match backend truth
+      await refreshClasses(teacherCtx.teacher_id);
     } catch (err: any) {
       console.error("Error creating class:", err);
-      setError(err.message || "Failed to create class. Please try again.");
+      setError(err?.message || "Failed to create class. Please try again.");
     } finally {
       setIsCreating(false);
     }
   }
 
   async function handleDeleteClass(classId: string) {
-    if (!confirm("Are you sure you want to delete this class? This cannot be undone.")) {
+    if (!teacherCtx) return;
+
+    if (!confirm("Deactivate this class? Students won’t be able to join anymore.")) {
       return;
     }
 
     try {
+      setError("");
       await deactivateClass(classId);
+
+      // remove locally + refresh
       setClasses((prev) => prev.filter((c) => c.class_id !== classId));
+      await refreshClasses(teacherCtx.teacher_id);
     } catch (err: any) {
-      console.error("Error deleting class:", err);
-      setError(err.message || "Failed to delete class. Please try again.");
+      console.error("Error deactivating class:", err);
+      setError(err?.message || "Failed to deactivate class. Please try again.");
     }
   }
 
@@ -166,13 +256,18 @@ const Classes = () => {
               >
                 Classes
               </Link>
-              <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
+              <Link
+                to="/Subjects"
+                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
+              >
                 Quests
               </Link>
-              <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
+              <Link
+                to="/Activity"
+                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
+              >
                 Activity
               </Link>
-              {/* If you want the real dropdown later, add it back here */}
             </div>
 
             <div className="-mr-2 flex items-center md:hidden">
@@ -199,8 +294,12 @@ const Classes = () => {
         {/* Header */}
         <div className="flex flex-wrap gap-4 justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-indigo-800">Class Management</h1>
-            <p className="text-white">Create and manage multiple classes with unique join codes.</p>
+            <h1 className="text-3xl font-bold text-indigo-800">
+              Class Management
+            </h1>
+            <p className="text-white">
+              Create and manage multiple classes with unique join codes.
+            </p>
           </div>
 
           <button
@@ -211,19 +310,29 @@ const Classes = () => {
           </button>
         </div>
 
+        {/* Error */}
+        {error && (
+          <div className="bg-white rounded-xl shadow-md p-4 text-red-600 mb-6">
+            {error}
+          </div>
+        )}
+
         {/* Cards */}
         {loading ? (
           <div className="bg-white rounded-xl shadow-md p-6 text-gray-700 text-center">
             <p>Loading classes...</p>
           </div>
-        ) : classes.length === 0 ? (
+        ) : activeClasses.length === 0 ? (
           <div className="bg-white rounded-xl shadow-md p-6 text-gray-700">
             No classes yet. Click <b>Create Class</b> to get started.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {classes.map((c) => (
-              <div key={c.class_id} className="bg-white rounded-xl shadow-md overflow-hidden transition duration-300">
+            {activeClasses.map((c) => (
+              <div
+                key={c.class_id}
+                className="bg-white rounded-xl shadow-md overflow-hidden transition duration-300"
+              >
                 {/* Card header gradient */}
                 <div className="bg-linear-to-r from-blue-500 to-indigo-600 p-6 text-white text-center">
                   <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4">
@@ -238,25 +347,38 @@ const Classes = () => {
                 <div className="p-5 space-y-4">
                   {/* Extra clear name */}
                   <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
-                    <p className="text-xs tracking-widest text-indigo-700 font-semibold">CLASS NAME</p>
-                    <p className="mt-1 text-lg font-bold text-indigo-900">{c.name}</p>
+                    <p className="text-xs tracking-widest text-indigo-700 font-semibold">
+                      CLASS NAME
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-indigo-900">
+                      {c.name}
+                    </p>
                   </div>
 
                   {/* Grade Level */}
                   <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                    <p className="text-xs tracking-widest text-purple-700 font-semibold">GRADE LEVEL</p>
-                    <p className="mt-1 text-lg font-bold text-purple-900">Grade {c.grade_level}</p>
+                    <p className="text-xs tracking-widest text-purple-700 font-semibold">
+                      GRADE LEVEL
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-purple-900">
+                      Grade {c.grade_level}
+                    </p>
                   </div>
 
                   {/* Code */}
                   <div className="bg-gray-50 border rounded-lg p-4">
-                    <p className="text-xs tracking-widest text-gray-500 font-semibold">CLASS CODE</p>
+                    <p className="text-xs tracking-widest text-gray-500 font-semibold">
+                      CLASS CODE
+                    </p>
                     <p className="text-sm text-gray-700 mt-1">
-                      Code for <span className="font-bold text-gray-900">{c.name}</span>
+                      Code for{" "}
+                      <span className="font-bold text-gray-900">{c.name}</span>
                     </p>
 
                     <div className="mt-2 flex items-center justify-between gap-3">
-                      <p className="text-2xl font-extrabold tracking-[0.35em] text-indigo-700">{c.join_code}</p>
+                      <p className="text-2xl font-extrabold tracking-[0.35em] text-indigo-700">
+                        {c.join_code}
+                      </p>
                       <button
                         onClick={() => handleCopy(c.join_code)}
                         className="px-3 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
@@ -274,30 +396,38 @@ const Classes = () => {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       className="bg-green-600 hover:bg-green-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
-                      onClick={() => navigate(`/students?classCode=${encodeURIComponent(c.join_code)}`)}
+                      onClick={() =>
+                        navigate(
+                          `/students?classCode=${encodeURIComponent(c.join_code)}`
+                        )
+                      }
                     >
-                      <i data-feather="users" className="mr-1 w-4 h-4"></i> Students
+                      <i data-feather="users" className="mr-1 w-4 h-4"></i>{" "}
+                      Students
                     </button>
 
                     <button
                       className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
                       onClick={() => alert("Settings page later")}
                     >
-                      <i data-feather="settings" className="mr-1 w-4 h-4"></i> Settings
+                      <i data-feather="settings" className="mr-1 w-4 h-4"></i>{" "}
+                      Settings
                     </button>
 
                     <button
                       className="col-span-2 bg-blue-600 hover:bg-blue-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
                       onClick={() => navigate("/Subjects")}
                     >
-                      <i data-feather="plus-circle" className="mr-1 w-4 h-4"></i> Create Quest
+                      <i data-feather="plus-circle" className="mr-1 w-4 h-4"></i>{" "}
+                      Create Quest
                     </button>
 
                     <button
                       className="col-span-2 bg-gray-100 hover:bg-gray-200 text-red-600 border border-red-600 px-2 py-2 rounded-lg text-sm flex items-center justify-center"
                       onClick={() => handleDeleteClass(c.class_id)}
                     >
-                      <i data-feather="trash-2" className="mr-1 w-4 h-4"></i> Delete Class
+                      <i data-feather="trash-2" className="mr-1 w-4 h-4"></i>{" "}
+                      Delete Class
                     </button>
                   </div>
                 </div>
@@ -313,16 +443,26 @@ const Classes = () => {
           <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">Create New Class</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-blue-500 hover:text-blue-700">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-blue-500 hover:text-blue-700"
+                disabled={isCreating}
+              >
                 <i data-feather="x-circle"></i>
               </button>
             </div>
 
             <form className="space-y-4" onSubmit={handleCreateClass}>
-              {error && <p className="text-sm text-red-600 bg-red-50 p-3 rounded">{error}</p>}
+              {error && (
+                <p className="text-sm text-red-600 bg-red-50 p-3 rounded">
+                  {error}
+                </p>
+              )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Class Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Class Name
+                </label>
                 <input
                   type="text"
                   value={className}
@@ -334,7 +474,9 @@ const Classes = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Grade Level</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Grade Level
+                </label>
                 <select
                   value={gradeLevel}
                   onChange={(e) => setGradeLevel(Number(e.target.value))}
@@ -348,7 +490,9 @@ const Classes = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subject (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Subject (Optional)
+                </label>
                 <input
                   type="text"
                   value={subject}
@@ -370,11 +514,17 @@ const Classes = () => {
                 <button
                   type="submit"
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg disabled:opacity-50"
-                  disabled={isCreating}
+                  disabled={isCreating || !teacherCtx}
                 >
                   {isCreating ? "Creating..." : "Create Class"}
                 </button>
               </div>
+
+              {!teacherCtx && (
+                <p className="text-xs text-gray-500">
+                  Teacher context not loaded yet. If this persists, re-login.
+                </p>
+              )}
             </form>
           </div>
         </div>

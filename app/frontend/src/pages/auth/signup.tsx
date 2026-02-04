@@ -6,11 +6,13 @@ import { signUp, confirmSignUp, signIn, fetchAuthSession, signOut } from "aws-am
 
 import { createStudentProfile } from "../../api/studentProfiles.js";
 import { createTeacherProfile } from "../../api/teacherProfiles.js";
+import { getSchools, School } from "../../api/schools.js";
 
 // ✅ local class “DB”
 import { classExists, ensureClassExists, joinClass } from "../../utils/classStore.js";
 
 type UserType = "teacher" | "student";
+type SchoolType = string;
 
 function generateClassCode(length: number = 6) {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // avoid I,O,0,1 confusion
@@ -57,7 +59,10 @@ export default function Signup() {
 
   // teacher only
   const [email, setEmail] = useState(""); // teacher login (cognito username)
+  const [schoolType, setSchoolType] = useState<SchoolType>(""); // teacher school selection
   const [teacherGeneratedCode, setTeacherGeneratedCode] = useState("");
+  const [schools, setSchools] = useState<School[]>([]);
+  const [loadingSchools, setLoadingSchools] = useState(false);
 
   // student only (no email)
   const [studentUsername, setStudentUsername] = useState("");
@@ -86,6 +91,26 @@ export default function Signup() {
     feather.replace();
   }, []);
 
+  // Fetch schools on component mount
+  useEffect(() => {
+    const fetchSchools = async () => {
+      setLoadingSchools(true);
+      try {
+        const response = await getSchools();
+        setSchools(response.items);
+        // Set first school as default if available
+        if (response.items.length > 0) {
+          setSchoolType(response.items[0].school_id);
+        }
+      } catch (err) {
+        console.error("[signup] Failed to fetch schools", err);
+      } finally {
+        setLoadingSchools(false);
+      }
+    };
+    fetchSchools();
+  }, []);
+
   useEffect(() => {
     // reset things when switching type
     setError("");
@@ -99,6 +124,7 @@ export default function Signup() {
     }
     if (userType !== "teacher") {
       setEmail("");
+      setSchoolType("");
     }
   }, [userType]);
 
@@ -244,6 +270,7 @@ export default function Signup() {
     // TEACHER SIGNUP (COGNITO)
     // ----------------------------
     if (!cleanedTeacherEmail) return setError("Email is required for teacher accounts.");
+    if (!schoolType) return setError("School selection is required for teacher accounts.");
 
     setIsLoading(true);
     try {
@@ -256,6 +283,7 @@ export default function Signup() {
       setPendingEmail(cleanedTeacherEmail);
       setPendingPassword(password);
       setPendingTeacherUsername(generatedUsername);
+      setPendingClassCode(schoolType); // Store school_id for teacher profile creation
 
       const { nextStep } = await signUp({
         username: generatedUsername,
@@ -331,11 +359,12 @@ export default function Signup() {
         })
       );
 
-      // Create DB profile (teacher) - no school_id at signup
+      // Create DB profile (teacher) with school_id
       await createTeacherProfile({
         teacher_id: sub,
         display_name: pendingDisplayName,
         email: pendingEmail,
+        school_id: pendingClassCode, // Now using the selected school_id
       });
 
       setSuccess("Teacher account confirmed! Redirecting to login...");
@@ -480,7 +509,27 @@ export default function Signup() {
                       />
                     </div>
                   )}
-
+                  {userType === "teacher" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 text-left">School</label>
+                    <select
+                      id="schoolType"
+                      name="schoolType"
+                      value={schoolType}
+                      onChange={(e) => setSchoolType(e.target.value)}
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white"
+                      required
+                      disabled={loadingSchools}
+                    >
+                      <option value="">-- Select a school --</option>
+                      {schools.map((school) => (
+                        <option key={school.school_id} value={school.school_id}>
+                          {school.name} ({school.city}, {school.province})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1 text-left">Password</label>
                     <input
