@@ -116,8 +116,7 @@ const TeacherDashboard = () => {
 
   const sidebarLinks = [
     { icon: "home", label: "Dashboard", href: "/teacher/dashboard" },
-    { icon: "users", label: "Students", href: "/students" },
-    { icon: "book", label: "Subjects", href: "/subjects" },
+    { icon: "book", label: "Classes", href: "/classes" },
     { icon: "clock", label: "Activity", href: "/Activity" }, // matches app.tsx
     { icon: "shopping-bag", label: "Rewards", href: "/rewards" },
     { icon: "user", label: "Profile", href: "/profile" },
@@ -275,31 +274,12 @@ const TeacherDashboard = () => {
           <main className="flex-1 overflow-y-auto p-4 ml-3 mr-3">
             <p className="text-2xl font-bold text-indigo-600">Teacher Dashboard</p>
 
-            {/* CLASS CODE */}
-            <div className="mt-4 max-w-xl p-4 bg-white/300 rounded-lg shadow-md">
-              <p className="text-sm tracking-widest text-gray-800 font-semibold">CLASS CODE</p>
-              <div className="mt-2 flex items-center justify-between gap-3">
-                <p className="text-3xl font-extrabold tracking-[0.35em] text-indigo-700">
-                  {classCode || "------"}
-                </p>
-                <button
-                  onClick={() => classCode && navigator.clipboard.writeText(classCode)}
-                  className="px-3 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
-                >
-                  Copy
-                </button>
-              </div>
-              <p className="mt-2 text-sm text-gray-700">
-                Students must enter this code when creating their account to join your class.
-              </p>
-            </div>
-
             {loading ? (
               <div className="mt-6 text-center text-gray-500">Loading stats...</div>
             ) : (
               <div id="Active-tab" className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-4">
                 <StatsCard icon="users" label="Active Students" value={stats.activeStudents} />
-                <StatsCard icon="book" label="Active Subjects" value={stats.activeSubjects} />
+                <StatsCard icon="book" label="Active Classes" value={stats.activeSubjects} />
                 <StatsCard icon="award" label="Active Tasks" value={stats.activeTasks} />
                 <StatsCard icon="check-circle" label="Completion Rate" value={`${stats.completionRate}%`} />
               </div>

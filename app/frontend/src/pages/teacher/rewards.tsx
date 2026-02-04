@@ -13,9 +13,9 @@ type TeacherUser = {
 
 const rewards = () => {
     const navigate = useNavigate();
-     const [isModalOpen, setIsModalOpen] = useState(false);
-       const [loading, setIsLoading] = useState(false); // Loading state
-       const [teacher, setTeacher] = useState<TeacherUser | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [loading, setIsLoading] = useState(false); // Loading state
+    const [teacher, setTeacher] = useState<TeacherUser | null>(null);
 
     useEffect(() => {
         feather.replace();

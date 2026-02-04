@@ -9,11 +9,11 @@ import {
   listClassesByTeacher,
   deactivateClass,
   type ClassItem,
-} from "../../api/classes";
+} from "../../api/classes.js";
 
-import { getTeacherProfile } from "../../api/teacherProfiles";
+import { getTeacherProfile } from "../../api/teacherProfiles.js";
 
-// ✅ keep your preferred “TeacherUser” interface + guard
+// Teacher interface
 type TeacherUser = {
   id: string;
   role: "teacher";
@@ -22,7 +22,7 @@ type TeacherUser = {
   email?: string;
 };
 
-// ✅ but also add the resolved context (from Amplify + profile) like the other version
+// Teacher context
 type TeacherContext = {
   teacher_id: string;
   school_id: string;
@@ -88,7 +88,7 @@ const Classes = () => {
 
   if (!teacher) return <Navigate to="/TeacherLogin" replace />;
 
-  // ✅ we’ll prefer the resolved context values (so school_id is always correct)
+  // we’ll prefer the resolved context values (so school_id is always correct)
   const [teacherCtx, setTeacherCtx] = useState<TeacherContext | null>(null);
 
   const [classes, setClasses] = useState<TeacherClass[]>([]);
@@ -99,6 +99,7 @@ const Classes = () => {
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const activeClasses = useMemo(
     () => classes.filter((c) => c.is_active !== false),
@@ -223,11 +224,13 @@ const Classes = () => {
 
   function handleCopy(code: string) {
     navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000)
   }
 
   return (
     <div className="font-poppins bg-[url(/assets/background-teacher-dash.png)] bg-cover bg-center bg-no-repeat min-h-screen">
-      {/* Nav (similar vibe to Subjects) */}
+      {/* Nav bar */}
       <nav className="bg-blue-700 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
@@ -376,16 +379,22 @@ const Classes = () => {
                     </p>
 
                     <div className="mt-2 flex items-center justify-between gap-3">
-                      <p className="text-2xl font-extrabold tracking-[0.35em] text-indigo-700">
-                        {c.join_code}
-                      </p>
-                      <button
-                        onClick={() => handleCopy(c.join_code)}
-                        className="px-3 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
-                      >
-                        Copy
-                      </button>
-                    </div>
+                    <p className="text-2xl font-extrabold tracking-[0.35em] text-indigo-700">
+                      {c.join_code}
+                    </p>
+
+                    <button
+                      onClick={() => handleCopy(c.join_code)}
+                      className="px-3 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                      {copied && (
+                        <div className="mt-2 rounded-md bg-green-100 text-green-800 px-3 py-1 text-sm font-medium w-fit">
+                          Copied to clipboard!
+                        </div>
+                      )}
 
                     <p className="mt-2 text-sm text-gray-600">
                       Students enter this code during signup to join this class.
@@ -416,10 +425,17 @@ const Classes = () => {
 
                     <button
                       className="col-span-2 bg-blue-600 hover:bg-blue-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
-                      onClick={() => navigate("/Subjects")}
+                      onClick={() => navigate("/Subjects", { state: { openCreateQuest: true } })}
                     >
                       <i data-feather="plus-circle" className="mr-1 w-4 h-4"></i>{" "}
                       Create Quest
+                    </button>
+                    <button
+                      className="col-span-2 bg-purple-600 hover:bg-purple-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
+                      onClick={() => navigate("/Subjects")}
+                    >
+                      <i data-feather="eye" className="mr-1 w-4 h-4"></i>{" "}
+                      View Quests
                     </button>
 
                     <button

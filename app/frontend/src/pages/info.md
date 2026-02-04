@@ -107,6 +107,17 @@ Document tutorial and fix so it only shows on first signup (DONE)
 
 TODO: fix the missing information on classes page and start work on restructuring quests apge and implementing backend
 
+TODO: Remove my subjects for students (class Rewards )
+
+
+TODO: greyed out & invisible armours/ equipments
+
 npx sst dev --stage local1
 
 pwd: Dev12345!
+
+
+EXTRA TIME: (TODO:)
+
+IF TIME ALLOWED: (REMOVE CLASS FROM DB)
+

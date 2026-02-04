@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
 
@@ -52,13 +52,44 @@ const QUESTS: QuestCard[] = [
   },
 ];
 
+type TeacherUser = {
+  id: string;
+  role: "teacher";
+  displayName?: string;
+  email?: string;
+  classCode?: string;
+};
+
 const Subjects = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const location = useLocation();
   const navigate = useNavigate();
+  const [teacher, setTeacher] = useState<TeacherUser | null>(null);
 
   useEffect(() => {
     feather.replace();
   }, []);
+
+  useEffect(() => {
+  if (location.state?.openCreateQuest) {
+    setIsModalOpen(true);
+    navigate(location.pathname, { replace: true });
+  }
+}, [location.state, navigate, location.pathname]);
+
+// Load teacher data from localStorage
+      useEffect(() => {
+        const currentUserJson = localStorage.getItem("cq_currentUser");
+        if (currentUserJson) {
+          try {
+            const teacherData = JSON.parse(currentUserJson) as TeacherUser;
+            setTeacher(teacherData);
+          } catch (error) {
+            console.error("Failed to parse teacher data from localStorage:", error);
+          }
+        }
+      }, []);
+
 
   useEffect(() => {
     feather.replace();
@@ -119,7 +150,13 @@ const handleCreateQuest = (event: React.FormEvent<HTMLFormElement>) => {
               >
                 Activity
               </Link>
-             <DropDownProfile username="user"onLogout={() => {console.log("Logging out"); /**TODO: Logout logic */}}/>
+              <DropDownProfile
+                                    username={teacher?.displayName || "user"}
+                                    onLogout={() => {
+                                      localStorage.removeItem("cq_currentUser");
+                                      navigate("/TeacherLogin");
+                                    }}
+                                  />
             </div>
             <div className="-mr-2 flex items-center md:hidden">
               <button className="inline-flex items-center justify-center p-2 rounded-md text-blue-100 hover:text-white hover:bg-blue-600">
@@ -149,6 +186,7 @@ const handleCreateQuest = (event: React.FormEvent<HTMLFormElement>) => {
           >
             <i data-feather="plus" className="mr-2"></i> Create Quest
           </button>
+
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
