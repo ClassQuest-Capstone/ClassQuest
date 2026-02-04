@@ -24,6 +24,7 @@ export function createApi(
         "GET /health": "packages/functions/src/health.handler",
 
         // Schools
+        "GET /schools": "packages/functions/src/schools/list.handler",
         "POST /schools": "packages/functions/src/schools/create.handler",
         "GET /schools/{school_id}": "packages/functions/src/schools/get.handler",
 

@@ -17,7 +17,9 @@ export const GROUPS = {
         selfSignUpEnabled: true,
         signInAliases: { email: true, username: true },
         // Email verification handled conditionally in preSignUp trigger
-        autoVerify: { email: false },
+        mfa: cognito.Mfa.OFF,
+        accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
+        autoVerify: { email: false, phone: false },
 
         passwordPolicy: {
             minLength: 8,
