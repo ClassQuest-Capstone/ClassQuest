@@ -33,14 +33,14 @@ export function createApi(
         // StudentProfiles
         "POST /student-profiles": "packages/functions/src/student-profiles/create.handler",
         "GET /student-profiles/{student_id}": "packages/functions/src/student-profiles/get.handler",
-        "GET /schools/{school_id}/students":
-            "packages/functions/src/student-profiles/list-by-school.handler",
+        "GET /schools/{school_id}/students": "packages/functions/src/student-profiles/list-by-school.handler",
+            
 
         // TeacherProfiles
         "POST /teacher-profiles": "packages/functions/src/teacher-profiles/create.handler",
         "GET /teacher-profiles/{teacher_id}": "packages/functions/src/teacher-profiles/get.handler",
-        "GET /schools/{school_id}/teachers":
-            "packages/functions/src/teacher-profiles/list-by-school.handler",
+        "GET /schools/{school_id}/teachers": "packages/functions/src/teacher-profiles/list-by-school.handler",
+            
 
         // Classes
         "POST /classes": "packages/functions/src/classes/create.handler",

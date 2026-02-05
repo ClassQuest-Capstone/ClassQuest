@@ -7,6 +7,7 @@ export type QuestTemplateItem = {
     title: string;                       // Template title
     description: string;                 // Template description
     subject: string;                     // Subject area (e.g., "Mathematics")
+    subject_id: string;                  // Subject identifier
     estimated_duration_minutes: number;  // Estimated completion time
     base_xp_reward: number;              // XP reward for completion
     base_gold_reward: number;            // Gold reward for completion
