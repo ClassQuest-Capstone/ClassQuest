@@ -121,7 +121,7 @@ const handleCreateQuest = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
   
-  const questData = {
+    const questData = {
     name: formData.get("questName"),
     type: formData.get("type"),
     subject: formData.get("subject"),
@@ -129,7 +129,9 @@ const handleCreateQuest = (event: React.FormEvent<HTMLFormElement>) => {
     description: formData.get("description"),
     difficulty: formData.get("difficulty"),
     reward: formData.get("reward"),
+    XP: formData.get("XP"),
   };
+
     // Todo: Connect to backend workflow for quest creation.
     setIsModalOpen(false);
     navigate("/quests", { state: { questData } });

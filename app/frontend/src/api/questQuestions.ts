@@ -42,9 +42,7 @@ export function createQuestQuestion(data: QuestQuestion) {
     });
 }
 
-
-
-export function getQuestQuestions(quest_template_id: string){
+export function getQuestQuestion(quest_template_id: string){
     return api<{ items: QuestQuestion[] }>(`/quest-questions?quest_template_id=${encodeURIComponent(quest_template_id)}`);
 }
 

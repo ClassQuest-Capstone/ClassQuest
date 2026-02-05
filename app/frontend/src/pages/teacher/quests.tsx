@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
@@ -43,6 +43,8 @@ interface QuestData {
   description: string;
   difficulty: string;
   reward: string;
+  estimated_duration_minutes?: number;
+  XP?: string | number;
 }
 
 const Quests = () => {
@@ -64,6 +66,7 @@ const Quests = () => {
   const [questTemplateId, setQuestTemplateId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>("");
+  const templateInitialized = useRef(false);
 
   // Form state for current question
   const [activeTab, setActiveTab] = useState<QuestionType>("Multiple Choice");
@@ -71,7 +74,7 @@ const Quests = () => {
     questDataFromModal?.name || "New Question"
   );
   const [difficulty, setDifficulty] = useState(questDataFromModal?.difficulty || "Medium");
-  const [xpValue, setXpValue] = useState(25);
+  const [xpValue, setXpValue] = useState(10);
   const [questionText, setQuestionText] = useState(
     questDataFromModal?.description || ""
   );
@@ -96,7 +99,8 @@ const Quests = () => {
   // Initialize quest template on mount
   useEffect(() => {
     const initializeQuestTemplate = async () => {
-      if (questDataFromModal && !questTemplateId) {
+      if (questDataFromModal && !questTemplateId && !templateInitialized.current) {
+        templateInitialized.current = true;
         setIsLoading(true);
         try {
           const currentUser = JSON.parse(localStorage.getItem("cq_currentUser") || "{}");
@@ -124,26 +128,35 @@ const Quests = () => {
           const mappedDifficulty = difficultyMap[questDataFromModal.difficulty] || "MEDIUM";
           const grade = Math.max(5, Math.min(8, parseInt(questDataFromModal.grade) || 5)); // Clamp between grades 5-8 
           const questType = "QUEST"; // Default to QUEST type
+          const baseXP = Number(
+            String(questDataFromModal.XP).replace("XP", "")
+          );
+
+          const baseGold = Number(
+            String(questDataFromModal.reward).replace(" Gold", "")
+          );
 
           const template = await createQuestTemplate({
             title: questDataFromModal.name || "Untitled Quest",
             description: questDataFromModal.description || "",
             subject: questDataFromModal.subject || "General",
-            estimated_duration_minutes: questDataFromModal.estimated_duration_minutes || null,
-            base_xp_reward: questDataFromModal.base_xp_reward || 0,
-            base_gold_reward: questDataFromModal.base_gold_reward || 0,
-            is_shared_publicly: null,
+            estimated_duration_minutes: questDataFromModal.estimated_duration_minutes || 0,
+            base_xp_reward: baseXP,
+            base_gold_reward: baseGold,
+            is_shared_publicly: false,
             type: questType,
             grade,
             difficulty: mappedDifficulty,
             owner_teacher_id: teacherId,
           });
 
+
           setQuestTemplateId(template.quest_template_id);
           setError("");
         } catch (err: any) {
           console.error("Failed to create quest template:", err);
           setError(err?.message || "Failed to create quest template");
+          templateInitialized.current = false;
         } finally {
           setIsLoading(false);
         }
