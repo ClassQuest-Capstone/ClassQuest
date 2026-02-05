@@ -2,8 +2,16 @@ import React, { useEffect, useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
-import { createQuestTemplate, updateQuestTemplate, QuestTemplate } from "../../api/questTemplates.js";
-import { createQuestQuestion, updateQuestQuestion, deleteQuestQuestion } from "../../api/questQuestions.js";
+import {
+  createQuestTemplate,
+  updateQuestTemplate,
+  QuestTemplate,
+} from "../../api/questTemplates.js";
+import {
+  createQuestQuestion,
+  updateQuestQuestion,
+  deleteQuestQuestion,
+} from "../../api/questQuestions.js";
 
 type QuestionType = "Multiple Choice" | "True/False" | "Short Answer" | "Matching";
 
@@ -73,7 +81,9 @@ const Quests = () => {
   const [questionTitle, setQuestionTitle] = useState(
     questDataFromModal?.name || "New Question"
   );
-  const [difficulty, setDifficulty] = useState(questDataFromModal?.difficulty || "Medium");
+  const [difficulty, setDifficulty] = useState(
+    questDataFromModal?.difficulty || "Medium"
+  );
   const [xpValue, setXpValue] = useState(10);
   const [questionText, setQuestionText] = useState(
     questDataFromModal?.description || ""
@@ -96,14 +106,16 @@ const Quests = () => {
     feather.replace();
   }, []);
 
-  // Initialize quest template on mount
+  // Initialize quest template on mount with modal data
   useEffect(() => {
     const initializeQuestTemplate = async () => {
       if (questDataFromModal && !questTemplateId && !templateInitialized.current) {
         templateInitialized.current = true;
         setIsLoading(true);
         try {
-          const currentUser = JSON.parse(localStorage.getItem("cq_currentUser") || "{}");
+          const currentUser = JSON.parse(
+            localStorage.getItem("cq_currentUser") || "{}"
+          );
           const teacherId = currentUser.id;
 
           if (!teacherId) {
@@ -111,27 +123,24 @@ const Quests = () => {
             return;
           }
 
-          // Create quest template from modal data
-          // Map difficulty to valid backend format
           const difficultyMap: { [key: string]: "EASY" | "MEDIUM" | "HARD" } = {
-            "Easy": "EASY",
-            "easy": "EASY",
-            "Medium": "MEDIUM",
-            "medium": "MEDIUM",
-            "Hard": "HARD",
-            "hard": "HARD",
-            "EASY": "EASY",
-            "MEDIUM": "MEDIUM",
-            "HARD": "HARD",
+            Easy: "EASY",
+            easy: "EASY",
+            Medium: "MEDIUM",
+            medium: "MEDIUM",
+            Hard: "HARD",
+            hard: "HARD",
+            EASY: "EASY",
+            MEDIUM: "MEDIUM",
+            HARD: "HARD",
           };
 
-          const mappedDifficulty = difficultyMap[questDataFromModal.difficulty] || "MEDIUM";
-          const grade = Math.max(5, Math.min(8, parseInt(questDataFromModal.grade) || 5)); // Clamp between grades 5-8 
-          const questType = "QUEST"; // Default to QUEST type
-          const baseXP = Number(
-            String(questDataFromModal.XP).replace("XP", "")
-          );
-
+          const mappedDifficulty =
+            difficultyMap[questDataFromModal.difficulty] || "MEDIUM";
+          const grade =
+            Number(String(questDataFromModal.grade).replace(/\D/g, "")) || null;
+          const questType = "QUEST";
+          const baseXP = Number(String(questDataFromModal.XP).replace("XP", ""));
           const baseGold = Number(
             String(questDataFromModal.reward).replace(" Gold", "")
           );
@@ -140,7 +149,8 @@ const Quests = () => {
             title: questDataFromModal.name || "Untitled Quest",
             description: questDataFromModal.description || "",
             subject: questDataFromModal.subject || "General",
-            estimated_duration_minutes: questDataFromModal.estimated_duration_minutes || 0,
+            estimated_duration_minutes:
+            questDataFromModal.estimated_duration_minutes || 0,
             base_xp_reward: baseXP,
             base_gold_reward: baseGold,
             is_shared_publicly: false,
@@ -149,7 +159,6 @@ const Quests = () => {
             difficulty: mappedDifficulty,
             owner_teacher_id: teacherId,
           });
-
 
           setQuestTemplateId(template.quest_template_id);
           setError("");
@@ -164,11 +173,11 @@ const Quests = () => {
     };
 
     initializeQuestTemplate();
-  }, [questDataFromModal]);
+  }, [questTemplateId]); // Only depend on questTemplateId; questDataFromModal is not used
 
   useEffect(() => {
     feather.replace();
-  }, [activeTab, answerOptions, matchingPairs]);
+  }, [activeTab]);
 
   // Reset form for new question
   const resetForm = () => {
@@ -197,14 +206,15 @@ const Quests = () => {
     setActiveTab("Multiple Choice");
   };
 
-  // Save question 
+  // Save question
   const handleSaveQuestion = async () => {
+    console.log("QuestTemplateId:", questTemplateId);
+
     if (!questTemplateId) {
       setError("Quest template not initialized. Please refresh and try again.");
       return;
     }
 
-    // Map question type to backend format
     const formatMap: { [key: string]: any } = {
       "Multiple Choice": "MCQ_SINGLE",
       "True/False": "TRUE_FALSE",
@@ -214,6 +224,14 @@ const Quests = () => {
 
     const questionFormat = formatMap[activeTab] || "MCQ_SINGLE";
 
+    const difficultyMap: Record<string, "EASY" | "MEDIUM" | "HARD"> = {
+      Easy: "EASY",
+      Medium: "MEDIUM",
+      Hard: "HARD",
+    };
+
+    const mappedDifficulty = difficultyMap[difficulty] || "MEDIUM";
+
     const newQuestion: Question = {
       id: selectedQuestion?.id || Date.now().toString(),
       type: activeTab,
@@ -221,8 +239,12 @@ const Quests = () => {
       difficulty,
       xpValue,
       questionText,
-      answerOptions: activeTab === "Multiple Choice" ? answerOptions : undefined,
-      correctAnswer: activeTab === "True/False" || activeTab === "Short Answer" ? correctAnswer : undefined,
+      answerOptions:
+        activeTab === "Multiple Choice" ? answerOptions : undefined,
+      correctAnswer:
+        activeTab === "True/False" || activeTab === "Short Answer"
+          ? correctAnswer
+          : undefined,
       matchingPairs: activeTab === "Matching" ? matchingPairs : undefined,
       explanation,
       hint,
@@ -232,57 +254,88 @@ const Quests = () => {
 
     setIsLoading(true);
     try {
-      // Format options/answers for backend
       let backendOptions: any = undefined;
       let backendCorrectAnswer: any = undefined;
 
       if (activeTab === "Multiple Choice" && answerOptions.length > 0) {
-        backendOptions = answerOptions;
-        backendCorrectAnswer = answerOptions.find((opt) => opt.isCorrect)?.text || "";
+        // Transform to backend MCQOptions structure: { choices: Array<{id, text}> }
+        backendOptions = {
+          choices: answerOptions.map((opt) => ({
+            id: opt.id,
+            text: opt.text,
+          })),
+        };
+        backendCorrectAnswer = {
+          choiceId: answerOptions.find((opt) => opt.isCorrect)?.id || "",
+        };
       } else if (activeTab === "True/False") {
-        backendCorrectAnswer = correctAnswer;
+        
+        const trueChoice = { id: "true", text: "True" };
+        const falseChoice = { id: "false", text: "False" };
+        backendOptions = {
+          choices: [trueChoice, falseChoice],
+        };
+        
+        backendCorrectAnswer = correctAnswer
+          ? { choiceId: correctAnswer.toLowerCase() }
+          : undefined;
       } else if (activeTab === "Short Answer") {
-        backendCorrectAnswer = correctAnswer;
+        backendCorrectAnswer = correctAnswer || undefined;
       } else if (activeTab === "Matching") {
-        backendOptions = matchingPairs;
+        backendOptions = {
+          left: matchingPairs.map((pair) => ({
+            id: pair.id,
+            text: pair.left,
+          })),
+          right: matchingPairs.map((pair) => ({
+            id: pair.id,
+            text: pair.right,
+          })),
+        };
       }
+
+      const autoGradable = activeTab !== "Matching";
 
       if (selectedQuestion) {
         // Update existing question
         await updateQuestQuestion(selectedQuestion.id, {
-          question_id: selectedQuestion.id,
+          // Backend generates question_id and order_key
           quest_template_id: questTemplateId,
-          order_key: `${selectedQuestion.id}`,
-          order_index: questions.findIndex((q) => q.id === selectedQuestion.id),
+          order_index: questions.findIndex(
+            (q) => q.id === selectedQuestion.id
+          ),
           question_format: questionFormat,
-          question_type: undefined,
           prompt: questionText,
           options: backendOptions,
           correct_answer: backendCorrectAnswer,
           max_points: xpValue,
-          auto_gradable: activeTab !== "Matching",
-          difficulty: difficulty as any,
+          auto_gradable: autoGradable,
+          difficulty: mappedDifficulty,
           hint: hint || undefined,
           explanation: explanation || undefined,
           time_limit_seconds: enableTimeLimit ? timeLimit : undefined,
         });
 
-        setQuestions(questions.map((q) => (q.id === selectedQuestion.id ? newQuestion : q)));
+        setQuestions(
+          questions.map((q) =>
+            q.id === selectedQuestion.id ? newQuestion : q
+          )
+        );
       } else {
         // Create new question
-        const response = await createQuestQuestion({
-          question_id: newQuestion.id,
+        const orderIndex = questions.length;
+
+        await createQuestQuestion(questTemplateId, {
+          // Backend generates question_id and order_key
           quest_template_id: questTemplateId,
-          order_key: `${newQuestion.id}`,
-          order_index: questions.length,
+          order_index: orderIndex,
           question_format: questionFormat,
-          question_type: undefined,
           prompt: questionText,
           options: backendOptions,
           correct_answer: backendCorrectAnswer,
           max_points: xpValue,
-          auto_gradable: activeTab !== "Matching",
-          difficulty: difficulty as any,
+          auto_gradable: autoGradable,
+          difficulty: mappedDifficulty,
           hint: hint || undefined,
           explanation: explanation || undefined,
           time_limit_seconds: enableTimeLimit ? timeLimit : undefined,
@@ -357,7 +410,9 @@ const Quests = () => {
 
   const handleOptionChange = (id: string, text: string) => {
     setAnswerOptions(
-      answerOptions.map((option) => (option.id === id ? { ...option, text } : option))
+      answerOptions.map((option) =>
+        option.id === id ? { ...option, text } : option
+      )
     );
   };
 
@@ -384,7 +439,11 @@ const Quests = () => {
     setMatchingPairs(matchingPairs.filter((pair) => pair.id !== id));
   };
 
-  const handleMatchingChange = (id: string, side: "left" | "right", text: string) => {
+  const handleMatchingChange = (
+    id: string,
+    side: "left" | "right",
+    text: string
+  ) => {
     setMatchingPairs(
       matchingPairs.map((pair) =>
         pair.id === id ? { ...pair, [side]: text } : pair
@@ -401,7 +460,6 @@ const Quests = () => {
 
     setIsLoading(true);
     try {
-      // All questions are already saved to backend, so just navigate back
       console.log("Quest template saved successfully:", questTemplateId);
       navigate("/subjects");
       setError("");
@@ -670,8 +728,8 @@ const Quests = () => {
                           onChange={(e) => setCorrectAnswer(e.target.value)}
                         >
                           <option value="">Select answer</option>
-                          <option value="True">True</option>
-                          <option value="False">False</option>
+                          <option value="true">True</option>
+                          <option value="false">False</option>
                         </select>
                       ) : (
                         <input
