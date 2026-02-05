@@ -1,5 +1,4 @@
 // questTemplates.ts
-
 import { api } from "./http.js";
 
 export type QuestType = "QUEST" | "DAILY_QUEST" | "BOSS_FIGHT";
@@ -39,18 +38,18 @@ export type CreateQuestTemplateInput = {
 };
 
 export function createQuestTemplate(data: CreateQuestTemplateInput) {
-  return api<QuestTemplate>("/quest-templates", {
+  // returns { quest_template_id, message }
+  return api<{ quest_template_id: string; message: string }>("/quest-templates", {
     method: "POST",
     body: JSON.stringify(data),
   });
 }
 
 export function getQuestTemplate(quest_template_id: string) {
-  return api<QuestTemplate>(
-    `/quest-templates/${encodeURIComponent(quest_template_id)}`
-  );
+  return api<QuestTemplate>(`/quest-templates/${encodeURIComponent(quest_template_id)}`);
 }
 
+// backend route is /teachers/{teacher_id}/quest-templates
 export function getQuestTemplatesByOwner(teacher_id: string) {
   return api<{ items: QuestTemplate[] }>(
     `/teachers/${encodeURIComponent(teacher_id)}/quest-templates`
@@ -60,23 +59,25 @@ export function getQuestTemplatesByOwner(teacher_id: string) {
 export function getPublicQuestTemplates(
   subject?: string,
   grade?: number,
-  difficulty?: Difficulty
+  difficulty?: Difficulty,
+  limit?: number
 ) {
   const params = new URLSearchParams();
   if (subject) params.append("subject", subject);
-  if (grade) params.append("grade", grade.toString());
+  if (grade !== undefined) params.append("grade", grade.toString());
   if (difficulty) params.append("difficulty", difficulty);
+  if (limit !== undefined) params.append("limit", limit.toString());
 
-  return api<{ items: QuestTemplate[] }>(
-    `/quest-templates/public?${params.toString()}`
-  );
+  const qs = params.toString();
+  return api<{ items: QuestTemplate[] }>(`/quest-templates/public${qs ? `?${qs}` : ""}`);
 }
 
+// backend uses PATCH, not PUT
 export function updateQuestTemplate(
   quest_template_id: string,
   data: Partial<CreateQuestTemplateInput>
 ) {
-  return api<QuestTemplate>(
+  return api<{ message: string; quest_template_id: string }>(
     `/quest-templates/${encodeURIComponent(quest_template_id)}`,
     {
       method: "PATCH",

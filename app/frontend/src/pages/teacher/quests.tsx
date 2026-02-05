@@ -1,17 +1,13 @@
+// Quests.tsx (FIXED) ✅
+// This version prevents INVALID_BASE_XP_REWARD by ALWAYS sending valid NUMBERS
+// for base_xp_reward / base_gold_reward (never NaN / undefined / "100XP").
+// - Default XP/Gold if missing
 import React, { useEffect, useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
-import {
-  createQuestTemplate,
-  updateQuestTemplate,
-  QuestTemplate,
-} from "../../api/questTemplates.js";
-import {
-  createQuestQuestion,
-  updateQuestQuestion,
-  deleteQuestQuestion,
-} from "../../api/questQuestions.js";
+import { createQuestTemplate, updateQuestTemplate, QuestTemplate } from "../../api/questTemplates.js";
+import { createQuestQuestion, updateQuestQuestion, deleteQuestQuestion } from "../../api/questQuestions.js";
 
 type QuestionType = "Multiple Choice" | "True/False" | "Short Answer" | "Matching";
 
@@ -50,9 +46,19 @@ interface QuestData {
   grade: string;
   description: string;
   difficulty: string;
-  reward: string;
+  reward: string | number; // allow number too
   estimated_duration_minutes?: number;
   XP?: string | number;
+}
+
+function toInt(val: unknown, fallback = 0) {
+  const cleaned = String(val ?? "").replace(/[^\d]/g, "");
+  const n = cleaned ? Number(cleaned) : NaN;
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function clampNonNeg(n: number) {
+  return n < 0 ? 0 : n;
 }
 
 const Quests = () => {
@@ -60,14 +66,9 @@ const Quests = () => {
   const navigate = useNavigate();
   const questDataFromModal = location.state?.questData as QuestData | undefined;
 
-  const questionTypes: QuestionType[] = [
-    "Multiple Choice",
-    "True/False",
-    "Short Answer",
-    "Matching",
-  ];
+  const questionTypes: QuestionType[] = ["Multiple Choice", "True/False", "Short Answer", "Matching"];
 
-  // State for managing questions list
+  // for managing questions list
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -76,26 +77,18 @@ const Quests = () => {
   const [error, setError] = useState<string>("");
   const templateInitialized = useRef(false);
 
-  // Form state for current question
+  // state for current question
   const [activeTab, setActiveTab] = useState<QuestionType>("Multiple Choice");
-  const [questionTitle, setQuestionTitle] = useState(
-    questDataFromModal?.name || "New Question"
-  );
-  const [difficulty, setDifficulty] = useState(
-    questDataFromModal?.difficulty || "Medium"
-  );
+  const [questionTitle, setQuestionTitle] = useState(questDataFromModal?.name || "New Question");
+  const [difficulty, setDifficulty] = useState(questDataFromModal?.difficulty || "Medium");
   const [xpValue, setXpValue] = useState(10);
-  const [questionText, setQuestionText] = useState(
-    questDataFromModal?.description || ""
-  );
+  const [questionText, setQuestionText] = useState(questDataFromModal?.description || "");
   const [answerOptions, setAnswerOptions] = useState<AnswerOption[]>([
     { id: "1", text: "", isCorrect: true },
     { id: "2", text: "", isCorrect: false },
   ]);
   const [correctAnswer, setCorrectAnswer] = useState("");
-  const [matchingPairs, setMatchingPairs] = useState<MatchingPair[]>([
-    { id: "1", left: "", right: "" },
-  ]);
+  const [matchingPairs, setMatchingPairs] = useState<MatchingPair[]>([{ id: "1", left: "", right: "" }]);
   const [explanation, setExplanation] = useState("");
   const [hint, setHint] = useState("");
   const [tags, setTags] = useState(questDataFromModal?.subject || "");
@@ -106,80 +99,85 @@ const Quests = () => {
     feather.replace();
   }, []);
 
-  // Initialize quest template on mount with modal data
+  // quest template on mount with modal data
   useEffect(() => {
     const initializeQuestTemplate = async () => {
-      if (questDataFromModal && !questTemplateId && !templateInitialized.current) {
-        templateInitialized.current = true;
-        setIsLoading(true);
-        try {
-          const currentUser = JSON.parse(
-            localStorage.getItem("cq_currentUser") || "{}"
-          );
-          const teacherId = currentUser.id;
+      if (!questDataFromModal) return;
+      if (questTemplateId) return;
+      if (templateInitialized.current) return;
 
-          if (!teacherId) {
-            setError("Teacher ID not found. Please log in again.");
-            return;
-          }
+      templateInitialized.current = true;
+      setIsLoading(true);
 
-          const difficultyMap: { [key: string]: "EASY" | "MEDIUM" | "HARD" } = {
-            Easy: "EASY",
-            easy: "EASY",
-            Medium: "MEDIUM",
-            medium: "MEDIUM",
-            Hard: "HARD",
-            hard: "HARD",
-            EASY: "EASY",
-            MEDIUM: "MEDIUM",
-            HARD: "HARD",
-          };
+      try {
+        const currentUser = JSON.parse(localStorage.getItem("cq_currentUser") || "{}");
+        const teacherId = currentUser.id;
 
-          const mappedDifficulty =
-            difficultyMap[questDataFromModal.difficulty] || "MEDIUM";
-          const grade =
-            Number(String(questDataFromModal.grade).replace(/\D/g, "")) || null;
-          const questType = "QUEST";
-          const baseXP = Number(String(questDataFromModal.XP).replace("XP", ""));
-          const baseGold = Number(
-            String(questDataFromModal.reward).replace(" Gold", "")
-          );
-
-          const template = await createQuestTemplate({
-            title: questDataFromModal.name || "Untitled Quest",
-            description: questDataFromModal.description || "",
-            subject: questDataFromModal.subject || "General",
-            estimated_duration_minutes:
-            questDataFromModal.estimated_duration_minutes || 0,
-            base_xp_reward: baseXP,
-            base_gold_reward: baseGold,
-            is_shared_publicly: false,
-            type: questType,
-            grade,
-            difficulty: mappedDifficulty,
-            owner_teacher_id: teacherId,
-          });
-
-          setQuestTemplateId(template.quest_template_id);
-          setError("");
-        } catch (err: any) {
-          console.error("Failed to create quest template:", err);
-          setError(err?.message || "Failed to create quest template");
+        if (!teacherId) {
+          setError("Teacher ID not found. Please log in again.");
           templateInitialized.current = false;
-        } finally {
-          setIsLoading(false);
+          return;
         }
+
+        const difficultyMap: { [key: string]: "EASY" | "MEDIUM" | "HARD" } = {
+          Easy: "EASY",
+          easy: "EASY",
+          Medium: "MEDIUM",
+          medium: "MEDIUM",
+          Hard: "HARD",
+          hard: "HARD",
+          EASY: "EASY",
+          MEDIUM: "MEDIUM",
+          HARD: "HARD",
+        };
+
+        const mappedDifficulty = difficultyMap[questDataFromModal.difficulty] || "MEDIUM";
+
+        //  "Grade 5" -> 5, "5th grade" -> 5, "5" -> 5
+        const grade = toInt(questDataFromModal.grade, 0) || null;
+
+        const questType = "QUEST";
+
+        // these can NEVER be NaN now
+        const baseXP = clampNonNeg(toInt(questDataFromModal.XP, 100)); // default 100
+        const baseGold = clampNonNeg(toInt(questDataFromModal.reward, 30)); // default 30
+
+        const template = await createQuestTemplate({
+          title: questDataFromModal.name || "Untitled Quest",
+          description: questDataFromModal.description || "",
+          subject: questDataFromModal.subject || "General",
+          estimated_duration_minutes: questDataFromModal.estimated_duration_minutes || 0,
+
+          // MUST be valid numbers
+          base_xp_reward: baseXP,
+          base_gold_reward: baseGold,
+
+          is_shared_publicly: false,
+          type: questType,
+          grade,
+          difficulty: mappedDifficulty,
+          owner_teacher_id: teacherId,
+        });
+
+        setQuestTemplateId(template.quest_template_id);
+        setError("");
+      } catch (err: any) {
+        console.error("Failed to create quest template:", err);
+        setError(err?.message || "Failed to create quest template");
+        templateInitialized.current = false; // allow retry
+      } finally {
+        setIsLoading(false);
       }
     };
 
     initializeQuestTemplate();
-  }, [questTemplateId]); // Only depend on questTemplateId; questDataFromModal is not used
+  }, [questTemplateId, questDataFromModal]);
 
   useEffect(() => {
     feather.replace();
   }, [activeTab]);
 
-  // Reset form for new question
+  // reset for new question
   const resetForm = () => {
     setQuestionTitle("");
     setDifficulty("Easy");
@@ -199,14 +197,14 @@ const Quests = () => {
     setSelectedQuestion(null);
   };
 
-  // Create new question
+  // create new question
   const handleCreateNewQuestion = () => {
     setIsCreating(true);
     resetForm();
     setActiveTab("Multiple Choice");
   };
 
-  // Save question
+  // save question
   const handleSaveQuestion = async () => {
     console.log("QuestTemplateId:", questTemplateId);
 
@@ -239,12 +237,9 @@ const Quests = () => {
       difficulty,
       xpValue,
       questionText,
-      answerOptions:
-        activeTab === "Multiple Choice" ? answerOptions : undefined,
+      answerOptions: activeTab === "Multiple Choice" ? answerOptions : undefined,
       correctAnswer:
-        activeTab === "True/False" || activeTab === "Short Answer"
-          ? correctAnswer
-          : undefined,
+        activeTab === "True/False" || activeTab === "Short Answer" ? correctAnswer : undefined,
       matchingPairs: activeTab === "Matching" ? matchingPairs : undefined,
       explanation,
       hint,
@@ -258,7 +253,6 @@ const Quests = () => {
       let backendCorrectAnswer: any = undefined;
 
       if (activeTab === "Multiple Choice" && answerOptions.length > 0) {
-        // Transform to backend MCQOptions structure: { choices: Array<{id, text}> }
         backendOptions = {
           choices: answerOptions.map((opt) => ({
             id: opt.id,
@@ -269,41 +263,26 @@ const Quests = () => {
           choiceId: answerOptions.find((opt) => opt.isCorrect)?.id || "",
         };
       } else if (activeTab === "True/False") {
-        
         const trueChoice = { id: "true", text: "True" };
         const falseChoice = { id: "false", text: "False" };
-        backendOptions = {
-          choices: [trueChoice, falseChoice],
-        };
-        
-        backendCorrectAnswer = correctAnswer
-          ? { choiceId: correctAnswer.toLowerCase() }
-          : undefined;
+        backendOptions = { choices: [trueChoice, falseChoice] };
+
+        backendCorrectAnswer = correctAnswer ? { choiceId: correctAnswer.toLowerCase() } : undefined;
       } else if (activeTab === "Short Answer") {
         backendCorrectAnswer = correctAnswer || undefined;
       } else if (activeTab === "Matching") {
         backendOptions = {
-          left: matchingPairs.map((pair) => ({
-            id: pair.id,
-            text: pair.left,
-          })),
-          right: matchingPairs.map((pair) => ({
-            id: pair.id,
-            text: pair.right,
-          })),
+          left: matchingPairs.map((pair) => ({ id: pair.id, text: pair.left })),
+          right: matchingPairs.map((pair) => ({ id: pair.id, text: pair.right })),
         };
       }
 
       const autoGradable = activeTab !== "Matching";
 
       if (selectedQuestion) {
-        // Update existing question
         await updateQuestQuestion(selectedQuestion.id, {
-          // Backend generates question_id and order_key
           quest_template_id: questTemplateId,
-          order_index: questions.findIndex(
-            (q) => q.id === selectedQuestion.id
-          ),
+          order_index: questions.findIndex((q) => q.id === selectedQuestion.id),
           question_format: questionFormat,
           prompt: questionText,
           options: backendOptions,
@@ -316,17 +295,11 @@ const Quests = () => {
           time_limit_seconds: enableTimeLimit ? timeLimit : undefined,
         });
 
-        setQuestions(
-          questions.map((q) =>
-            q.id === selectedQuestion.id ? newQuestion : q
-          )
-        );
+        setQuestions(questions.map((q) => (q.id === selectedQuestion.id ? newQuestion : q)));
       } else {
-        // Create new question
         const orderIndex = questions.length;
 
         await createQuestQuestion(questTemplateId, {
-          // Backend generates question_id and order_key
           quest_template_id: questTemplateId,
           order_index: orderIndex,
           question_format: questionFormat,
@@ -409,11 +382,7 @@ const Quests = () => {
   };
 
   const handleOptionChange = (id: string, text: string) => {
-    setAnswerOptions(
-      answerOptions.map((option) =>
-        option.id === id ? { ...option, text } : option
-      )
-    );
+    setAnswerOptions(answerOptions.map((option) => (option.id === id ? { ...option, text } : option)));
   };
 
   const handleCorrectAnswerChange = (id: string) => {
@@ -439,16 +408,8 @@ const Quests = () => {
     setMatchingPairs(matchingPairs.filter((pair) => pair.id !== id));
   };
 
-  const handleMatchingChange = (
-    id: string,
-    side: "left" | "right",
-    text: string
-  ) => {
-    setMatchingPairs(
-      matchingPairs.map((pair) =>
-        pair.id === id ? { ...pair, [side]: text } : pair
-      )
-    );
+  const handleMatchingChange = (id: string, side: "left" | "right", text: string) => {
+    setMatchingPairs(matchingPairs.map((pair) => (pair.id === id ? { ...pair, [side]: text } : pair)));
   };
 
   // Save to backend and navigate back
@@ -489,20 +450,13 @@ const Quests = () => {
               </div>
             </div>
             <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
-              <Link
-                to="/teacherDashboard"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
+              <Link to="/teacherDashboard" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                 Dashboard
               </Link>
-              <Link
-                to="/subjects"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
+              <Link to="/subjects" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                 Subjects
               </Link>
-              <DropDownProfile username="user"onLogout={() => {console.log("Logging out"); /**TODO: Logout logic */}}/>
-              
+              <DropDownProfile username="user" onLogout={() => { console.log("Logging out"); }} />
             </div>
           </div>
         </div>
@@ -572,10 +526,7 @@ const Quests = () => {
                           : "bg-gray-100 hover:bg-gray-200 border-2 border-transparent"
                       }`}
                     >
-                      <div
-                        onClick={() => handleEditQuestion(q)}
-                        className="flex-1"
-                      >
+                      <div onClick={() => handleEditQuestion(q)} className="flex-1">
                         <p className="font-medium text-sm">{q.title}</p>
                         <p className="text-xs text-gray-600">{q.type}</p>
                       </div>
@@ -599,7 +550,6 @@ const Quests = () => {
           <div className="lg:col-span-3">
             {isCreating ? (
               <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                {/* Type Tabs */}
                 <div className="border-b border-gray-200">
                   <nav className="flex">
                     {questionTypes.map((type) => (
@@ -618,14 +568,10 @@ const Quests = () => {
                   </nav>
                 </div>
 
-                {/* Form */}
                 <div className="p-6 space-y-6">
-                  {/* Basic Info */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Question Title
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Question Title</label>
                       <input
                         type="text"
                         className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -634,9 +580,7 @@ const Quests = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Difficulty
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
                       <select
                         className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={difficulty}
@@ -648,9 +592,7 @@ const Quests = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        XP Value
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">XP Value</label>
                       <input
                         type="number"
                         className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -660,11 +602,8 @@ const Quests = () => {
                     </div>
                   </div>
 
-                  {/* Question Text */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Question Text
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
                     <textarea
                       className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       rows={3}
@@ -674,15 +613,11 @@ const Quests = () => {
                     />
                   </div>
 
-                  {/* Question Type Specific Content */}
                   {activeTab === "Multiple Choice" && (
                     <div>
                       <div className="flex justify-between items-center mb-4">
                         <h3 className="text-lg font-medium text-gray-900">Answer Options</h3>
-                        <button
-                          onClick={handleAddOption}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                        >
+                        <button onClick={handleAddOption} className="text-blue-600 hover:text-blue-800 text-sm font-medium">
                           + Add Option
                         </button>
                       </div>
@@ -703,10 +638,7 @@ const Quests = () => {
                               placeholder={`Option ${index + 1}`}
                             />
                             {answerOptions.length > 2 && (
-                              <button
-                                onClick={() => handleRemoveOption(option.id)}
-                                className="text-red-500 hover:text-red-700"
-                              >
+                              <button onClick={() => handleRemoveOption(option.id)} className="text-red-500 hover:text-red-700">
                                 <i data-feather="x"></i>
                               </button>
                             )}
@@ -718,9 +650,7 @@ const Quests = () => {
 
                   {(activeTab === "True/False" || activeTab === "Short Answer") && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Correct Answer
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Correct Answer</label>
                       {activeTab === "True/False" ? (
                         <select
                           className="w-full border border-gray-300 rounded-lg px-4 py-2"
@@ -747,23 +677,18 @@ const Quests = () => {
                     <div>
                       <div className="flex justify-between items-center mb-4">
                         <h3 className="text-lg font-medium text-gray-900">Matching Pairs</h3>
-                        <button
-                          onClick={handleAddMatchingPair}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                        >
+                        <button onClick={handleAddMatchingPair} className="text-blue-600 hover:text-blue-800 text-sm font-medium">
                           + Add Pair
                         </button>
                       </div>
                       <div className="space-y-3">
-                        {matchingPairs.map((pair, index) => (
+                        {matchingPairs.map((pair) => (
                           <div key={pair.id} className="grid grid-cols-2 gap-3 items-center">
                             <input
                               type="text"
                               className="border border-gray-300 rounded-lg px-4 py-2"
                               value={pair.left}
-                              onChange={(e) =>
-                                handleMatchingChange(pair.id, "left", e.target.value)
-                              }
+                              onChange={(e) => handleMatchingChange(pair.id, "left", e.target.value)}
                               placeholder="Left side"
                             />
                             <div className="flex gap-3">
@@ -771,16 +696,11 @@ const Quests = () => {
                                 type="text"
                                 className="flex-1 border border-gray-300 rounded-lg px-4 py-2"
                                 value={pair.right}
-                                onChange={(e) =>
-                                  handleMatchingChange(pair.id, "right", e.target.value)
-                                }
+                                onChange={(e) => handleMatchingChange(pair.id, "right", e.target.value)}
                                 placeholder="Right side"
                               />
                               {matchingPairs.length > 1 && (
-                                <button
-                                  onClick={() => handleRemoveMatchingPair(pair.id)}
-                                  className="text-red-500 hover:text-red-700"
-                                >
+                                <button onClick={() => handleRemoveMatchingPair(pair.id)} className="text-red-500 hover:text-red-700">
                                   <i data-feather="x"></i>
                                 </button>
                               )}
@@ -791,12 +711,9 @@ const Quests = () => {
                     </div>
                   )}
 
-                  {/* Explanation & Hint */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Explanation
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Explanation</label>
                       <textarea
                         className="w-full border border-gray-300 rounded-lg px-4 py-2"
                         rows={3}
@@ -817,7 +734,6 @@ const Quests = () => {
                     </div>
                   </div>
 
-                  {/* Metadata */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
@@ -830,9 +746,7 @@ const Quests = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Time Limit
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">Time Limit</label>
                       <div className="flex items-center gap-4">
                         <div className="flex items-center">
                           <input
@@ -843,9 +757,7 @@ const Quests = () => {
                             onChange={() => setEnableTimeLimit(false)}
                             className="h-4 w-4"
                           />
-                          <label htmlFor="timeLimitNo" className="ml-2 text-sm text-gray-700">
-                            No
-                          </label>
+                          <label htmlFor="timeLimitNo" className="ml-2 text-sm text-gray-700">No</label>
                         </div>
                         <div className="flex items-center">
                           <input
@@ -856,17 +768,13 @@ const Quests = () => {
                             onChange={() => setEnableTimeLimit(true)}
                             className="h-4 w-4"
                           />
-                          <label htmlFor="timeLimitYes" className="ml-2 text-sm text-gray-700">
-                            Yes
-                          </label>
+                          <label htmlFor="timeLimitYes" className="ml-2 text-sm text-gray-700">Yes</label>
                         </div>
                       </div>
                     </div>
                     {enableTimeLimit && (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Seconds
-                        </label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Seconds</label>
                         <input
                           type="number"
                           className="w-full border border-gray-300 rounded-lg px-4 py-2"
@@ -890,6 +798,7 @@ const Quests = () => {
                 </button>
               </div>
             )}
+
             <div className="justify-center align-middle mt-3">
               <button
                 onClick={handleDownloadJSON}
