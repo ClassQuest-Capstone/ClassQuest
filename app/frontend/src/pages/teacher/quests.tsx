@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
+import { createQuestTemplate, updateQuestTemplate, QuestTemplate } from "../../api/questTemplates.js";
+import { createQuestQuestion, updateQuestQuestion, deleteQuestQuestion } from "../../api/questQuestions.js";
 
 type QuestionType = "Multiple Choice" | "True/False" | "Short Answer" | "Matching";
 
@@ -59,6 +61,9 @@ const Quests = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [questTemplateId, setQuestTemplateId] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string>("");
 
   // Form state for current question
   const [activeTab, setActiveTab] = useState<QuestionType>("Multiple Choice");
@@ -81,11 +86,72 @@ const Quests = () => {
   const [explanation, setExplanation] = useState("");
   const [hint, setHint] = useState("");
   const [tags, setTags] = useState(questDataFromModal?.subject || "");
+  const [enableTimeLimit, setEnableTimeLimit] = useState(false);
   const [timeLimit, setTimeLimit] = useState(120);
 
   useEffect(() => {
     feather.replace();
   }, []);
+
+  // Initialize quest template on mount
+  useEffect(() => {
+    const initializeQuestTemplate = async () => {
+      if (questDataFromModal && !questTemplateId) {
+        setIsLoading(true);
+        try {
+          const currentUser = JSON.parse(localStorage.getItem("cq_currentUser") || "{}");
+          const teacherId = currentUser.id;
+
+          if (!teacherId) {
+            setError("Teacher ID not found. Please log in again.");
+            return;
+          }
+
+          // Create quest template from modal data
+          // Map difficulty to valid backend format
+          const difficultyMap: { [key: string]: "EASY" | "MEDIUM" | "HARD" } = {
+            "Easy": "EASY",
+            "easy": "EASY",
+            "Medium": "MEDIUM",
+            "medium": "MEDIUM",
+            "Hard": "HARD",
+            "hard": "HARD",
+            "EASY": "EASY",
+            "MEDIUM": "MEDIUM",
+            "HARD": "HARD",
+          };
+
+          const mappedDifficulty = difficultyMap[questDataFromModal.difficulty] || "MEDIUM";
+          const grade = Math.max(5, Math.min(8, parseInt(questDataFromModal.grade) || 5)); // Clamp between grades 5-8 
+          const questType = "QUEST"; // Default to QUEST type
+
+          const template = await createQuestTemplate({
+            title: questDataFromModal.name || "Untitled Quest",
+            description: questDataFromModal.description || "",
+            subject: questDataFromModal.subject || "General",
+            estimated_duration_minutes: questDataFromModal.estimated_duration_minutes || null,
+            base_xp_reward: questDataFromModal.base_xp_reward || 0,
+            base_gold_reward: questDataFromModal.base_gold_reward || 0,
+            is_shared_publicly: null,
+            type: questType,
+            grade,
+            difficulty: mappedDifficulty,
+            owner_teacher_id: teacherId,
+          });
+
+          setQuestTemplateId(template.quest_template_id);
+          setError("");
+        } catch (err: any) {
+          console.error("Failed to create quest template:", err);
+          setError(err?.message || "Failed to create quest template");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    initializeQuestTemplate();
+  }, [questDataFromModal]);
 
   useEffect(() => {
     feather.replace();
@@ -95,7 +161,7 @@ const Quests = () => {
   const resetForm = () => {
     setQuestionTitle("");
     setDifficulty("Easy");
-    setXpValue(25);
+    setXpValue(10);
     setQuestionText("");
     setAnswerOptions([
       { id: "1", text: "", isCorrect: true },
@@ -106,6 +172,7 @@ const Quests = () => {
     setExplanation("");
     setHint("");
     setTags("");
+    setEnableTimeLimit(false);
     setTimeLimit(120);
     setSelectedQuestion(null);
   };
@@ -117,8 +184,23 @@ const Quests = () => {
     setActiveTab("Multiple Choice");
   };
 
-  // Save question (Just adding questions for now since no backend integration)
-  const handleSaveQuestion = () => {
+  // Save question 
+  const handleSaveQuestion = async () => {
+    if (!questTemplateId) {
+      setError("Quest template not initialized. Please refresh and try again.");
+      return;
+    }
+
+    // Map question type to backend format
+    const formatMap: { [key: string]: any } = {
+      "Multiple Choice": "MCQ_SINGLE",
+      "True/False": "TRUE_FALSE",
+      "Short Answer": "SHORT_ANSWER",
+      "Matching": "MATCHING",
+    };
+
+    const questionFormat = formatMap[activeTab] || "MCQ_SINGLE";
+
     const newQuestion: Question = {
       id: selectedQuestion?.id || Date.now().toString(),
       type: activeTab,
@@ -132,28 +214,98 @@ const Quests = () => {
       explanation,
       hint,
       tags,
-      timeLimit,
+      timeLimit: enableTimeLimit ? timeLimit : 0,
     };
 
-    if (selectedQuestion) {
-      // Update existing question
-      setQuestions(questions.map((q) => (q.id === selectedQuestion.id ? newQuestion : q)));
-    } else {
-      // Add new question
-      setQuestions([...questions, newQuestion]);
-    }
+    setIsLoading(true);
+    try {
+      // Format options/answers for backend
+      let backendOptions: any = undefined;
+      let backendCorrectAnswer: any = undefined;
 
-    console.log("Question saved:", newQuestion);
-    resetForm();
-    setIsCreating(false);
+      if (activeTab === "Multiple Choice" && answerOptions.length > 0) {
+        backendOptions = answerOptions;
+        backendCorrectAnswer = answerOptions.find((opt) => opt.isCorrect)?.text || "";
+      } else if (activeTab === "True/False") {
+        backendCorrectAnswer = correctAnswer;
+      } else if (activeTab === "Short Answer") {
+        backendCorrectAnswer = correctAnswer;
+      } else if (activeTab === "Matching") {
+        backendOptions = matchingPairs;
+      }
+
+      if (selectedQuestion) {
+        // Update existing question
+        await updateQuestQuestion(selectedQuestion.id, {
+          question_id: selectedQuestion.id,
+          quest_template_id: questTemplateId,
+          order_key: `${selectedQuestion.id}`,
+          order_index: questions.findIndex((q) => q.id === selectedQuestion.id),
+          question_format: questionFormat,
+          question_type: undefined,
+          prompt: questionText,
+          options: backendOptions,
+          correct_answer: backendCorrectAnswer,
+          max_points: xpValue,
+          auto_gradable: activeTab !== "Matching",
+          difficulty: difficulty as any,
+          hint: hint || undefined,
+          explanation: explanation || undefined,
+          time_limit_seconds: enableTimeLimit ? timeLimit : undefined,
+        });
+
+        setQuestions(questions.map((q) => (q.id === selectedQuestion.id ? newQuestion : q)));
+      } else {
+        // Create new question
+        const response = await createQuestQuestion({
+          question_id: newQuestion.id,
+          quest_template_id: questTemplateId,
+          order_key: `${newQuestion.id}`,
+          order_index: questions.length,
+          question_format: questionFormat,
+          question_type: undefined,
+          prompt: questionText,
+          options: backendOptions,
+          correct_answer: backendCorrectAnswer,
+          max_points: xpValue,
+          auto_gradable: activeTab !== "Matching",
+          difficulty: difficulty as any,
+          hint: hint || undefined,
+          explanation: explanation || undefined,
+          time_limit_seconds: enableTimeLimit ? timeLimit : undefined,
+        });
+
+        setQuestions([...questions, newQuestion]);
+      }
+
+      console.log("Question saved:", newQuestion);
+      resetForm();
+      setIsCreating(false);
+      setError("");
+    } catch (err: any) {
+      console.error("Failed to save question:", err);
+      setError(err?.message || "Failed to save question");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Delete question
-  const handleDeleteQuestion = (id: string) => {
-    setQuestions(questions.filter((q) => q.id !== id));
-    if (selectedQuestion?.id === id) {
-      setSelectedQuestion(null);
-      setIsCreating(false);
+  const handleDeleteQuestion = async (id: string) => {
+    setIsLoading(true);
+    try {
+      await deleteQuestQuestion(id);
+      setQuestions(questions.filter((q) => q.id !== id));
+      if (selectedQuestion?.id === id) {
+        setSelectedQuestion(null);
+        setIsCreating(false);
+      }
+      setError("");
+    } catch (err: any) {
+      console.error("Failed to delete question:", err);
+      setError(err?.message || "Failed to delete question");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -171,6 +323,7 @@ const Quests = () => {
     setExplanation(question.explanation);
     setHint(question.hint);
     setTags(question.tags);
+    setEnableTimeLimit(question.timeLimit > 0);
     setTimeLimit(question.timeLimit);
     setIsCreating(true);
   };
@@ -226,20 +379,26 @@ const Quests = () => {
     );
   };
 
-  // No backendintegration yet, so manual JSON download
-  const handleDownloadJSON = () => {
-  const dataStr = JSON.stringify(questions, null, 2);
-  const blob = new Blob([dataStr], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
+  // Save to backend and navigate back
+  const handleDownloadJSON = async () => {
+    if (!questTemplateId) {
+      setError("Quest template not initialized. Unable to save.");
+      return;
+    }
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "questQuestions.json";
-  a.click();
-
-  URL.revokeObjectURL(url);
-  navigate("/subjects");
-};
+    setIsLoading(true);
+    try {
+      // All questions are already saved to backend, so just navigate back
+      console.log("Quest template saved successfully:", questTemplateId);
+      navigate("/subjects");
+      setError("");
+    } catch (err: any) {
+      console.error("Error during final save:", err);
+      setError(err?.message || "Failed to complete save");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="font-poppins bg-[url(/assets/background-teacher-dash.png)] bg-cover bg-center bg-no-repeat bg-fixed min-h-screen">
@@ -282,6 +441,9 @@ const Quests = () => {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-indigo-600">Question Editor</h1>
+            {questTemplateId && (
+              <p className="text-sm text-gray-600 mt-1">Quest ID: {questTemplateId.substring(0, 8)}...</p>
+            )}
           </div>
           {isCreating && (
             <div className="flex gap-4">
@@ -290,19 +452,27 @@ const Quests = () => {
                   setIsCreating(false);
                   resetForm();
                 }}
-                className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg"
+                disabled={isLoading}
+                className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveQuestion}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
+                disabled={isLoading}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg disabled:opacity-50"
               >
-                Add Question
+                {isLoading ? "Saving..." : "Add Question"}
               </button>
             </div>
           )}
         </div>
+
+        {error && (
+          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            {error}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Questions List */}
@@ -589,16 +759,52 @@ const Quests = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Time Limit (seconds)
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Time Limit
                       </label>
-                      <input
-                        type="number"
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                        value={timeLimit}
-                        onChange={(e) => setTimeLimit(Number(e.target.value))}
-                      />
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            id="timeLimitNo"
+                            name="timeLimit"
+                            checked={!enableTimeLimit}
+                            onChange={() => setEnableTimeLimit(false)}
+                            className="h-4 w-4"
+                          />
+                          <label htmlFor="timeLimitNo" className="ml-2 text-sm text-gray-700">
+                            No
+                          </label>
+                        </div>
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            id="timeLimitYes"
+                            name="timeLimit"
+                            checked={enableTimeLimit}
+                            onChange={() => setEnableTimeLimit(true)}
+                            className="h-4 w-4"
+                          />
+                          <label htmlFor="timeLimitYes" className="ml-2 text-sm text-gray-700">
+                            Yes
+                          </label>
+                        </div>
+                      </div>
                     </div>
+                    {enableTimeLimit && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Seconds
+                        </label>
+                        <input
+                          type="number"
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                          value={timeLimit}
+                          onChange={(e) => setTimeLimit(Number(e.target.value))}
+                          min="1"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -616,9 +822,10 @@ const Quests = () => {
             <div className="justify-center align-middle mt-3">
               <button
                 onClick={handleDownloadJSON}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg"
+                disabled={isLoading || !questTemplateId}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Save Questions
+                {isLoading ? "Saving..." : "Save & Exit"}
               </button>
             </div>
           </div>

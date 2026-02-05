@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
+import { getQuestTemplatesByOwner, QuestTemplate } from "../../api/questTemplates.js";
 
 
 type QuestCard = {
@@ -65,6 +66,8 @@ const Subjects = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [teacher, setTeacher] = useState<TeacherUser | null>(null);
+  const [quests, setQuests] = useState<QuestTemplate[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     feather.replace();
@@ -89,6 +92,25 @@ const Subjects = () => {
           }
         }
       }, []);
+
+  // Load quest templates from backend
+  useEffect(() => {
+    const loadQuests = async () => {
+      if (!teacher?.id) return;
+
+      setIsLoading(true);
+      try {
+        const response = await getQuestTemplatesByOwner(teacher.id);
+        setQuests(response.items);
+      } catch (error) {
+        console.error("Failed to load quest templates:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadQuests();
+  }, [teacher?.id]);
 
 
   useEffect(() => {
@@ -261,6 +283,7 @@ const handleCreateQuest = (event: React.FormEvent<HTMLFormElement>) => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
                 <select name="type" className="w-full border border-gray-300 rounded-lg px-4 py-2" required>
                   <option>Quest</option>
+                  <option>Side Quest</option>
                   <option>Boss Fight</option>
                 </select>
               </div>
