@@ -63,7 +63,7 @@ The tutorial system is composed of the following core modules:
   - Renders the step-by-step overlay
   - Highlights DOM elements based on the current step
 
-4. **Healer Sprite**
+4. **Healer/ Mage Sprite**
   - Visual guide character shown in the intro and overlay
 
 ## Styling & Assets
@@ -93,4 +93,4 @@ To add a new tutorial step:
    - `description`
 4. Ensure the target element exists in the DOM
 
-**Note:** Each tutorial step required a DOM element to highlight. If the element is not present in the DOM, the step not be rendered.
+**Note:** Each tutorial step requires a DOM element to highlight. If the element is not present in the DOM, the step not be rendered.

@@ -50,28 +50,28 @@ sequenceDiagram
     %% TEACHER ACTIONS
 
     %% Create Class
-    Teacher->>FE: Create Class (class name)
+    Teacher->>FE: Create Class (class name, grade, subject)
     FE->>API: POST /classes
     API->>DB: Insert class record
     DB-->>API: Success
     API-->>FE: Class created
 
     %% Create Quest
-    Teacher->>FE: Create Quest (title, XP, description)
+    Teacher->>FE: Create Quest (title, XP, gold, description, class, subject, difficulty, type, grade)
     FE->>API: POST /quests
     API->>DB: Insert quest
     DB-->>API: Success
     API-->>FE: Quest created
 
     %% Create Boss Battle
-    Teacher->>FE: Create Boss Battle
+    Teacher->>FE: Create Boss Battle (title, XP, gold, description, class, subject, difficulty, type, grade)
     FE->>API: POST /bossBattles
     API->>DB: Insert boss battle
     DB-->>API: Success
     API-->>FE: Boss battle created
 
     %% Create Reward
-    Teacher->>FE: Create Reward (item, cost)
+    Teacher->>FE: Create Reward (item, class, cost)
     FE->>API: POST /rewards
     API->>DB: Insert reward
     DB-->>API: Success
