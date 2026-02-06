@@ -38,10 +38,10 @@ export async function getTeacherProfile(teacher_id: string): Promise<TeacherProf
 export async function listTeachersBySchool(school_id: string): Promise<TeacherProfileItem[]> {
     const res = await ddb.send(
         new QueryCommand({
-        TableName: TABLE,
-        IndexName: "gsi1",
-        //KeyConditionExpression: "school_id = :sid",                   ///// fix later fonce signup implemented
-        //ExpressionAttributeValues: { ":sid": school_id },
+            TableName: TABLE,
+            IndexName: "gsi1",
+            KeyConditionExpression: "school_id = :sid",                   ///// fix later fonce signup implemented
+            ExpressionAttributeValues: { ":sid": school_id },
         })
     );
     return (res.Items as TeacherProfileItem[]) ?? [];
