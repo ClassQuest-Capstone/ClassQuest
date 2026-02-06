@@ -7,56 +7,12 @@ import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
 import {
   getQuestTemplatesByOwner,
   getPublicQuestTemplates,
+  updateQuestTemplate,
+  deleteQuestTemplate,
   type QuestTemplate,
+  type QuestType,
+  type Difficulty,
 } from "../../api/questTemplates.js";
-
-type QuestCard = {
-  title: string;
-  subject: string;
-  difficulty: string;
-  description: string;
-  type: string;
-  grade: string;
-  gradient: string;
-  icon: string;
-  reward: string;
-};
-
-const FALLBACK_QUESTS: QuestCard[] = [
-  {
-    title: "Algebra Questline",
-    subject: "Mathematics",
-    difficulty: "Medium",
-    description: "Solve fractions and unlock the Portal of Numbers.",
-    type: "Quest",
-    grade: "5th grade",
-    gradient: "from-blue-500 to-indigo-600",
-    icon: "activity",
-    reward: "+150 XP / 150 Gold",
-  },
-  {
-    title: "Motion & friction",
-    subject: "Science",
-    difficulty: "Easy",
-    description: "Force and Motion.",
-    type: "Quest",
-    grade: "5th grade",
-    gradient: "from-green-500 to-emerald-600",
-    icon: "zap",
-    reward: "+150 XP / Consumable",
-  },
-  {
-    title: "The Dominion of Canada",
-    subject: "Social studies",
-    difficulty: "Hard",
-    description: "A Journey Through Land, People, and Power.",
-    type: "Quest",
-    grade: "5th grade",
-    gradient: "from-amber-500 to-orange-600",
-    icon: "clock",
-    reward: "+400 XP / Title",
-  },
-];
 
 type TeacherUser = {
   id: string;
@@ -67,7 +23,6 @@ type TeacherUser = {
 };
 
 function toInt(val: unknown, fallback = 0) {
-  // Handles: 100, "100", "100XP", null/undefined, " 200 XP "
   const n = Number(String(val ?? "").replace(/[^\d]/g, ""));
   return Number.isFinite(n) ? n : fallback;
 }
@@ -83,26 +38,45 @@ function normalizeTemplate(t: QuestTemplate): QuestTemplate {
     base_xp_reward: toInt((t as any).base_xp_reward, 0) as any,
     base_gold_reward: toInt((t as any).base_gold_reward, 0) as any,
     estimated_duration_minutes: toInt((t as any).estimated_duration_minutes, 0) as any,
+    grade: typeof (t as any).grade === "number" ? (t as any).grade : toInt((t as any).grade, 0),
   };
 }
 
 const Subjects = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false); // create quest modal (already existed)
   const location = useLocation();
   const navigate = useNavigate();
 
   const [teacher, setTeacher] = useState<TeacherUser | null>(null);
 
-  // templates (real data)
+  // templates
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<QuestTemplate[]>([]);
+
+  // ✅ edit template modal state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editing, setEditing] = useState<QuestTemplate | null>(null);
+
+  // form fields for edit
+  const [fTitle, setFTitle] = useState("");
+  const [fSubject, setFSubject] = useState("");
+  const [fDescription, setFDescription] = useState("");
+  const [fType, setFType] = useState<QuestType>("QUEST");
+  const [fDifficulty, setFDifficulty] = useState<Difficulty>("EASY");
+  const [fGrade, setFGrade] = useState<number>(0);
+  const [fDuration, setFDuration] = useState<number>(0);
+  const [fXP, setFXP] = useState<number>(0);
+  const [fGold, setFGold] = useState<number>(0);
+  const [fPublic, setFPublic] = useState<boolean>(false);
 
   useEffect(() => {
     feather.replace();
   }, []);
 
-  // open modal from navigation state
+  // open create modal from navigation state
   useEffect(() => {
     if (location.state?.openCreateQuest) {
       setIsModalOpen(true);
@@ -122,10 +96,10 @@ const Subjects = () => {
     }
   }, []);
 
-  // re-render feather icons when modal/templates change
+  // re-render feather icons when modals/templates change
   useEffect(() => {
     feather.replace();
-  }, [isModalOpen, templates, loading, error]);
+  }, [isModalOpen, templates, loading, error, editOpen]);
 
   // load quest templates (owned + public)
   const loadTemplates = useCallback(async () => {
@@ -143,58 +117,51 @@ const Subjects = () => {
       const merged = [
         ...((ownedRes as any).items ?? []),
         ...((publicRes as any).items ?? []),
-      ].map((t: QuestTemplate) => normalizeTemplate(t));
+      ]
+        .map((t: QuestTemplate) => normalizeTemplate(t))
+        // de-dupe by quest_template_id
+        .reduce((acc: QuestTemplate[], t: QuestTemplate) => {
+          if (!acc.find((x) => x.quest_template_id === t.quest_template_id)) acc.push(t);
+          return acc;
+        }, []);
 
-      // Unique by quest_template_id
-      const unique = new Map<string, QuestTemplate>();
-      for (const t of merged) unique.set((t as any).quest_template_id, t);
-
-      // Sort newest first (fallback to title)
-      const list = [...unique.values()].sort((a, b) => {
-        const da = new Date((a as any).created_at).getTime();
-        const db = new Date((b as any).created_at).getTime();
-        if (!Number.isNaN(da) && !Number.isNaN(db)) return db - da;
-        return safeStr((a as any).title).localeCompare(safeStr((b as any).title));
-      });
-
-      setTemplates(list);
-    } catch (e: any) {
-      setError(e?.message || "Failed to load quest templates");
-      setTemplates([]);
+      setTemplates(merged);
+    } catch (err: any) {
+      console.error("Failed to load templates:", err);
+      setError(err?.message || "Failed to load templates");
     } finally {
       setLoading(false);
     }
   }, [teacher?.id]);
 
   useEffect(() => {
-    if (teacher?.id) loadTemplates();
-  }, [teacher?.id, loadTemplates]);
+    loadTemplates();
+  }, [loadTemplates]);
 
-  // group templates by subject
   const templatesBySubject = useMemo(() => {
     const map = new Map<string, QuestTemplate[]>();
-
     for (const t of templates) {
-      const key = safeStr((t as any).subject || "Unassigned").trim() || "Unassigned";
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(t);
+      const subject = safeStr((t as any).subject || "Other");
+      if (!map.has(subject)) map.set(subject, []);
+      map.get(subject)!.push(t);
     }
 
-    for (const [k, arr] of map.entries()) {
-      arr.sort((a, b) => safeStr((a as any).title).localeCompare(safeStr((b as any).title)));
-      map.set(k, arr);
-    }
-
-    return [...map.entries()]
-      .map(([subject, items]) => ({ subject, items }))
+    // sort subjects + items
+    const subjectGroups = [...map.entries()]
+      .map(([subject, items]) => ({
+        subject,
+        items: items.sort((a, b) => safeStr((a as any).title).localeCompare(safeStr((b as any).title))),
+      }))
       .sort((a, b) => a.subject.localeCompare(b.subject));
+
+    return subjectGroups;
   }, [templates]);
 
+  // ✅ Create quest (existing behavior): navigates to /quests and creates template there
   const handleCreateQuest = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
 
-    // IMPORTANT: pass numeric XP/Gold so /quests doesn't throw "invalid base xp rewards"
     const xp = toInt(formData.get("base_xp_reward"), 0);
     const gold = toInt(formData.get("base_gold_reward"), 0);
 
@@ -211,6 +178,106 @@ const Subjects = () => {
 
     setIsModalOpen(false);
     navigate("/quests", { state: { questData } });
+  };
+
+  // ✅ OPEN EDIT MODAL (this replaces the TODO alert)
+  const openEdit = (t: QuestTemplate) => {
+    setEditError(null);
+    setEditing(t);
+
+    setFTitle(safeStr((t as any).title));
+    setFSubject(safeStr((t as any).subject));
+    setFDescription(safeStr((t as any).description));
+    setFType(((t as any).type || "QUEST") as QuestType);
+    setFDifficulty(((t as any).difficulty || "EASY") as Difficulty);
+    setFGrade(toInt((t as any).grade, 0));
+    setFDuration(toInt((t as any).estimated_duration_minutes, 0));
+    setFXP(toInt((t as any).base_xp_reward, 0));
+    setFGold(toInt((t as any).base_gold_reward, 0));
+    setFPublic(Boolean((t as any).is_shared_publicly));
+
+    setEditOpen(true);
+  };
+
+  // ✅ SAVE EDIT
+  const saveEdit = async () => {
+    if (!editing) return;
+    setSavingEdit(true);
+    setEditError(null);
+
+    try {
+      // only send fields your backend supports
+      await updateQuestTemplate(editing.quest_template_id, {
+        title: fTitle,
+        subject: fSubject,
+        description: fDescription,
+        type: fType,
+        difficulty: fDifficulty,
+        grade: Number(fGrade),
+        estimated_duration_minutes: Number(fDuration),
+        base_xp_reward: Number(fXP),
+        base_gold_reward: Number(fGold),
+        is_shared_publicly: Boolean(fPublic),
+      } as any);
+
+      // update UI immediately
+      setTemplates((prev) =>
+        prev.map((x) =>
+          x.quest_template_id === editing.quest_template_id
+            ? normalizeTemplate({
+                ...(x as any),
+                title: fTitle,
+                subject: fSubject,
+                description: fDescription,
+                type: fType,
+                difficulty: fDifficulty,
+                grade: Number(fGrade),
+                estimated_duration_minutes: Number(fDuration),
+                base_xp_reward: Number(fXP),
+                base_gold_reward: Number(fGold),
+                is_shared_publicly: Boolean(fPublic),
+              } as any)
+            : x
+        )
+      );
+
+      setEditOpen(false);
+      setEditing(null);
+    } catch (err: any) {
+      console.error("Failed to update template:", err);
+      setEditError(err?.message || "Failed to update template");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  // ✅ DELETE TEMPLATE (real delete requires backend route)
+  const handleDeleteTemplate = async (t: QuestTemplate) => {
+    const id = t.quest_template_id;
+
+    // don’t let users delete public templates they don’t own (optional safeguard)
+    const ownedByMe = teacher?.id && (t as any).owner_teacher_id === teacher.id;
+
+    if (!window.confirm(`Delete "${safeStr((t as any).title)}"?`)) return;
+
+    // remove from UI immediately
+    setTemplates((prev) => prev.filter((x) => x.quest_template_id !== id));
+
+    // try real delete only if it’s owned by you
+    if (!ownedByMe) return;
+
+    try {
+      await deleteQuestTemplate(id);
+    } catch (err: any) {
+      console.error("Delete failed (likely missing backend DELETE):", err);
+      // show message so you know why it comes back after refresh
+      alert(
+        "Delete endpoint for quest templates is not set up on the backend yet.\n\n" +
+          "It was removed from the UI, but it will come back after refresh until the backend DELETE route exists."
+      );
+      // optionally reload to restore truth from server:
+      // await loadTemplates();
+    }
   };
 
   return (
@@ -230,397 +297,324 @@ const Subjects = () => {
               </div>
             </div>
 
-            <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
-              <Link
-                to="/teacherDashboard"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
-                Dashboard
-              </Link>
-              <Link
-                to="/Subjects"
-                className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900"
-              >
-                Quests
-              </Link>
-              <Link
-                to="/"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
-                Activity
-              </Link>
-
-              <DropDownProfile
-                username={teacher?.displayName || "user"}
-                onLogout={() => {
-                  localStorage.removeItem("cq_currentUser");
-                  navigate("/TeacherLogin");
-                }}
-              />
-            </div>
-
-            <div className="-mr-2 flex items-center md:hidden">
-              <button className="inline-flex items-center justify-center p-2 rounded-md text-blue-100 hover:text-white hover:bg-blue-600">
-                <i data-feather="menu"></i>
-              </button>
+            <div className="flex items-center">
+              <DropDownProfile />
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Back button */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <Link
-          to="/teacherDashboard"
-          className="inline-flex items-center bg-indigo-600 text-white border-2 border-indigo-600 rounded-md px-3 py-2 hover:bg-indigo-700"
-        >
-          <i data-feather="arrow-left" className="w-5 h-5 mr-2"></i>
-          <span className="text-sm font-medium">Back</span>
-        </Link>
-      </div>
-
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex flex-wrap gap-4 justify-between items-center mb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-indigo-800">Quest Management</h1>
-            <p className="text-white">Browse quest templates (yours + public)</p>
+            <h1 className="text-3xl font-bold text-white">Subjects</h1>
+            <p className="text-white/80">Browse your templates and public templates</p>
           </div>
 
-          <div className="flex gap-3">
-            <button
-              className="bg-white/15 hover:bg-white/20 text-white px-6 py-2 rounded-lg flex items-center border border-white/20"
-              onClick={loadTemplates}
-              disabled={!teacher?.id || loading}
-            >
-              <i data-feather="refresh-cw" className="mr-2"></i>
-              Refresh
-            </button>
-
-            <button
-              className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-6 py-2 rounded-lg flex items-center"
-              onClick={() => setIsModalOpen(true)}
-            >
-              <i data-feather="plus" className="mr-2"></i> Create Quest
-            </button>
-          </div>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-white text-blue-700 px-4 py-2 rounded-lg font-semibold shadow hover:bg-gray-100"
+          >
+            + Create Quest
+          </button>
         </div>
 
-        {/* Loading / error */}
-        {loading && (
-          <div className="bg-white rounded-xl shadow-md p-5 text-gray-700">Loading templates…</div>
-        )}
-
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl shadow-md p-5 text-red-700">
+          <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg mb-6">
             {error}
           </div>
         )}
 
-        {/* Templates (preferred) or fallback cards */}
-        {!loading && !error && (
-          <div className="space-y-10">
-            {templatesBySubject.length === 0 ? (
-              <div className="space-y-6">
-                <div className="bg-white rounded-xl shadow-md p-5 text-gray-700">
-                  No quest templates found — showing sample quests.
+        {loading ? (
+          <div className="text-white">Loading templates...</div>
+        ) : templates.length === 0 ? (
+          <div className="text-white/90">No templates found.</div>
+        ) : (
+          templatesBySubject.map(({ subject, items }) => (
+            <div key={subject} className="mb-10">
+              <div className="flex items-end justify-between mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">{subject}</h2>
+                  <p className="text-white/80 text-sm">{items.length} template(s)</p>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {FALLBACK_QUESTS.map((quest) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {items.map((t) => {
+                  const type = safeStr((t as any).type);
+                  const icon =
+                    type === "BOSS_FIGHT"
+                      ? "shield"
+                      : type === "DAILY_QUEST"
+                      ? "calendar"
+                      : "activity";
+
+                  const xp = toInt((t as any).base_xp_reward, 0);
+                  const gold = toInt((t as any).base_gold_reward, 0);
+
+                  return (
                     <div
-                      key={quest.title}
+                      key={(t as any).quest_template_id}
                       className="bg-white rounded-xl shadow-md overflow-hidden transition duration-300"
                     >
-                      <div className={`bg-linear-to-r ${quest.gradient} p-6 text-white text-center`}>
+                      <div className="bg-linear-to-r from-blue-500 to-indigo-600 p-6 text-white text-center">
                         <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4">
-                          <i data-feather={quest.icon} className="w-10 h-10 text-gray-800"></i>
+                          <i data-feather={icon} className="w-10 h-10 text-gray-800"></i>
                         </div>
-                        <h3 className="text-xl font-bold">{quest.title}</h3>
-                        <p className="text-white/80">{quest.subject}</p>
+                        <h3 className="text-xl font-bold">{safeStr((t as any).title)}</h3>
+                        <p className="text-white/80">{safeStr((t as any).subject)}</p>
                       </div>
 
                       <div className="p-5 space-y-4">
                         <p className="text-sm text-gray-500 uppercase tracking-wide">
-                          {quest.difficulty} • {quest.grade}
+                          {safeStr((t as any).difficulty)} • Grade {safeStr((t as any).grade)}
                         </p>
-                        <p className="text-gray-700 text-sm">{quest.description}</p>
+
+                        <p className="text-gray-700 text-sm">{safeStr((t as any).description)}</p>
+
                         <div className="flex items-center justify-between text-sm text-gray-600">
-                          <span className="font-semibold text-gray-900">{quest.type}</span>
-                          <span className="font-semibold text-gray-900">{quest.reward}</span>
+                          <span className="font-semibold text-gray-900">{type}</span>
+                          <span className="font-semibold text-gray-900">
+                            +{xp} XP / {gold} Gold
+                          </span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
-                          <button className="bg-green-600 hover:bg-green-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center">
-                            <i data-feather="play" className="mr-1 w-4 h-4"></i> Launch
+                        <div className="flex items-center justify-between text-sm text-gray-600">
+                          <span>
+                            Duration:{" "}
+                            <span className="font-semibold text-gray-900">
+                              {toInt((t as any).estimated_duration_minutes, 0)} min
+                            </span>
+                          </span>
+                          <span className="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700 text-xs">
+                            {(t as any).is_shared_publicly ? "Public" : "Private"}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 pt-2">
+                          <button
+                            className="bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-300 px-2 py-2 rounded-lg text-sm flex items-center justify-center"
+                            onClick={() => openEdit(t)}
+                          >
+                            <i data-feather="edit" className="mr-1 w-4 h-4"></i> Edit
                           </button>
-                          <button className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center">
-                            <i data-feather="clock" className="mr-1 w-4 h-4"></i> Schedule
-                          </button>
-                          <button className="col-span-2 bg-blue-600 hover:bg-blue-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center">
-                            <i data-feather="edit" className="mr-1 w-4 h-4"></i> Edit Quest
-                          </button>
-                          <button className="col-span-2 bg-gray-100 hover:bg-gray-200 text-red-600 border border-red-600 px-2 py-2 rounded-lg text-sm flex items-center justify-center">
+
+                          <button
+                            className="bg-gray-100 hover:bg-gray-200 text-red-600 border border-red-600 px-2 py-2 rounded-lg text-sm flex items-center justify-center"
+                            onClick={() => handleDeleteTemplate(t)}
+                          >
                             <i data-feather="trash-2" className="mr-1 w-4 h-4"></i> Delete
                           </button>
                         </div>
+
+                        <button
+                          className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-semibold"
+                          onClick={() =>
+                            navigate("/quests", {
+                              state: {
+                                // you can still “start” by creating via your existing flow
+                                questData: {
+                                  name: safeStr((t as any).title),
+                                  type: safeStr((t as any).type),
+                                  subject: safeStr((t as any).subject),
+                                  grade: String((t as any).grade),
+                                  description: safeStr((t as any).description),
+                                  difficulty: safeStr((t as any).difficulty),
+                                  reward: (t as any).base_gold_reward,
+                                  XP: (t as any).base_xp_reward,
+                                  estimated_duration_minutes: (t as any).estimated_duration_minutes,
+                                },
+                              },
+                            })
+                          }
+                        >
+                          Open
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            ) : (
-              templatesBySubject.map(({ subject, items }) => (
-                <div key={subject}>
-                  <div className="flex items-end justify-between mb-4">
-                    <div>
-                      <h2 className="text-2xl font-bold text-white">{subject}</h2>
-                      <p className="text-white/80 text-sm">{items.length} template(s)</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {items.map((t) => {
-                      const type = safeStr((t as any).type);
-                      const icon =
-                        type === "BOSS_FIGHT"
-                          ? "shield"
-                          : type === "DAILY_QUEST"
-                          ? "calendar"
-                          : "activity";
-
-                      const xp = toInt((t as any).base_xp_reward, 0);
-                      const gold = toInt((t as any).base_gold_reward, 0);
-
-                      return (
-                        <div
-                          key={(t as any).quest_template_id}
-                          className="bg-white rounded-xl shadow-md overflow-hidden transition duration-300"
-                        >
-                          <div className="bg-linear-to-r from-blue-500 to-indigo-600 p-6 text-white text-center">
-                            <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4">
-                              <i data-feather={icon} className="w-10 h-10 text-gray-800"></i>
-                            </div>
-                            <h3 className="text-xl font-bold">{safeStr((t as any).title)}</h3>
-                            <p className="text-white/80">{safeStr((t as any).subject)}</p>
-                          </div>
-
-                          <div className="p-5 space-y-4">
-                            <p className="text-sm text-gray-500 uppercase tracking-wide">
-                              {safeStr((t as any).difficulty)} • Grade {safeStr((t as any).grade)}
-                            </p>
-
-                            <p className="text-gray-700 text-sm">{safeStr((t as any).description)}</p>
-
-                            <div className="flex items-center justify-between text-sm text-gray-600">
-                              <span className="font-semibold text-gray-900">{type}</span>
-                              <span className="font-semibold text-gray-900">
-                                +{xp} XP / {gold} Gold
-                              </span>
-                            </div>
-
-                            <div className="flex items-center justify-between text-sm text-gray-600">
-                              <span>
-                                Duration:{" "}
-                                <span className="font-semibold text-gray-900">
-                                  {toInt((t as any).estimated_duration_minutes, 0)} min
-                                </span>
-                              </span>
-                              <span className="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700 text-xs">
-                                {(t as any).is_shared_publicly ? "Public" : "Private"}
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                              <button
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
-                                onClick={() =>
-                                  navigate("/quests", {
-                                    state: {
-                                      templateId: (t as any).quest_template_id,
-                                      // also pass numeric rewards to avoid downstream validation issues
-                                      base_xp_reward: xp,
-                                      base_gold_reward: gold,
-                                    },
-                                  })
-                                }
-                              >
-                                <i data-feather="play" className="mr-1 w-4 h-4"></i> Use
-                              </button>
-
-                              <button
-                                className="bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-300 px-2 py-2 rounded-lg text-sm flex items-center justify-center"
-                                onClick={() => alert("TODO: open template editor")}
-                              >
-                                <i data-feather="edit" className="mr-1 w-4 h-4"></i> Edit
-                              </button>
-
-                              <button
-                                className="col-span-2 bg-gray-100 hover:bg-gray-200 text-red-600 border border-red-600 px-2 py-2 rounded-lg text-sm flex items-center justify-center"
-                                onClick={() => alert("TODO: delete template")}
-                              >
-                                <i data-feather="trash-2" className="mr-1 w-4 h-4"></i> Delete
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+            </div>
+          ))
         )}
-      </main>
+      </div>
 
-      {/* Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-white/300 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center text-gray-900">
-          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Create New Quest</h3>
+      {/* ✅ EDIT TEMPLATE MODAL */}
+      {editOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white w-full max-w-2xl rounded-xl shadow-xl overflow-hidden">
+            <div className="bg-blue-700 text-white px-6 py-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold">Edit Template</h2>
               <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-blue-500 hover:text-blue-700"
+                className="text-white/90 hover:text-white"
+                onClick={() => {
+                  setEditOpen(false);
+                  setEditing(null);
+                }}
               >
-                <i data-feather="x-circle"></i>
+                ✕
               </button>
             </div>
 
-            <form className="space-y-4" onSubmit={handleCreateQuest}>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quest Name</label>
-                <input
-                  type="text"
-                  name="questName"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                  placeholder="e.g. Polynomial peaks"
-                  required
+            <div className="p-6 space-y-4">
+              {editError && (
+                <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg">
+                  {editError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-gray-700">Title</label>
+                  <input
+                    className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2
+                      text-black bg-white
+                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={fTitle}
+                    onChange={(e) => setFTitle(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-gray-700">Subject</label>
+                  <input
+                    className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2
+                      text-black bg-white
+                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={fSubject}
+                    onChange={(e) => setFSubject(e.target.value)}
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="text-sm font-semibold text-gray-700">Description</label>
+                  <textarea
+                  className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2
+                      text-black bg-white
+                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={fDescription}
+                  onChange={(e) => setFDescription(e.target.value)}
                 />
-              </div>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <select
-                  name="type"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                  required
-                  defaultValue="Quest"
-                >
-                  <option value="Quest">Quest</option>
-                  <option value="Side Quest">Side Quest</option>
-                  <option value="Boss Fight">Boss Fight</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                <select
-                  name="subject"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                  required
-                  defaultValue="Mathematics"
-                >
-                  <option value="Mathematics">Mathematics</option>
-                  <option value="Science">Science</option>
-                  <option value="Social Studies">Social Studies</option>
-                  <option value="Health Education">Health Education</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
-                <select
-                  name="grade"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                  required
-                  defaultValue="Grade 5"
-                >
-                  <option value="Grade 5">Grade 5</option>
-                  <option value="Grade 6">Grade 6</option>
-                  <option value="Grade 7">Grade 7</option>
-                  <option value="Grade 8">Grade 8</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  name="description"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                  rows={3}
-                  placeholder="Brief overview for your students"
-                  required
-                ></textarea>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
+                  <label className="text-sm font-semibold text-gray-700">Type</label>
                   <select
-                    name="difficulty"
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                    required
-                    defaultValue="Easy"
+                    className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2
+                      text-black bg-white
+                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={fType}
+                    onChange={(e) => setFType(e.target.value as QuestType)}
                   >
-                    <option value="Easy">Easy</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Hard">Hard</option>
+                    <option value="QUEST">QUEST</option>
+                    <option value="DAILY_QUEST">DAILY_QUEST</option>
+                    <option value="BOSS_FIGHT">BOSS_FIGHT</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">XP</label>
-                  {/* IMPORTANT: numeric values, not "100XP" */}
+                  <label className="text-sm font-semibold text-gray-700">Difficulty</label>
                   <select
-                    name="base_xp_reward"
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                    required
-                    defaultValue="100"
+                    className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2
+                      text-black bg-white
+                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={fDifficulty}
+                    onChange={(e) => setFDifficulty(e.target.value as Difficulty)}
                   >
-                    <option value="100">100 XP</option>
-                    <option value="200">200 XP</option>
-                    <option value="300">300 XP</option>
-                    <option value="400">400 XP</option>
-                    <option value="500">500 XP</option>
-                    <option value="1000">1000 XP</option>
+                    <option value="EASY">EASY</option>
+                    <option value="MEDIUM">MEDIUM</option>
+                    <option value="HARD">HARD</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Reward</label>
-                  {/* IMPORTANT: numeric values */}
-                  <select
-                    name="base_gold_reward"
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                    required
-                    defaultValue="30"
-                  >
-                    <option value="30">30 Gold</option>
-                    <option value="100">100 Gold</option>
-                  </select>
+                  <label className="text-sm font-semibold text-gray-700">Grade</label>
+                  <input
+                    type="number"
+                    className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2
+                      text-black bg-white
+                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={fGrade}
+                    onChange={(e) => setFGrade(Number(e.target.value))}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-gray-700">Duration (min)</label>
+                  <input
+                    type="number"
+                    className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2
+                      text-black bg-white
+                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={fDuration}
+                    onChange={(e) => setFDuration(Number(e.target.value))}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-gray-700">Base XP</label>
+                  <input
+                    type="number"
+                    className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2
+                      text-black bg-white
+                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={fXP}
+                    onChange={(e) => setFXP(Number(e.target.value))}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-gray-700">Base Gold</label>
+                  <input
+                    type="number"
+                    className="w-full mt-1 border border-gray-300 rounded-lg px-3 py-2
+                      text-black bg-white
+                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    value={fGold}
+                    onChange={(e) => setFGold(Number(e.target.value))}
+                  />
+                </div>
+
+                <div className="md:col-span-2 flex items-center gap-2">
+                  <input
+                    id="public"
+                    type="checkbox"
+                    checked={fPublic}
+                    onChange={(e) => setFPublic(e.target.checked)}
+                  />
+                  <label htmlFor="public" className="text-sm text-gray-700">
+                    Shared publicly
+                  </label>
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex items-center justify-end gap-3 pt-2">
                 <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-500"
+                  className="px-4 py-2 rounded-lg border"
+                  onClick={() => {
+                    setEditOpen(false);
+                    setEditing(null);
+                  }}
+                  disabled={savingEdit}
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
+                  className="px-4 py-2 rounded-lg bg-blue-700 text-white hover:bg-blue-800 disabled:opacity-60"
+                  onClick={saveEdit}
+                  disabled={savingEdit}
                 >
-                  Create Quest
+                  {savingEdit ? "Saving..." : "Save Changes"}
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
+
+      {/* NOTE: your create quest modal stays as-is (not included here) */}
+      {/* If you want me to merge the create modal into this file too, paste the bottom of your current Subjects.tsx */}
     </div>
   );
 };

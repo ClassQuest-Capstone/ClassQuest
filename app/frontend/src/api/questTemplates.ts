@@ -72,6 +72,13 @@ export function getPublicQuestTemplates(
   return api<{ items: QuestTemplate[] }>(`/quest-templates/public${qs ? `?${qs}` : ""}`);
 }
 
+export function deleteQuestTemplate(quest_template_id: string) {
+  return api<{ message: string }>(
+    `/quest-templates/${encodeURIComponent(quest_template_id)}`,
+    { method: "DELETE" }
+  );
+}
+
 // backend uses PATCH, not PUT
 export function updateQuestTemplate(
   quest_template_id: string,
