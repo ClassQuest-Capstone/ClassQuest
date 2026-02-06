@@ -1,4 +1,3 @@
-// Quests.tsx (FIXED) ✅
 // This version prevents INVALID_BASE_XP_REWARD by ALWAYS sending valid NUMBERS
 // for base_xp_reward / base_gold_reward (never NaN / undefined / "100XP").
 // - Default XP/Gold if missing
@@ -49,6 +48,9 @@ interface QuestData {
   reward: string | number; // allow number too
   estimated_duration_minutes?: number;
   XP?: string | number;
+  base_xp_reward?: string | number;
+  base_gold_reward?: string | number;
+  class_id?: string; // Add class_id field
 }
 
 function toInt(val: unknown, fallback = 0) {
@@ -139,19 +141,21 @@ const Quests = () => {
         const questType = "QUEST";
 
         // these can NEVER be NaN now
-        const baseXP = clampNonNeg(toInt(questDataFromModal.XP, 100)); // default 100
-        const baseGold = clampNonNeg(toInt(questDataFromModal.reward, 30)); // default 30
+        const baseXP = clampNonNeg(
+          toInt(questDataFromModal.base_xp_reward || questDataFromModal.XP, 100)
+        ); // default 100
+        const baseGold = clampNonNeg(
+          toInt(questDataFromModal.base_gold_reward || questDataFromModal.reward, 30)
+        ); // default 30
 
         const template = await createQuestTemplate({
           title: questDataFromModal.name || "Untitled Quest",
           description: questDataFromModal.description || "",
           subject: questDataFromModal.subject || "General",
+          class_id: questDataFromModal.class_id ?? location.state?.class_id ?? "", 
           estimated_duration_minutes: questDataFromModal.estimated_duration_minutes || 0,
-
-          // MUST be valid numbers
           base_xp_reward: baseXP,
           base_gold_reward: baseGold,
-
           is_shared_publicly: false,
           type: questType,
           grade,

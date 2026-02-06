@@ -29,9 +29,20 @@ export const TutorialIntroModal: React.FC = () => {
  * Handles the start of the tutorial. When called, it sets open to false and starts the tutorial.
  */
   const handleStart = () => {
-    setOpen(false);
-    startTutorial();
+  setOpen(false);
+
+  const waitForDashboard = () => {
+    const el = document.getElementById("Active-tab");
+    if (el) {
+      startTutorial();
+    } else {
+      requestAnimationFrame(waitForDashboard);
+    }
   };
+
+  waitForDashboard();
+};
+
 
   const handleClose = () => setOpen(false);
 

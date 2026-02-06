@@ -359,16 +359,20 @@ export default function Signup() {
         })
       );
 
+      // Clear the intro modal flag so tutorial shows on first dashboard visit
+      localStorage.removeItem("cq_hasSeenIntroModal");
+
       // Create DB profile (teacher) with school_id
       await createTeacherProfile({
         teacher_id: sub,
         display_name: pendingDisplayName,
         email: pendingEmail,
-        school_id: pendingClassCode, // Now using the selected school_id
+        school_id: pendingClassCode, 
       });
 
-      setSuccess("Teacher account confirmed! Redirecting to login...");
-      setTimeout(() => navigate("/TeacherLogin"), 600);
+      setSuccess("Teacher account confirmed! Redirecting to dashboard...");
+      // Redirect directly to dashboard to show tutorial
+      setTimeout(() => navigate("/teacherDashboard", { replace: true }), 600);
     } catch (err: any) {
       console.error("Confirmation error:", err);
       setError(err?.message || "Invalid confirmation code.");

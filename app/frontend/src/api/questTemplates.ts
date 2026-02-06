@@ -10,6 +10,7 @@ export type QuestTemplate = {
   title: string;
   description: string;
   subject: string;
+  class_id: string;
   estimated_duration_minutes: number;
   base_xp_reward: number;
   base_gold_reward: number;
@@ -27,6 +28,7 @@ export type CreateQuestTemplateInput = {
   title: string;
   description: string;
   subject: string;
+  class_id: string;
   estimated_duration_minutes: number;
   base_xp_reward: number;
   base_gold_reward: number;

@@ -417,22 +417,22 @@ const Classes = () => {
 
                     <button
                       className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
-                      onClick={() => alert("Settings page later")}
+                      onClick={() => alert("rewards page later")}
                     >
-                      <i data-feather="settings" className="mr-1 w-4 h-4"></i>{" "}
-                      Settings
+                      <i data-feather="gift" className="mr-1 w-4 h-4"></i>{" "}
+                      Rewards
                     </button>
 
                     <button
                       className="col-span-2 bg-blue-600 hover:bg-blue-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
-                      onClick={() => navigate("/Subjects", { state: { openCreateQuest: true } })}
+                      onClick={() => navigate("/Subjects", { state: { openCreateQuest: true, class_id: c.class_id } })}
                     >
                       <i data-feather="plus-circle" className="mr-1 w-4 h-4"></i>{" "}
                       Create Quest
                     </button>
                     <button
                       className="col-span-2 bg-purple-600 hover:bg-purple-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
-                      onClick={() => navigate("/Subjects")}
+                      onClick={() => navigate("/Subjects", { state: { class_id: c.class_id, viewMode: "class" } })}
                     >
                       <i data-feather="eye" className="mr-1 w-4 h-4"></i>{" "}
                       View Quests

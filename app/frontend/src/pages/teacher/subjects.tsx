@@ -9,6 +9,7 @@ import {
   getPublicQuestTemplates,
   type QuestTemplate,
 } from "../../api/questTemplates.js";
+import { listClassesByTeacher, type ClassItem } from "../../api/classes.js";
 
 type QuestCard = {
   title: string;
@@ -92,6 +93,7 @@ const Subjects = () => {
   const navigate = useNavigate();
 
   const [teacher, setTeacher] = useState<TeacherUser | null>(null);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
 
   // templates (real data)
   const [loading, setLoading] = useState(true);
@@ -122,6 +124,21 @@ const Subjects = () => {
     }
   }, []);
 
+  // load teacher's classes
+  useEffect(() => {
+    if (!teacher?.id) return;
+    const loadClasses = async () => {
+      try {
+        const res = await listClassesByTeacher(teacher.id);
+        setClasses((res as any).items ?? []);
+      } catch (e) {
+        console.error("Failed to load classes:", e);
+        setClasses([]);
+      }
+    };
+    loadClasses();
+  }, [teacher?.id]);
+
   // re-render feather icons when modal/templates change
   useEffect(() => {
     feather.replace();
@@ -149,13 +166,17 @@ const Subjects = () => {
       const unique = new Map<string, QuestTemplate>();
       for (const t of merged) unique.set((t as any).quest_template_id, t);
 
-      // Sort newest first (fallback to title)
-      const list = [...unique.values()].sort((a, b) => {
+      let list = [...unique.values()].sort((a, b) => {
         const da = new Date((a as any).created_at).getTime();
         const db = new Date((b as any).created_at).getTime();
         if (!Number.isNaN(da) && !Number.isNaN(db)) return db - da;
         return safeStr((a as any).title).localeCompare(safeStr((b as any).title));
       });
+
+      // If viewing from a specific class, filter by class_id
+      if (location.state?.viewMode === "class" && location.state?.class_id) {
+        list = list.filter((t: any) => t.class_id === location.state.class_id);
+      }
 
       setTemplates(list);
     } catch (e: any) {
@@ -164,7 +185,7 @@ const Subjects = () => {
     } finally {
       setLoading(false);
     }
-  }, [teacher?.id]);
+  }, [teacher?.id, location.state?.class_id, location.state?.viewMode]);
 
   useEffect(() => {
     if (teacher?.id) loadTemplates();
@@ -207,10 +228,11 @@ const Subjects = () => {
       difficulty: safeStr(formData.get("difficulty")),
       base_xp_reward: xp,
       base_gold_reward: gold,
+      class_id: location.state?.class_id || safeStr(formData.get("class_id")), // Get class_id from form or navigation state
     };
 
     setIsModalOpen(false);
-    navigate("/quests", { state: { questData } });
+    navigate("/quests", { state: { questData, class_id: location.state?.class_id } });
   };
 
   return (
@@ -271,7 +293,7 @@ const Subjects = () => {
       {/* Back button */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <Link
-          to="/teacherDashboard"
+          to="/classes"
           className="inline-flex items-center bg-indigo-600 text-white border-2 border-indigo-600 rounded-md px-3 py-2 hover:bg-indigo-700"
         >
           <i data-feather="arrow-left" className="w-5 h-5 mr-2"></i>
@@ -544,6 +566,24 @@ const Subjects = () => {
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Class </label>
+                <select
+                  name="class_id"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                  defaultValue={location.state?.class_id || ""}
+                >
+                  <option value="">No specific class</option>
+                 {classes
+                  .filter((cls) => cls.is_active)
+                  .map((cls) => (
+                    <option key={cls.class_id} value={cls.class_id}>
+                      {cls.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea
                   name="description"
@@ -571,13 +611,14 @@ const Subjects = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">XP</label>
-                  {/* IMPORTANT: numeric values, not "100XP" */}
+                  {/* IMPORTANT: numeric values, not Strings */}
                   <select
                     name="base_xp_reward"
                     className="w-full border border-gray-300 rounded-lg px-4 py-2"
                     required
-                    defaultValue="100"
+                    defaultValue=""
                   >
+                    <option value="">Select XP</option>
                     <option value="100">100 XP</option>
                     <option value="200">200 XP</option>
                     <option value="300">300 XP</option>
@@ -589,13 +630,14 @@ const Subjects = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Reward</label>
-                  {/* IMPORTANT: numeric values */}
+                  {/* IMPORTANT: numeric values so /quests doesn't throw error */}
                   <select
                     name="base_gold_reward"
                     className="w-full border border-gray-300 rounded-lg px-4 py-2"
                     required
-                    defaultValue="30"
+                    defaultValue=""
                   >
+                    <option value="">Select Gold</option>
                     <option value="30">30 Gold</option>
                     <option value="100">100 Gold</option>
                   </select>
