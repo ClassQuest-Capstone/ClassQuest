@@ -31,7 +31,7 @@ export function createTables(ctx: StackContext) {
         },
         primaryIndex: { partitionKey: "teacher_id" },
         globalIndexes: {
-            //gsi1: { partitionKey: "school_id" },     //fix for the sign up process!!!!
+            gsi1: { partitionKey: "school_id" },     
         },
     });
 

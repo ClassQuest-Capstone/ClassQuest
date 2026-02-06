@@ -32,7 +32,7 @@ export const handler = async (event: any) => {
         title,
         description,
         subject,
-        subject_id,
+        class_id,
         estimated_duration_minutes,
         base_xp_reward,
         base_gold_reward,
