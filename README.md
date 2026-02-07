@@ -21,6 +21,7 @@ The project was initiated as a Capstone at the **University of Regina**.
 
 1. Team and project Introduction: [🎞️ Vlog1](https://www.youtube.com/watch?v=lCHaV5K9AQU)
 2. Progress report and semester reflection: [🎞️ Vlog2](https://www.youtube.com/watch?v=BxoGuTXhTXo)
+2. Project update:  [🎞️ Vlog3](https://youtu.be/WxOvtN4L3_Q?si=8RlhtUtfbxR12Drf)
 
 ## Shorts
 1. What is ClassQuest? : [🎞️ Shorts1](https://youtube.com/shorts/tD3HApM7JdE?si=88EbOguojmiUEZG7)
