@@ -7,9 +7,11 @@ import { signUp, confirmSignUp, signIn, fetchAuthSession, signOut } from "aws-am
 import { createStudentProfile } from "../../api/studentProfiles.js";
 import { createTeacherProfile } from "../../api/teacherProfiles.js";
 import { getSchools, School } from "../../api/schools.js";
+import { validateJoinCode } from "../../api/classes.js";
+import { enrollStudent } from "../../api/classEnrollments.js";
 
-// ✅ local class “DB”
-import { classExists, ensureClassExists, joinClass } from "../../utils/classStore.js";
+// ✅ local class "DB" (kept for backwards compatibility, but using API validation now)
+import { ensureClassExists, joinClass } from "../../utils/classStore.js";
 
 type UserType = "teacher" | "student";
 type SchoolType = string;
@@ -159,9 +161,6 @@ export default function Signup() {
     // ----------------------------
     if (userType === "student") {
       if (!cleanedStudentCode) return setError("Class code is required for student accounts.");
-      if (!classExists(cleanedStudentCode)) {
-        return setError("Invalid class code. Ask your teacher for the correct code.");
-      }
       if (!cleanedStudentUsername) return setError("Student username is required.");
 
       // Students use plain usernames (not emails)
@@ -170,6 +169,30 @@ export default function Signup() {
       }
 
       setIsLoading(true);
+
+      // Validate class code against DynamoDB
+      let validatedClass;
+      try {
+        validatedClass = await validateJoinCode(cleanedStudentCode);
+        if (!validatedClass) {
+          setIsLoading(false);
+          return setError("Invalid class code. Ask your teacher for the correct code.");
+        }
+        if (!validatedClass.is_active) {
+          setIsLoading(false);
+          return setError("This class is no longer active. Please contact your teacher.");
+        }
+        console.log("[signup] Class validated successfully", {
+          class_id: validatedClass.class_id,
+          name: validatedClass.name,
+          school_id: validatedClass.school_id
+        });
+      } catch (err: any) {
+        console.error("[signup] Failed to validate class code", err);
+        setIsLoading(false);
+        return setError("Unable to validate class code. Please try again or check your internet connection.");
+      }
+
       try {
         console.log("[signup] Starting student signup", {
           username: cleanedStudentUsername,
@@ -220,12 +243,22 @@ export default function Signup() {
         console.log("[signup] Creating student profile in DynamoDB");
         await createStudentProfile({
           student_id: sub,
-          school_id: cleanedStudentCode,
+          school_id: validatedClass.school_id,
           display_name: cleanedDisplay,
           email: "",
         });
 
-        // Join class in local class DB (so teacher can see them)
+        // Enroll student in the class via API
+        console.log("[signup] Enrolling student in class", { class_id: validatedClass.class_id });
+        try {
+          await enrollStudent(validatedClass.class_id, sub);
+          console.log("[signup] Student enrolled successfully");
+        } catch (enrollErr: any) {
+          console.error("[signup] Enrollment failed", enrollErr);
+          // Continue anyway - profile is created, can enroll later
+        }
+
+        // Also update local class DB for backwards compatibility
         joinClass(cleanedStudentCode, sub);
 
         // Set current user session locally

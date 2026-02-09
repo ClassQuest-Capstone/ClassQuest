@@ -39,6 +39,22 @@ export async function listClassesByTeacher(teacherId: string): Promise<{ items: 
 }
 
 /**
+ * Validate a join code and get class details
+ * Used by students during signup to verify class exists
+ */
+export async function validateJoinCode(joinCode: string): Promise<ClassItem | null> {
+  try {
+    return await api<ClassItem>(`/classes/join/${joinCode.toUpperCase()}`);
+  } catch (err: any) {
+    // If 404 (class not found), return null instead of throwing
+    if (err.message?.includes("404") || err.message?.includes("CLASS_NOT_FOUND")) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+/**
  * Deactivate (soft delete) a class
  */
 export async function deactivateClass(classId: string): Promise<{ message: string; class_id: string }> {
