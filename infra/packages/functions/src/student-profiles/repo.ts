@@ -10,7 +10,7 @@ export type StudentProfileItem = {
     student_id: string;     // Users.user_id
     school_id: string;
     display_name: string;
-    email: string;
+    username: string;
     grade?: string;
     created_at: string;
     updated_at: string;

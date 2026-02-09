@@ -10,8 +10,8 @@ import { getSchools, School } from "../../api/schools.js";
 import { validateJoinCode } from "../../api/classes.js";
 import { enrollStudent } from "../../api/classEnrollments.js";
 
-// ✅ local class "DB" (kept for backwards compatibility, but using API validation now)
-import { ensureClassExists, joinClass } from "../../utils/classStore.js";
+//  local class "DB" (kept for backwards compatibility, but using API validation now)
+//import { ensureClassExists, joinClass } from "../../utils/classStore.js";
 
 type UserType = "teacher" | "student";
 type SchoolType = string;
@@ -245,7 +245,7 @@ export default function Signup() {
           student_id: sub,
           school_id: validatedClass.school_id,
           display_name: cleanedDisplay,
-          email: "",
+          username: cleanedStudentUsername,
         });
 
         // Enroll student in the class via API
@@ -259,23 +259,23 @@ export default function Signup() {
         }
 
         // Also update local class DB for backwards compatibility
-        joinClass(cleanedStudentCode, sub);
+        //joinClass(cleanedStudentCode, sub);
 
         // Set current user session locally
-        localStorage.setItem(
-          "cq_currentUser",
-          JSON.stringify({
-            id: sub,
-            role: "student",
-            displayName: cleanedDisplay,
-            username: cleanedStudentUsername,
-            joinedClassCode: cleanedStudentCode,
-          })
-        );
+        // localStorage.setItem(
+        //   "cq_currentUser",
+        //   JSON.stringify({
+        //     id: sub,
+        //     role: "student",
+        //     displayName: cleanedDisplay,
+        //     username: cleanedStudentUsername,
+        //     joinedClassCode: cleanedStudentCode,
+        //   })
+        // );
 
-        console.log("[signup] Student signup complete, navigating to /characterpage");
+        console.log("[signup] Student signup complete, navigating to /welcome");
         setSuccess("Student account created! Joining class...");
-        setTimeout(() => navigate("/characterpage", { replace: true }), 300);
+        setTimeout(() => navigate("/welcome", { replace: true }), 300);
       } catch (err: any) {
         console.error("[signup] Student signup error", {
           name: err?.name,
@@ -393,7 +393,7 @@ export default function Signup() {
       );
 
       // Clear the intro modal flag so tutorial shows on first dashboard visit
-      localStorage.removeItem("cq_hasSeenIntroModal");
+      //localStorage.removeItem("cq_hasSeenIntroModal");
 
       // Create DB profile (teacher) with school_id
       await createTeacherProfile({

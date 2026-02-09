@@ -27,8 +27,20 @@ export const handler = async (event: any) => {
     // Allows students to type "abc123" and match "ABC123" in database
     const normalizedCode = join_code.toUpperCase();
 
+    console.log("[get-by-join-code] Searching for join code:", {
+        original: join_code,
+        normalized: normalizedCode
+    });
+
     // Step 3: Query GSI3 (join_code partition key) to find the class
     const item = await getClassByJoinCode(normalizedCode);
+
+    console.log("[get-by-join-code] Query result:", {
+        found: !!item,
+        class_id: item?.class_id,
+        join_code: item?.join_code,
+        is_active: item?.is_active
+    });
 
     // ============================================================
     // TODO AUTH: After fetching, verify student belongs to same school as class

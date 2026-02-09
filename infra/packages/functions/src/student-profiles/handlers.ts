@@ -7,7 +7,7 @@ export async function createStudentProfileHandler(body: any) {
         student_id: body.student_id,
         school_id: body.school_id,
         display_name: body.display_name,
-        email: body.email,
+        username: body.username,
         grade: body.grade,
         created_at: now,
         updated_at: now,

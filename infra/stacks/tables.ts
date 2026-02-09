@@ -41,7 +41,7 @@ export function createTables(ctx: StackContext) {
             student_id: "string",
             school_id: "string",
             display_name: "string",
-            email: "string",
+            username: "string",
             grade: "string",
             created_at: "string",
             updated_at: "string",
@@ -49,6 +49,7 @@ export function createTables(ctx: StackContext) {
         primaryIndex: { partitionKey: "student_id" },
         globalIndexes: {
             gsi1: { partitionKey: "school_id" },
+            gsi2: { partitionKey: "username" },
         },
     });
 

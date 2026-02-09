@@ -4,7 +4,7 @@ export type StudentProfile = {
     student_id: string;
     school_id: string;
     display_name: string;
-    email: string;
+    username: string; 
     grade?: string;
     created_at: string;
     updated_at: string;
@@ -14,7 +14,7 @@ export function createStudentProfile(input: {
     student_id: string;
     school_id: string;
     display_name: string;
-    email: string;
+    username: string;
     grade?: string;
 }) {
     return api<{ ok: true; student_id: string }>("/student-profiles", {

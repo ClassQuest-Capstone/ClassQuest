@@ -11,9 +11,9 @@ export const handler = async (event: any) => {
     const student_id = body.student_id;
     const school_id = body.school_id;
     const display_name = body.display_name;
-    const email = body.email;
+    const username = body.username;
 
-    if (!student_id || !school_id || !display_name || !email) {
+    if (!student_id || !school_id || !display_name || !username) {
         console.log("Bad request body:", { rawBody, bodyKeys: Object.keys(body || {}) });
         return {
         statusCode: 400,
@@ -21,8 +21,9 @@ export const handler = async (event: any) => {
         body: JSON.stringify({
             ok: false,
             error: "MISSING_REQUIRED_FIELDS",
-            required: ["student_id", "school_id", "display_name", "email"],
+            required: ["student_id", "school_id", "display_name", "username"],
             received_keys: Object.keys(body || {}),
+            received_values: { student_id, school_id, display_name, username },
         }),
         };
     }
@@ -33,7 +34,7 @@ export const handler = async (event: any) => {
         student_id,
         school_id,
         display_name,
-        email,
+        username,
         grade: body.grade,
         created_at: now,
         updated_at: now,

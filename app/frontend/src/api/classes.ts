@@ -43,9 +43,20 @@ export async function listClassesByTeacher(teacherId: string): Promise<{ items: 
  * Used by students during signup to verify class exists
  */
 export async function validateJoinCode(joinCode: string): Promise<ClassItem | null> {
+  const normalizedCode = joinCode.toUpperCase();
+  console.log("[validateJoinCode] Validating:", { original: joinCode, normalized: normalizedCode });
+
   try {
-    return await api<ClassItem>(`/classes/join/${joinCode.toUpperCase()}`);
+    const result = await api<ClassItem>(`/classes/join/${normalizedCode}`);
+    console.log("[validateJoinCode] Success:", result);
+    return result;
   } catch (err: any) {
+    console.log("[validateJoinCode] Error:", {
+      message: err.message,
+      error: err,
+      isNotFound: err.message?.includes("404") || err.message?.includes("CLASS_NOT_FOUND")
+    });
+
     // If 404 (class not found), return null instead of throwing
     if (err.message?.includes("404") || err.message?.includes("CLASS_NOT_FOUND")) {
       return null;
