@@ -57,28 +57,20 @@ export default function StudentLogin() {
       return;
     }
 
-  } catch (err) {
-    console.error("Unexpected error before sign-in:", err);
-  }
-
-  try {
     // Sign in with Cognito
     const { isSignedIn } = await signIn({ username, password });
+    
+    if (isSignedIn) {
+        console.log("Signed in successfully");
 
-    if (!isSignedIn) {
-      setError("Authentication failed. Please check your credentials.");
-      setIsLoading(false);
-      return;
-    }
-
-    // Get Cognito user attributes
-    const userAttributes = await fetchUserAttributes();
-    const cognito_sub = userAttributes.sub;
-
-    if (!cognito_sub) {
-      setError("Failed to retrieve user identity.");
-      return;
-    }
+        // Get Cognito user attributes
+        const userAttributes = await fetchUserAttributes();
+        const cognito_sub = userAttributes.sub;
+    
+      if (!cognito_sub) {
+        setError("Failed to retrieve user identity.");
+        return;
+      }
 
     // Fetch student profile
     let profile = null;
@@ -89,24 +81,33 @@ export default function StudentLogin() {
     }
 
     if (!profile) {
-      setError("No profile found. Please contact support.");
+      setError("No profile found. Please contact your teacher.");
       return;
     }
 
-    // Remember me
+    // Handle rememberMe: Save username for next login if enabled
     if (rememberMe) {
       localStorage.setItem("student_username_remembered", username);
     } else {
       localStorage.removeItem("student_username_remembered");
     }
 
-    // Store session data locally
-    localStorage.setItem("student_id", profile.student_id);
-    localStorage.setItem("school_id", profile.school_id);
-    localStorage.setItem("display_name", profile.display_name);
-    localStorage.setItem("email", profile.username);
+     // Store student profile data from backend
+        localStorage.setItem(
+          "cq_currentUser",
+          JSON.stringify({
+            id: cognito_sub,
+            role: "student",
+            displayName: profile.display_name,
+            username: profile.username,
+            student_id: profile.student_id,
+          })
+        );
 
-    navigate("/welcome");
+    navigate("/character", { replace: true }); // replaced to direct to student dash was "/welcome" before
+      } else{
+        setError("Sign in failed. Please try again.");
+      }
 
   } catch (err: any) {
     if (err.name === "NotAuthorizedException") {
