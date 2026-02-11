@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import feather from "feather-icons";
-import { signIn, fetchUserAttributes } from "aws-amplify/auth";
+import { signIn, signOut, fetchUserAttributes } from "aws-amplify/auth";
 import { getStudentProfile } from "../../api/studentProfiles.js";
 
 // Input validation helper
@@ -37,9 +37,17 @@ export default function StudentLogin() {
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setIsLoading(true);
+  e.preventDefault();
+  setError("");
+  setIsLoading(true);
+
+  try {
+    // If Cognito thinks someone is already signed in, clear that session first
+    try {
+      await signOut();
+    } catch {
+      // ignore if no one is signed in
+    }
 
     // Validate inputs before making API calls
     const validationError = validateInputs(username, password);
@@ -49,71 +57,71 @@ export default function StudentLogin() {
       return;
     }
 
-    try {
-      // Sign in with Cognito
-      const { isSignedIn } = await signIn({ username, password });
+  } catch (err) {
+    console.error("Unexpected error before sign-in:", err);
+  }
 
-      if (!isSignedIn) {
-        setError("Authentication failed. Please check your credentials.");
-        setIsLoading(false);
-        return;
-      }
+  try {
+    // Sign in with Cognito
+    const { isSignedIn } = await signIn({ username, password });
 
-      // Get Cognito user attributes
-      const userAttributes = await fetchUserAttributes();
-      const cognito_sub = userAttributes.sub;
-
-      if (!cognito_sub) {
-        setError("Failed to retrieve user identity.");
-        return;
-      }
-
-      // Fetch student profile from backend
-      let profile = null;
-
-      try {
-        profile = await getStudentProfile(cognito_sub);
-      } catch (err) {
-        profile = null; // API returns 404 -> no profile
-      }
-
-      if (!profile) {
-        setError("No profile found. Please contact support.");
-        return;
-      }
-
-      // Handle rememberMe: Save username for next login if enabled
-      if (rememberMe) {
-        localStorage.setItem("student_username_remembered", username);
-      } else {
-        localStorage.removeItem("student_username_remembered");
-      }
-
-      // Session storage (TODO: Replace with HTTP-only cookies for security)
-      localStorage.setItem("student_id", profile.student_id);
-      localStorage.setItem("school_id", profile.school_id);
-      localStorage.setItem("display_name", profile.display_name);
-      localStorage.setItem("email", profile.email);
-
-      // Navigate to dashboard
-      navigate("/welcome");
-
-    } catch (err: any) {
-      if (err.name === "NotAuthorizedException") {
-        setError("Invalid username or password.");
-      } else if (err.name === "UserNotFoundException") {
-        setError("User not found.");
-      } else if (err.name === "LimitExceededException") {
-        setError("Too many login attempts. Try again later.");
-      } else {
-        setError(err.message || "An error occurred during login.");
-      }
-
-    } finally {
+    if (!isSignedIn) {
+      setError("Authentication failed. Please check your credentials.");
       setIsLoading(false);
+      return;
     }
-  };
 
+    // Get Cognito user attributes
+    const userAttributes = await fetchUserAttributes();
+    const cognito_sub = userAttributes.sub;
+
+    if (!cognito_sub) {
+      setError("Failed to retrieve user identity.");
+      return;
+    }
+
+    // Fetch student profile
+    let profile = null;
+    try {
+      profile = await getStudentProfile(cognito_sub);
+    } catch {
+      profile = null;
+    }
+
+    if (!profile) {
+      setError("No profile found. Please contact support.");
+      return;
+    }
+
+    // Remember me
+    if (rememberMe) {
+      localStorage.setItem("student_username_remembered", username);
+    } else {
+      localStorage.removeItem("student_username_remembered");
+    }
+
+    // Store session data locally
+    localStorage.setItem("student_id", profile.student_id);
+    localStorage.setItem("school_id", profile.school_id);
+    localStorage.setItem("display_name", profile.display_name);
+    localStorage.setItem("email", profile.username);
+
+    navigate("/welcome");
+
+  } catch (err: any) {
+    if (err.name === "NotAuthorizedException") {
+      setError("Invalid username or password.");
+    } else if (err.name === "UserNotFoundException") {
+      setError("User not found.");
+    } else if (err.name === "LimitExceededException") {
+      setError("Too many login attempts. Try again later.");
+    } else {
+      setError(err.message || "An error occurred during login.");
+    }
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
      <div className="font-poppins min-h-screen bg-gray-50">
