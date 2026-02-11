@@ -8,10 +8,20 @@ import {
   getQuestTemplatesByOwner,
   getPublicQuestTemplates,
   updateQuestTemplate,
-  // deleteQuestTemplate, // ❗ only if backend DELETE exists
+  deleteQuestTemplate,
   type QuestTemplate,
 } from "../../api/questTemplates.js";
 import { listClassesByTeacher, type ClassItem } from "../../api/classes.js";
+import {
+  createQuestInstance,
+  listQuestInstancesByClass,
+  listQuestInstancesByTemplate,
+  updateQuestInstanceStatus,
+  updateQuestInstanceDates,
+  type QuestInstance,
+  type CreateQuestInstanceRequest,
+  type QuestInstanceStatus,
+} from "../../api/questInstances.js";
 
 type TeacherUser = {
   id: string;
@@ -83,7 +93,7 @@ const Subjects = () => {
   const [error, setError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<QuestTemplate[]>([]);
 
-  // ✅ Edit modal state
+  // Edit modal state
   const [editOpen, setEditOpen] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
@@ -100,6 +110,24 @@ const Subjects = () => {
   const [eXP, setEXP] = useState<number>(0);
   const [eGold, setEGold] = useState<number>(0);
   const [ePublic, setEPublic] = useState<boolean>(false);
+
+  // QuestInstance assignment modal state
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [assigningTemplate, setAssigningTemplate] = useState<QuestTemplate | null>(null);
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  
+  // Assignment form fields
+  const [assignClassId, setAssignClassId] = useState<string>("");
+  const [assignStartDate, setAssignStartDate] = useState<string>("");
+  const [assignDueDate, setAssignDueDate] = useState<string>("");
+  const [assignStatus, setAssignStatus] = useState<"DRAFT" | "ACTIVE">("DRAFT");
+  const [assignManualApproval, setAssignManualApproval] = useState<boolean>(false);
+  const [assignTitleOverride, setAssignTitleOverride] = useState<string>("");
+  const [assignDescriptionOverride, setAssignDescriptionOverride] = useState<string>("");
+
+  // Quest instances state - map of template_id -> instances
+  const [questInstances, setQuestInstances] = useState<Map<string, QuestInstance[]>>(new Map());
 
   useEffect(() => {
     feather.replace();
@@ -139,7 +167,7 @@ const Subjects = () => {
 
   useEffect(() => {
     feather.replace();
-  }, [isModalOpen, templates, loading, error, editOpen]);
+  }, [isModalOpen, templates, loading, error, editOpen, assignModalOpen, questInstances]);
 
   const loadTemplates = useCallback(async () => {
     if (!teacher?.id) return;
@@ -185,6 +213,42 @@ const Subjects = () => {
     if (teacher?.id) loadTemplates();
   }, [teacher?.id, loadTemplates]);
 
+  // Load quest instances for all templates
+  const loadQuestInstances = useCallback(async () => {
+    if (!teacher?.id || templates.length === 0) return;
+
+    const instancesMap = new Map<string, QuestInstance[]>();
+
+    try {
+      // Load instances for each template
+      await Promise.all(
+        templates.map(async (template) => {
+          const templateId = (template as any).quest_template_id;
+          if (!templateId) return;
+
+          try {
+            const response = await listQuestInstancesByTemplate(templateId);
+            const instances = (response as any).items || [];
+            instancesMap.set(templateId, instances);
+          } catch (e) {
+            console.error(`Failed to load instances for template ${templateId}:`, e);
+            instancesMap.set(templateId, []);
+          }
+        })
+      );
+
+      setQuestInstances(instancesMap);
+    } catch (e) {
+      console.error("Failed to load quest instances:", e);
+    }
+  }, [teacher?.id, templates]);
+
+  useEffect(() => {
+    if (templates.length > 0) {
+      loadQuestInstances();
+    }
+  }, [templates, loadQuestInstances]);
+
   const templatesBySubject = useMemo(() => {
     const map = new Map<string, QuestTemplate[]>();
 
@@ -227,7 +291,7 @@ const Subjects = () => {
     navigate("/quests", { state: { questData, class_id: location.state?.class_id } });
   };
 
-  // ✅ Open edit modal with current values
+  // Open edit modal with current values
   const openEdit = (t: QuestTemplate) => {
     setEditError(null);
     setEditing(t);
@@ -247,7 +311,7 @@ const Subjects = () => {
     setEditOpen(true);
   };
 
-  // ✅ Save edits (PATCH)
+  // Save edits (PATCH)
   const saveEdit = async () => {
     if (!editing) return;
 
@@ -288,20 +352,92 @@ const Subjects = () => {
     }
   };
 
-  // ✅ Delete (UI remove; real delete requires backend)
-  const deleteTemplateUIOnly = (t: QuestTemplate) => {
+  // Delete (UI remove; real delete requires backend)
+  const deleteTemplate = async (t: QuestTemplate) => {
+    const id = (t as any).quest_template_id;
+    if (!window.confirm(`Delete "${safeStr((t as any).title)}"?`)) return;
+
+    setTemplates((prev) => prev.filter((x) => (x as any).quest_template_id !== id));
+    await deleteQuestTemplate(id);
+    await loadTemplates();
+  }
+  /*const deleteTemplateUIOnly = (t: QuestTemplate) => {
     const id = (t as any).quest_template_id;
     if (!window.confirm(`Delete "${safeStr((t as any).title)}"?`)) return;
 
     setTemplates((prev) => prev.filter((x) => (x as any).quest_template_id !== id));
 
-    // If backend delete exists later, you can enable:
-    // await deleteQuestTemplate(id);
-    // await loadTemplates();
+    //  (TODO:)If backend delete exists later:
+    await deleteQuestTemplate(id);
+    await loadTemplates();
+  };*/
+
+  // Open assignment modal
+  const openAssignModal = (template: QuestTemplate) => {
+    setAssigningTemplate(template);
+    setAssignClassId("");
+    setAssignStartDate("");
+    setAssignDueDate("");
+    setAssignStatus("DRAFT");
+    setAssignManualApproval(false);
+    setAssignTitleOverride("");
+    setAssignDescriptionOverride("");
+    setAssignError(null);
+    setAssignModalOpen(true);
+  };
+
+  // Create quest instance (assign quest to class)
+  const handleAssignQuest = async () => {
+    if (!assigningTemplate || !assignClassId) {
+      setAssignError("Please select a class");
+      return;
+    }
+
+    setAssignLoading(true);
+    setAssignError(null);
+
+    try {
+      const templateId = (assigningTemplate as any).quest_template_id;
+      
+      const request: CreateQuestInstanceRequest = {
+        quest_template_id: templateId || null,
+        title_override: assignTitleOverride.trim() || undefined,
+        description_override: assignDescriptionOverride.trim() || undefined,
+        start_date: assignStartDate || undefined,
+        due_date: assignDueDate || undefined,
+        requires_manual_approval: assignManualApproval,
+        status: assignStatus,
+      };
+
+      await createQuestInstance(assignClassId, request);
+
+      // Refresh quest instances
+      await loadQuestInstances();
+
+      // Close modal
+      setAssignModalOpen(false);
+      setAssigningTemplate(null);
+    } catch (e: any) {
+      console.error("Failed to assign quest:", e);
+      setAssignError(e?.message || "Failed to assign quest to class");
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+  // Get quest instances for a template
+  const getInstancesForTemplate = (templateId: string): QuestInstance[] => {
+    return questInstances.get(templateId) || [];
+  };
+
+  // Get class name by ID
+  const getClassNameById = (classId: string): string => {
+    const cls = classes.find((c) => (c as any).class_id === classId);
+    return cls ? (cls as any).name : classId;
   };
 
   return (
-    <div className="font-poppins bg-[url(/assets/background-teacher-dash.png)] bg-cover bg-center bg-no-repeat min-h-screen">
+    <div className="font-poppins bg-[url(/assets/background-teacher-dash.png)] bg-cover bg-center bg-no-repeat h-screen overflow-y-auto">
       <nav className="bg-blue-700 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
@@ -422,7 +558,7 @@ const Subjects = () => {
                         key={(t as any).quest_template_id}
                         className="bg-white rounded-xl shadow-md overflow-hidden transition duration-300"
                       >
-                        <div className="bg-linear-to-r from-blue-500 to-indigo-600 p-6 text-white text-center">
+                        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 text-white text-center">
                           <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4">
                             <i data-feather={icon} className="w-10 h-10 text-gray-800"></i>
                           </div>
@@ -450,11 +586,62 @@ const Subjects = () => {
                               <span className="font-semibold text-gray-900">
                                 {toInt((t as any).estimated_duration_minutes, 0)} min
                               </span>
+                              <br>
+                              </br>
+                              <span>
+                                Due Date: {" "}
+                                <span className="font-semibold text-gray-900">
+                                  {(t as any).due_date
+                                    ? new Date((t as any).due_date).toLocaleDateString()
+                                    : "N/A"}
+                                </span>
+                              </span>
                             </span>
                             <span className="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700 text-xs">
                               {(t as any).is_shared_publicly ? "Public" : "Private"}
                             </span>
                           </div>
+
+                          {/* Quest Instance Status */}
+                          {(() => {
+                            const templateId = (t as any).quest_template_id;
+                            const instances = getInstancesForTemplate(templateId);
+                            const activeInstances = instances.filter((i) => i.status === "ACTIVE");
+                            
+                            if (instances.length > 0) {
+                              return (
+                                <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                                  <p className="text-xs font-semibold text-blue-700 mb-1">
+                                    ASSIGNED TO CLASSES
+                                  </p>
+                                  <div className="space-y-1">
+                                    {instances.map((instance) => (
+                                      <div
+                                        key={instance.quest_instance_id}
+                                        className="flex items-center justify-between text-xs"
+                                      >
+                                        <span className="text-gray-700">
+                                          {getClassNameById(instance.class_id)}
+                                        </span>
+                                        <span
+                                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                            instance.status === "ACTIVE"
+                                              ? "bg-green-100 text-green-800"
+                                              : instance.status === "DRAFT"
+                                              ? "bg-yellow-100 text-yellow-800"
+                                              : "bg-gray-100 text-gray-800"
+                                          }`}
+                                        >
+                                          {instance.status}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
 
                           <div className="grid grid-cols-2 gap-2">
                             <button
@@ -469,7 +656,14 @@ const Subjects = () => {
                                 })
                               }
                             >
-                              <i data-feather="play" className="mr-1 w-4 h-4"></i> Use
+                              <i data-feather="play" className="mr-1 w-4 h-4"></i> Launch
+                            </button>
+
+                            <button
+                              className="bg-green-600 hover:bg-green-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
+                              onClick={() => openAssignModal(t)}
+                            >
+                              <i data-feather="users" className="mr-1 w-4 h-4"></i> Assign
                             </button>
 
                             <button
@@ -480,8 +674,8 @@ const Subjects = () => {
                             </button>
 
                             <button
-                              className="col-span-2 bg-gray-100 hover:bg-gray-200 text-red-600 border border-red-600 px-2 py-2 rounded-lg text-sm flex items-center justify-center"
-                              onClick={() => deleteTemplateUIOnly(t)}
+                              className="bg-gray-100 hover:bg-gray-200 text-red-600 border border-red-600 px-2 py-2 rounded-lg text-sm flex items-center justify-center"
+                              onClick={() => deleteTemplate(t)}
                             >
                               <i data-feather="trash-2" className="mr-1 w-4 h-4"></i> Delete
                             </button>
@@ -624,7 +818,7 @@ const Subjects = () => {
 
       {/* ✅ Edit Template Modal */}
       {editOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
+        <div className="fixed inset-0 bg-black/50 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center px-4">
           <div className="bg-white w-full max-w-2xl rounded-xl shadow-xl overflow-hidden">
             <div className="bg-blue-700 text-white px-6 py-4 flex items-center justify-between">
               <h2 className="text-lg font-bold">Edit Template</h2>
@@ -635,7 +829,7 @@ const Subjects = () => {
                   setEditing(null);
                 }}
               >
-                ✕
+                <i data-feather="x-circle"></i>
               </button>
             </div>
 
@@ -739,6 +933,166 @@ const Subjects = () => {
                   disabled={editSaving}
                 >
                   {editSaving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Quest to Class Modal */}
+      {assignModalOpen && assigningTemplate && (
+        <div className="fixed inset-0 bg-black/50 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center px-4">
+          <div className="bg-white w-full max-w-2xl rounded-xl shadow-xl overflow-hidden">
+            <div className="bg-green-700 text-white px-6 py-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold">Assign Quest to Class</h2>
+              <button
+                className="text-white/90 hover:text-white"
+                onClick={() => {
+                  setAssignModalOpen(false);
+                  setAssigningTemplate(null);
+                }}
+                disabled={assignLoading}
+              >
+                <i data-feather="x-circle"></i>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-black">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm font-semibold text-blue-700">Quest Template</p>
+                <p className="text-lg font-bold text-blue-900">{safeStr((assigningTemplate as any).title)}</p>
+                <p className="text-sm text-blue-700">{safeStr((assigningTemplate as any).subject)}</p>
+              </div>
+
+              {assignError && (
+                <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg">
+                  {assignError}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Select Class <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    className={inputBox}
+                    value={assignClassId}
+                    onChange={(e) => setAssignClassId(e.target.value)}
+                    required
+                    disabled={assignLoading}
+                  >
+                    <option value="">Choose a class...</option>
+                    {classes
+                      .filter((cls) => (cls as any).is_active !== false)
+                      .map((cls) => (
+                        <option key={(cls as any).class_id} value={(cls as any).class_id}>
+                          {(cls as any).name} (Grade {(cls as any).grade_level})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Start Date</label>
+                    <input
+                      type="datetime-local"
+                      className={inputBox}
+                      value={assignStartDate}
+                      onChange={(e) => setAssignStartDate(e.target.value)}
+                      disabled={assignLoading}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Optional - when quest becomes available</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Due Date</label>
+                    <input
+                      type="datetime-local"
+                      className={inputBox}
+                      value={assignDueDate}
+                      onChange={(e) => setAssignDueDate(e.target.value)}
+                      disabled={assignLoading}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Optional - when quest expires</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Status <span className="text-red-500">*</span></label> 
+                  <select
+                    className={inputBox}
+                    value={assignStatus}
+                    onChange={(e) => setAssignStatus(e.target.value as "DRAFT" | "ACTIVE")}
+                    disabled={assignLoading}
+                  >
+                    <option value="DRAFT">DRAFT - Not visible to students yet</option>
+                    <option value="ACTIVE">ACTIVE - Visible and available to students</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    id="manualApproval"
+                    type="checkbox"
+                    checked={assignManualApproval}
+                    onChange={(e) => setAssignManualApproval(e.target.checked)}
+                    disabled={assignLoading}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="manualApproval" className="text-sm text-gray-700">
+                    Requires manual approval (teacher must review submissions)
+                  </label>
+                </div>
+
+                <div className="border-t pt-4">
+                  <p className="text-sm font-semibold text-gray-700 mb-2">Override Fields (Optional)</p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Custom Title</label>
+                      <input
+                        type="text"
+                        className={inputBox}
+                        value={assignTitleOverride}
+                        onChange={(e) => setAssignTitleOverride(e.target.value)}
+                        placeholder="Leave empty to use template title"
+                        disabled={assignLoading}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Custom Description</label>
+                      <textarea
+                        className={inputBox + " min-h-[80px]"}
+                        value={assignDescriptionOverride}
+                        onChange={(e) => setAssignDescriptionOverride(e.target.value)}
+                        placeholder="Leave empty to use template description"
+                        disabled={assignLoading}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t">
+                <button
+                  className="px-4 py-2 rounded-lg border border-gray-300 hover:border-gray-400 text-black"
+                  onClick={() => {
+                    setAssignModalOpen(false);
+                    setAssigningTemplate(null);
+                  }}
+                  disabled={assignLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-4 py-2 rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-60"
+                  onClick={handleAssignQuest}
+                  disabled={assignLoading || !assignClassId}
+                >
+                  {assignLoading ? "Assigning..." : "Assign to Class"}
                 </button>
               </div>
             </div>

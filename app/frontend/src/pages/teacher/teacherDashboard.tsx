@@ -117,6 +117,7 @@ const TeacherDashboard = () => {
   const sidebarLinks = [
     { icon: "home", label: "Dashboard", href: "/teacher/dashboard" },
     { icon: "book", label: "Classes", href: "/classes" },
+    { icon: "briefcase", label: "Quest Management", href: "/subjects" },
     { icon: "clock", label: "Activity", href: "/Activity" }, // matches app.tsx
     { icon: "shopping-bag", label: "Rewards", href: "/rewards" },
     { icon: "user", label: "Profile", href: "/profile" },
