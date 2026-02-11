@@ -133,6 +133,26 @@ export function createTables(ctx: StackContext) {
         },
     });
 
+    // QuestInstances table - active quests assigned to classes
+    const questInstancesTable = new Table(stack, "QuestInstances", {
+        fields: {
+            quest_instance_id: "string",
+            quest_template_id: "string",  // nullable - can be null for custom quests
+            class_id: "string",
+            title_override: "string",
+            description_override: "string",
+            status: "string",             // DRAFT | ACTIVE | ARCHIVED
+            start_date: "string",         // ISO date string
+            due_date: "string",           // ISO date string
+            requires_manual_approval: "string",  // stored as string for DynamoDB
+        },
+        primaryIndex: { partitionKey: "quest_instance_id" },
+        globalIndexes: {
+            gsi1: { partitionKey: "class_id" },           // list quests by class
+            gsi2: { partitionKey: "quest_template_id" },  // list instances by template (nullable)
+        },
+    });
+
     return {
         usersTable,
         teacherProfilesTable,
@@ -142,5 +162,6 @@ export function createTables(ctx: StackContext) {
         classEnrollmentsTable,
         questTemplatesTable,
         questQuestionsTable,
+        questInstancesTable,
     };
 }
