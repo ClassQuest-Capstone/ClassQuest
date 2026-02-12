@@ -1,12 +1,19 @@
 import { softDeleteTemplate } from "./repo.js";
 
+const corsHeaders = {
+    "content-type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "content-type, authorization",
+};
+
 export const handler = async (event: any) => {
     const quest_template_id = event.pathParameters?.quest_template_id;
 
     if (!quest_template_id) {
         return {
             statusCode: 400,
-            headers: { "content-type": "application/json" },
+            headers: corsHeaders,
             body: JSON.stringify({
                 error: "Missing required path parameter: quest_template_id"
             }),
@@ -24,7 +31,7 @@ export const handler = async (event: any) => {
     if (!deleted_by_teacher_id || typeof deleted_by_teacher_id !== "string" || deleted_by_teacher_id.trim() === "") {
         return {
             statusCode: 400,
-            headers: { "content-type": "application/json" },
+            headers: corsHeaders,
             body: JSON.stringify({
                 error: "Missing or invalid required field: deleted_by_teacher_id must be a non-empty string"
             }),
@@ -36,7 +43,7 @@ export const handler = async (event: any) => {
 
         return {
             statusCode: 200,
-            headers: { "content-type": "application/json" },
+            headers: corsHeaders,
             body: JSON.stringify({
                 ok: true,
                 message: "Quest template soft deleted successfully",
@@ -50,7 +57,7 @@ export const handler = async (event: any) => {
         if (error.name === "ConditionalCheckFailedException") {
             return {
                 statusCode: 404,
-                headers: { "content-type": "application/json" },
+                headers: corsHeaders,
                 body: JSON.stringify({
                     error: "Quest template not found"
                 }),
@@ -59,7 +66,7 @@ export const handler = async (event: any) => {
 
         return {
             statusCode: 500,
-            headers: { "content-type": "application/json" },
+            headers: corsHeaders,
             body: JSON.stringify({
                 error: "Internal server error"
             }),
