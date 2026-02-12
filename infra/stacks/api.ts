@@ -65,6 +65,7 @@ export function createApi(
         "GET /quest-templates/{quest_template_id}": "packages/functions/src/questTemplates/get.handler",
         "GET /teachers/{teacher_id}/quest-templates": "packages/functions/src/questTemplates/list-by-owner.handler",
         "PATCH /quest-templates/{quest_template_id}": "packages/functions/src/questTemplates/update.handler",
+        "PATCH /quest-templates/{quest_template_id}/soft-delete": "packages/functions/src/questTemplates/soft-delete.handler",
 
         // QuestQuestions
         "POST /quest-templates/{template_id}/questions": "packages/functions/src/questQuestions/create.handler",

@@ -21,6 +21,10 @@ export type QuestTemplate = {
   public_sort: string;
   created_at: string;
   updated_at: string;
+  // Soft delete fields
+  is_deleted?: boolean;
+  deleted_at?: string;
+  deleted_by_teacher_id?: string;
 };
 
 export type CreateQuestTemplateInput = {
@@ -89,6 +93,25 @@ export function updateQuestTemplate(
     {
       method: "PATCH",
       body: JSON.stringify(data),
+    }
+  );
+}
+
+/**
+ * Soft delete a quest template
+ * Sets is_deleted=true, deleted_at=now, deleted_by_teacher_id
+ * Idempotent - returns success even if already deleted
+ * PATCH /quest-templates/{quest_template_id}/soft-delete
+ */
+export function softDeleteQuestTemplate(
+  quest_template_id: string,
+  deleted_by_teacher_id: string
+) {
+  return api<{ ok: boolean; message: string; template: QuestTemplate }>(
+    `/quest-templates/${encodeURIComponent(quest_template_id)}/soft-delete`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ deleted_by_teacher_id }),
     }
   );
 }

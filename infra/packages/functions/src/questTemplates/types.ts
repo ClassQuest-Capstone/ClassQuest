@@ -19,6 +19,10 @@ export type QuestTemplateItem = {
     public_sort: string;                 // subject#grade#difficulty#created_at (GSI2 SK)
     created_at: string;                  // ISO timestamp when created
     updated_at: string;                  // ISO timestamp when last updated
+    // Soft delete fields
+    is_deleted?: boolean;                // Whether template is soft deleted
+    deleted_at?: string;                 // ISO timestamp when deleted
+    deleted_by_teacher_id?: string;      // Teacher who deleted the template
 };
 
 export type CreateQuestTemplateInput = Omit<

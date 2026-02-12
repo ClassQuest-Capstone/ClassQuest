@@ -32,9 +32,11 @@ export async function createTemplate(item: QuestTemplateItem): Promise<void> {
 
 /**
  * Get quest template by primary key
+ * By default, returns null if template is soft deleted
  */
 export async function getTemplate(
-    quest_template_id: string
+    quest_template_id: string,
+    options?: { includeDeleted?: boolean }
 ): Promise<QuestTemplateItem | null> {
     const result = await ddb.send(
         new GetCommand({
@@ -42,15 +44,25 @@ export async function getTemplate(
             Key: { quest_template_id },
         })
     );
-    return (result.Item as QuestTemplateItem) ?? null;
+
+    const item = (result.Item as QuestTemplateItem) ?? null;
+
+    // Filter out deleted items unless explicitly requested
+    if (item && item.is_deleted && !options?.includeDeleted) {
+        return null;
+    }
+
+    return item;
 }
 
 /**
  * List all templates created by a teacher
  * Query gsi1 by owner_teacher_id
+ * By default, filters out soft deleted templates
  */
 export async function listByOwner(
-    owner_teacher_id: string
+    owner_teacher_id: string,
+    options?: { includeDeleted?: boolean }
 ): Promise<QuestTemplateItem[]> {
     const result = await ddb.send(
         new QueryCommand({
@@ -63,12 +75,20 @@ export async function listByOwner(
         })
     );
 
-    return (result.Items as QuestTemplateItem[]) ?? [];
+    const items = (result.Items as QuestTemplateItem[]) ?? [];
+
+    // Filter out deleted items unless explicitly requested
+    if (!options?.includeDeleted) {
+        return items.filter(item => !item.is_deleted);
+    }
+
+    return items;
 }
 
 /**
  * List public templates with optional filtering
  * Query gsi2 by visibility_pk="PUBLIC" with begins_with on public_sort
+ * Always filters out soft deleted templates
  *
  * Filters can be applied by constructing a prefix:
  * - subject only: "Mathematics#"
@@ -113,7 +133,10 @@ export async function listPublic(options?: {
 
     const result = await ddb.send(new QueryCommand(params));
 
-    return (result.Items as QuestTemplateItem[]) ?? [];
+    const items = (result.Items as QuestTemplateItem[]) ?? [];
+
+    // Always filter out deleted items from public listings
+    return items.filter(item => !item.is_deleted);
 }
 
 /**
@@ -232,4 +255,40 @@ export async function updateTemplate(
             ConditionExpression: "attribute_exists(quest_template_id)",
         })
     );
+}
+
+/**
+ * Soft delete a quest template
+ * Sets is_deleted=true, deleted_at=now, deleted_by_teacher_id
+ * Idempotent - returns success even if already deleted
+ */
+export async function softDeleteTemplate(
+    quest_template_id: string,
+    deleted_by_teacher_id: string
+): Promise<QuestTemplateItem> {
+    const now = new Date().toISOString();
+
+    const result = await ddb.send(
+        new UpdateCommand({
+            TableName: TABLE,
+            Key: { quest_template_id },
+            UpdateExpression: "SET #is_deleted = :is_deleted, #deleted_at = :deleted_at, #deleted_by = :deleted_by, #updated_at = :updated_at",
+            ExpressionAttributeNames: {
+                "#is_deleted": "is_deleted",
+                "#deleted_at": "deleted_at",
+                "#deleted_by": "deleted_by_teacher_id",
+                "#updated_at": "updated_at",
+            },
+            ExpressionAttributeValues: {
+                ":is_deleted": true,
+                ":deleted_at": now,
+                ":deleted_by": deleted_by_teacher_id,
+                ":updated_at": now,
+            },
+            ConditionExpression: "attribute_exists(quest_template_id)",
+            ReturnValues: "ALL_NEW",
+        })
+    );
+
+    return result.Attributes as QuestTemplateItem;
 }
