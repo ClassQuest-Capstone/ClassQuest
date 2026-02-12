@@ -3,12 +3,19 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
+import { useQuestions } from "../hooks/teacher/useQuestions.js";
+import { CreateQuestModal } from "../components/teacher/modals/CreateQuestModal.js";
+import { EditQuestModal } from "../components/teacher/modals/EditQuestModal.js";
+import { AssignQuestModal } from "../components/teacher/modals/AssignQuestModal.js";
+import { ExtensionDateModal } from "../components/teacher/modals/ExtensionDateModal.js";
+import { QuestionsListModal } from "../components/teacher/modals/QuestionsListModal.js";
+import { QuestionEditModal } from "../components/teacher/modals/QuestionEditModal.js";
 
 import {
   getQuestTemplatesByOwner,
   getPublicQuestTemplates,
   updateQuestTemplate,
-  deleteQuestTemplate,
+  softDeleteQuestTemplate,
   type QuestTemplate,
 } from "../../api/questTemplates.js";
 import { listClassesByTeacher, type ClassItem } from "../../api/classes.js";
@@ -22,6 +29,7 @@ import {
   type CreateQuestInstanceRequest,
   type QuestInstanceStatus,
 } from "../../api/questInstances.js";
+import { type QuestQuestion } from "../../api/questQuestions.js";
 
 type TeacherUser = {
   id: string;
@@ -121,13 +129,39 @@ const Subjects = () => {
   const [assignClassId, setAssignClassId] = useState<string>("");
   const [assignStartDate, setAssignStartDate] = useState<string>("");
   const [assignDueDate, setAssignDueDate] = useState<string>("");
-  const [assignStatus, setAssignStatus] = useState<"DRAFT" | "ACTIVE">("DRAFT");
   const [assignManualApproval, setAssignManualApproval] = useState<boolean>(false);
   const [assignTitleOverride, setAssignTitleOverride] = useState<string>("");
   const [assignDescriptionOverride, setAssignDescriptionOverride] = useState<string>("");
 
   // Quest instances state - map of template_id -> instances
   const [questInstances, setQuestInstances] = useState<Map<string, QuestInstance[]>>(new Map());
+
+  // Extension date editor modal state
+  const [extensionModalOpen, setExtensionModalOpen] = useState(false);
+  const [selectedInstanceForExtension, setSelectedInstanceForExtension] = useState<QuestInstance | null>(null);
+  const [extensionDueDate, setExtensionDueDate] = useState<string>("");
+  const [extensionError, setExtensionError] = useState<string | null>(null);
+  const [extensionSaving, setExtensionSaving] = useState(false);
+
+  // Use Questions Hook
+  const {
+    questionsModalOpen,
+    questionEditModalOpen,
+    questionsList,
+    editingQuestion,
+    questionEditLoading,
+    questionEditError,
+    editFormState,
+    openQuestionsEditor,
+    closeQuestionsEditor,
+    openQuestionEditModal,
+    closeQuestionEditModal,
+    saveQuestionEdit,
+    deleteQuestion,
+    setEditFormField,
+    addOption,
+    removeOption,
+  } = useQuestions();
 
   useEffect(() => {
     feather.replace();
@@ -189,12 +223,15 @@ const Subjects = () => {
       const unique = new Map<string, QuestTemplate>();
       for (const t of merged) unique.set((t as any).quest_template_id, t);
 
-      let list = [...unique.values()].sort((a, b) => {
-        const da = new Date((a as any).created_at).getTime();
-        const db = new Date((b as any).created_at).getTime();
-        if (!Number.isNaN(da) && !Number.isNaN(db)) return db - da;
-        return safeStr((a as any).title).localeCompare(safeStr((b as any).title));
-      });
+      let list = [...unique.values()]
+        // Filter out soft-deleted templates
+        .filter((t) => !(t as any).is_deleted)
+        .sort((a, b) => {
+          const da = new Date((a as any).created_at).getTime();
+          const db = new Date((b as any).created_at).getTime();
+          if (!Number.isNaN(da) && !Number.isNaN(db)) return db - da;
+          return safeStr((a as any).title).localeCompare(safeStr((b as any).title));
+        });
 
       if (location.state?.viewMode === "class" && location.state?.class_id) {
         list = list.filter((t: any) => t.class_id === location.state.class_id);
@@ -284,11 +321,10 @@ const Subjects = () => {
       difficulty: safeStr(formData.get("difficulty")),
       base_xp_reward: xp,
       base_gold_reward: gold,
-      class_id: location.state?.class_id || safeStr(formData.get("class_id")),
     };
 
     setIsModalOpen(false);
-    navigate("/quests", { state: { questData, class_id: location.state?.class_id } });
+    navigate("/quests", { state: { questData } });
   };
 
   // Open edit modal with current values
@@ -357,20 +393,17 @@ const Subjects = () => {
     const id = (t as any).quest_template_id;
     if (!window.confirm(`Delete "${safeStr((t as any).title)}"?`)) return;
 
-    setTemplates((prev) => prev.filter((x) => (x as any).quest_template_id !== id));
-    await deleteQuestTemplate(id);
-    await loadTemplates();
+    try {
+      // Use soft delete instead of hard delete
+      await softDeleteQuestTemplate(id, teacher?.id || "");
+      
+      // Remove from UI immediately
+      setTemplates((prev) => prev.filter((x) => (x as any).quest_template_id !== id));
+    } catch (e: any) {
+      console.error("Failed to delete template:", e);
+      alert("Failed to delete template: " + (e?.message || "Unknown error"));
+    }
   }
-  /*const deleteTemplateUIOnly = (t: QuestTemplate) => {
-    const id = (t as any).quest_template_id;
-    if (!window.confirm(`Delete "${safeStr((t as any).title)}"?`)) return;
-
-    setTemplates((prev) => prev.filter((x) => (x as any).quest_template_id !== id));
-
-    //  (TODO:)If backend delete exists later:
-    await deleteQuestTemplate(id);
-    await loadTemplates();
-  };*/
 
   // Open assignment modal
   const openAssignModal = (template: QuestTemplate) => {
@@ -378,7 +411,6 @@ const Subjects = () => {
     setAssignClassId("");
     setAssignStartDate("");
     setAssignDueDate("");
-    setAssignStatus("DRAFT");
     setAssignManualApproval(false);
     setAssignTitleOverride("");
     setAssignDescriptionOverride("");
@@ -406,7 +438,7 @@ const Subjects = () => {
         start_date: assignStartDate || undefined,
         due_date: assignDueDate || undefined,
         requires_manual_approval: assignManualApproval,
-        status: assignStatus,
+        status: "ACTIVE", // Assigning to a class makes the quest live for students
       };
 
       await createQuestInstance(assignClassId, request);
@@ -436,6 +468,131 @@ const Subjects = () => {
     return cls ? (cls as any).name : classId;
   };
 
+  // Open extension date editor modal
+  const openExtensionModal = (instance: QuestInstance) => {
+    setSelectedInstanceForExtension(instance);
+    setExtensionDueDate(instance.due_date || "");
+    setExtensionError(null);
+    setExtensionModalOpen(true);
+  };
+
+  // Save extension date for an instance
+  const saveExtensionDate = async () => {
+    if (!selectedInstanceForExtension) return;
+
+    setExtensionSaving(true);
+    setExtensionError(null);
+
+    try {
+      await updateQuestInstanceDates(selectedInstanceForExtension.quest_instance_id, {
+        due_date: extensionDueDate || null,
+      });
+
+      // Update local state
+      setQuestInstances((prev) => {
+        const newMap = new Map(prev);
+        const instances = newMap.get(selectedInstanceForExtension.quest_template_id!) || [];
+        const updated = instances.map((i) =>
+          i.quest_instance_id === selectedInstanceForExtension.quest_instance_id
+            ? { ...i, due_date: extensionDueDate || null }
+            : i
+        );
+        newMap.set(selectedInstanceForExtension.quest_template_id!, updated);
+        return newMap;
+      });
+
+      setExtensionModalOpen(false);
+      setSelectedInstanceForExtension(null);
+    } catch (e: any) {
+      setExtensionError(e?.message || "Failed to update due date");
+    } finally {
+      setExtensionSaving(false);
+    }
+  };
+
+  // Archive a quest instance
+  const archiveQuestInstance = async (instance: QuestInstance) => {
+    if (!window.confirm("Archive this quest instance?")) return;
+
+    try {
+      await updateQuestInstanceStatus(instance.quest_instance_id, "ARCHIVED");
+
+      // Update local state
+      setQuestInstances((prev) => {
+        const newMap = new Map(prev);
+        const instances = newMap.get(instance.quest_template_id!) || [];
+        const updated: QuestInstance[] = instances.map((i) =>
+          i.quest_instance_id === instance.quest_instance_id ? { ...i, status: "ARCHIVED" as QuestInstanceStatus } : i
+        );
+        newMap.set(instance.quest_template_id!, updated);
+        return newMap;
+      });
+    } catch (e: any) {
+      console.error("Failed to archive quest:", e);
+      alert("Failed to archive quest");
+    }
+  };
+
+  // Remove assigned class (unassign quest from class by archiving the instance)
+  const removeAssignedClass = async (instance: QuestInstance) => {
+    if (!window.confirm("Remove this quest from the class?")) return;
+
+    try {
+      await updateQuestInstanceStatus(instance.quest_instance_id, "ARCHIVED");
+
+      // Update local state
+      setQuestInstances((prev) => {
+        const newMap = new Map(prev);
+        const instances = newMap.get(instance.quest_template_id!) || [];
+        const updated = instances.filter((i) => i.quest_instance_id !== instance.quest_instance_id);
+        newMap.set(instance.quest_template_id!, updated);
+        return newMap;
+      });
+    } catch (e: any) {
+      console.error("Failed to remove assignment:", e);
+      alert("Failed to remove assignment");
+    }
+  };
+
+
+
+  // Check and auto-archive quests that are past their due date
+  useEffect(() => {
+    const checkAndArchiveExpiredQuests = async () => {
+      const now = new Date().getTime();
+      const instancesToArchive: string[] = [];
+
+      questInstances.forEach((instances) => {
+        instances.forEach((instance) => {
+          if (instance.status === "ACTIVE" && instance.due_date) {
+            const dueTime = new Date(instance.due_date).getTime();
+            if (dueTime < now) {
+              instancesToArchive.push(instance.quest_instance_id);
+            }
+          }
+        });
+      });
+
+      // Archive expired quests
+      for (const instanceId of instancesToArchive) {
+        try {
+          await updateQuestInstanceStatus(instanceId, "ARCHIVED");
+        } catch (e) {
+          console.error(`Failed to auto-archive instance ${instanceId}:`, e);
+        }
+      }
+
+      // Reload if any were archived
+      if (instancesToArchive.length > 0) {
+        await loadQuestInstances();
+      }
+    };
+
+    if (questInstances.size > 0) {
+      checkAndArchiveExpiredQuests();
+    }
+  }, [questInstances]);
+
   return (
     <div className="font-poppins bg-[url(/assets/background-teacher-dash.png)] bg-cover bg-center bg-no-repeat h-screen overflow-y-auto">
       <nav className="bg-blue-700 text-white shadow-lg">
@@ -460,7 +617,7 @@ const Subjects = () => {
               <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900">
                 Quests
               </Link>
-              <Link to="/" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
+              <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                 Activity
               </Link>
 
@@ -485,7 +642,7 @@ const Subjects = () => {
       {/* Back button */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <Link
-          to="/classes"
+          to="/teacher/dashboard"
           className="inline-flex items-center bg-indigo-600 text-white border-2 border-indigo-600 rounded-md px-3 py-2 hover:bg-indigo-700"
         >
           <i data-feather="arrow-left" className="w-5 h-5 mr-2"></i>
@@ -511,7 +668,7 @@ const Subjects = () => {
             </button>
 
             <button
-              className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-6 py-2 rounded-lg flex items-center"
+              className="bg-linear-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-6 py-2 rounded-lg flex items-center"
               onClick={() => setIsModalOpen(true)}
             >
               <i data-feather="plus" className="mr-2"></i> Create Quest
@@ -558,7 +715,7 @@ const Subjects = () => {
                         key={(t as any).quest_template_id}
                         className="bg-white rounded-xl shadow-md overflow-hidden transition duration-300"
                       >
-                        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 text-white text-center">
+                        <div className="bg-linear-to-r from-blue-500 to-indigo-600 p-6 text-white text-center">
                           <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4">
                             <i data-feather={icon} className="w-10 h-10 text-gray-800"></i>
                           </div>
@@ -580,26 +737,18 @@ const Subjects = () => {
                             </span>
                           </div>
 
-                          <div className="flex items-center justify-between text-sm text-gray-600">
-                            <span>
-                              Duration:{" "}
-                              <span className="font-semibold text-gray-900">
-                                {toInt((t as any).estimated_duration_minutes, 0)} min
-                              </span>
-                              <br>
-                              </br>
+                          <div className="text-sm text-gray-600 space-y-2">
+                            <div className="flex justify-between items-center">
                               <span>
-                                Due Date: {" "}
+                                Duration:{" "}
                                 <span className="font-semibold text-gray-900">
-                                  {(t as any).due_date
-                                    ? new Date((t as any).due_date).toLocaleDateString()
-                                    : "N/A"}
+                                  {toInt((t as any).estimated_duration_minutes, 0)} min
                                 </span>
                               </span>
-                            </span>
-                            <span className="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700 text-xs">
-                              {(t as any).is_shared_publicly ? "Public" : "Private"}
-                            </span>
+                              <span className="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700 text-xs">
+                                {(t as any).is_shared_publicly ? "Public" : "Private"}
+                              </span>
+                            </div>
                           </div>
 
                           {/* Quest Instance Status */}
@@ -608,34 +757,112 @@ const Subjects = () => {
                             const instances = getInstancesForTemplate(templateId);
                             const activeInstances = instances.filter((i) => i.status === "ACTIVE");
                             
+                            if (instances.length === 0) {
+                              // No assignments - show DRAFT badge
+                              return (
+                                <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
+                                  <span className="inline-block px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-semibold">
+                                    DRAFT - Not assigned to any class
+                                  </span>
+                                </div>
+                              );
+                            }
+                            
                             if (instances.length > 0) {
                               return (
-                                <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                                  <p className="text-xs font-semibold text-blue-700 mb-1">
-                                    ASSIGNED TO CLASSES
+                                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                  <p className="text-xs font-semibold text-blue-700 mb-2">
+                                    Classes Assigned to:
                                   </p>
-                                  <div className="space-y-1">
-                                    {instances.map((instance) => (
-                                      <div
-                                        key={instance.quest_instance_id}
-                                        className="flex items-center justify-between text-xs"
-                                      >
-                                        <span className="text-gray-700">
-                                          {getClassNameById(instance.class_id)}
-                                        </span>
-                                        <span
-                                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                            instance.status === "ACTIVE"
-                                              ? "bg-green-100 text-green-800"
-                                              : instance.status === "DRAFT"
-                                              ? "bg-yellow-100 text-yellow-800"
-                                              : "bg-gray-100 text-gray-800"
-                                          }`}
+                                  <div className="space-y-3">
+                                    {instances.map((instance: QuestInstance) => {
+                                      const title = instance.title_override?.trim() || (t as any).title;
+                                      
+                                      // Format date-time as yyyy-mm-dd HH:MM
+                                      const formatDateTime = (dateString: string | null | undefined) => {
+                                        if (!dateString) return "Not set";
+                                        const date = new Date(dateString);
+                                        const year = date.getFullYear();
+                                        const month = String(date.getMonth() + 1).padStart(2, "0");
+                                        const day = String(date.getDate()).padStart(2, "0");
+                                        const hours = String(date.getHours()).padStart(2, "0");
+                                        const minutes = String(date.getMinutes()).padStart(2, "0");
+                                        return `${year}-${month}-${day} ${hours}:${minutes}`;
+                                      };
+                                      
+                                      return (
+                                        <div
+                                          key={instance.quest_instance_id}
+                                          className="text-xs border-b border-blue-100 pb-2 last:border-0 last:pb-0 bg-white rounded p-2"
                                         >
-                                          {instance.status}
-                                        </span>
-                                      </div>
-                                    ))}
+                                          <div className="flex items-center justify-between flex-wrap gap-1 mb-1">
+                                            <span className="font-semibold text-gray-800">
+                                              {getClassNameById(instance.class_id)}
+                                            </span>
+                                            <span
+                                              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                instance.status === "ACTIVE"
+                                                  ? "bg-green-100 text-green-800"
+                                                  : instance.status === "DRAFT"
+                                                  ? "bg-yellow-100 text-yellow-800"
+                                                  : "bg-gray-100 text-gray-800"
+                                              }`}
+                                            >
+                                              {instance.status}
+                                            </span>
+                                          </div>
+                                          
+                                          {/* Start Date and Due Date Display */}
+                                          <div className="space-y-1 text-gray-600 mt-2">
+                                            <div className="flex justify-between items-start">
+                                              <span className="font-medium">Start:</span>
+                                              <span className="text-right text-gray-700">
+                                                {formatDateTime(instance.start_date)}
+                                              </span>
+                                            </div>
+                                            <div className="flex justify-between items-start">
+                                              <span className="font-medium">Due:</span>
+                                              <span className="text-right text-gray-700">
+                                                {formatDateTime(instance.due_date)}
+                                              </span>
+                                            </div>
+                                          </div>
+                                          
+                                          {instance.title_override?.trim() ? (
+                                            <p className="text-gray-600 mt-1 pt-1 border-t border-blue-100">
+                                              Title Override: {title}
+                                            </p>
+                                          ) : null}
+                                          
+                                          {/* Action buttons for this instance */}
+                                          <div className="flex gap-1 mt-2 pt-2 border-t border-blue-100">
+                                            <button
+                                              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
+                                              onClick={() => openExtensionModal(instance)}
+                                              title="Edit due date for extension"
+                                            >
+                                              <i data-feather="calendar" className="w-3 h-3"></i> Extend
+                                            </button>
+                                            {instance.status === "ACTIVE" && (
+                                              <button
+                                                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
+                                                onClick={() => archiveQuestInstance(instance)}
+                                                title="Archive this quest"
+                                              >
+                                                <i data-feather="archive" className="w-3 h-3"></i> Archive
+                                              </button>
+                                            )}
+                                            <button
+                                              className="flex-1 bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
+                                              onClick={() => removeAssignedClass(instance)}
+                                              title="Remove from class"
+                                            >
+                                              <i data-feather="x" className="w-3 h-3"></i>
+                                            </button>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 </div>
                               );
@@ -643,27 +870,19 @@ const Subjects = () => {
                             return null;
                           })()}
 
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
-                              onClick={() =>
-                                navigate("/quests", {
-                                  state: {
-                                    templateId: (t as any).quest_template_id,
-                                    base_xp_reward: xp,
-                                    base_gold_reward: gold,
-                                  },
-                                })
-                              }
-                            >
-                              <i data-feather="play" className="mr-1 w-4 h-4"></i> Launch
-                            </button>
-
+                          <div className="grid grid-cols-3 gap-2">
                             <button
                               className="bg-green-600 hover:bg-green-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
                               onClick={() => openAssignModal(t)}
                             >
                               <i data-feather="users" className="mr-1 w-4 h-4"></i> Assign
+                            </button>
+
+                            <button
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
+                              onClick={() => openQuestionsEditor((t as any).quest_template_id)}
+                            >
+                              <i data-feather="help-circle" className="mr-1 w-4 h-4"></i> Questions
                             </button>
 
                             <button
@@ -691,414 +910,112 @@ const Subjects = () => {
         )}
       </main>
 
-      {/* Create Modal (your existing one) */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-white/300 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center text-gray-900">
-          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Create New Quest</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-blue-500 hover:text-blue-700">
-                <i data-feather="x-circle"></i>
-              </button>
-            </div>
-
-            <form className="space-y-4" onSubmit={handleCreateQuest}>
-              {/* ... keep your existing create form exactly as-is ... */}
-
-              {/* (snipped for brevity - leave your existing form fields here) */}
-              {/* NOTE: your create modal uses "Quest/Easy/Grade 5" strings which are fine for navigation into /quests,
-                  but your backend template types are QUEST/EASY/grade number. Editing now normalizes to backend enums. */}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quest Name</label>
-                <input type="text" name="questName" className="w-full border border-gray-300 rounded-lg px-4 py-2" required />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <select name="type" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="Quest">
-                  <option value="Quest">Quest</option>
-                  <option value="Side Quest">Side Quest</option>
-                  <option value="Boss Fight">Boss Fight</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                <select name="subject" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="Mathematics">
-                  <option value="Mathematics">Mathematics</option>
-                  <option value="Science">Science</option>
-                  <option value="Social Studies">Social Studies</option>
-                  <option value="Health Education">Health Education</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
-                <select name="grade" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="Grade 5">
-                  <option value="Grade 5">Grade 5</option>
-                  <option value="Grade 6">Grade 6</option>
-                  <option value="Grade 7">Grade 7</option>
-                  <option value="Grade 8">Grade 8</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Class </label>
-                <select
-                  name="class_id"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
-                  defaultValue={location.state?.class_id || ""}
-                >
-                  <option value="">No specific class</option>
-                  {classes
-                    .filter((cls) => (cls as any).is_active)
-                    .map((cls) => (
-                      <option key={(cls as any).class_id} value={(cls as any).class_id}>
-                        {(cls as any).name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea name="description" className="w-full border border-gray-300 rounded-lg px-4 py-2" rows={3} required />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
-                  <select name="difficulty" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="Easy">
-                    <option value="Easy">Easy</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Hard">Hard</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">XP</label>
-                  <select name="base_xp_reward" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="">
-                    <option value="">Select XP</option>
-                    <option value="100">100 XP</option>
-                    <option value="200">200 XP</option>
-                    <option value="300">300 XP</option>
-                    <option value="400">400 XP</option>
-                    <option value="500">500 XP</option>
-                    <option value="1000">1000 XP</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Reward</label>
-                  <select name="base_gold_reward" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="">
-                    <option value="">Select Gold</option>
-                    <option value="30">30 Gold</option>
-                    <option value="100">100 Gold</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-500"
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
-                  Create Quest
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Create Modal */}
+      <CreateQuestModal
+        isOpen={isModalOpen}
+        inputBox={inputBox}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleCreateQuest}
+      />
 
       {/* ✅ Edit Template Modal */}
-      {editOpen && (
-        <div className="fixed inset-0 bg-black/50 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center px-4">
-          <div className="bg-white w-full max-w-2xl rounded-xl shadow-xl overflow-hidden">
-            <div className="bg-blue-700 text-white px-6 py-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Edit Template</h2>
-              <button
-                className="text-white/90 hover:text-white"
-                onClick={() => {
-                  setEditOpen(false);
-                  setEditing(null);
-                }}
-              >
-                <i data-feather="x-circle"></i>
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4 text-black">
-              {editError && (
-                <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg">
-                  {editError}
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-semibold text-gray-700">Title</label>
-                  <input className={inputBox} value={eTitle} onChange={(e) => setETitle(e.target.value)} />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-700">Subject</label>
-                  <input className={inputBox} value={eSubject} onChange={(e) => setESubject(e.target.value)} />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="text-sm font-semibold text-gray-700">Description</label>
-                  <textarea
-                    className={inputBox + " min-h-[110px]"}
-                    value={eDescription}
-                    onChange={(e) => setEDescription(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-700">Type</label>
-                  <select className={inputBox} value={eType} onChange={(e) => setEType(e.target.value)}>
-                    <option value="QUEST">QUEST</option>
-                    <option value="DAILY_QUEST">DAILY_QUEST</option>
-                    <option value="BOSS_FIGHT">BOSS_FIGHT</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-700">Difficulty</label>
-                  <select className={inputBox} value={eDifficulty} onChange={(e) => setEDifficulty(e.target.value)}>
-                    <option value="EASY">EASY</option>
-                    <option value="MEDIUM">MEDIUM</option>
-                    <option value="HARD">HARD</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-700">Grade</label>
-                  <input type="number" className={inputBox} value={eGrade} onChange={(e) => setEGrade(Number(e.target.value))} />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-700">Duration (min)</label>
-                  <input
-                    type="number"
-                    className={inputBox}
-                    value={eDuration}
-                    onChange={(e) => setEDuration(Number(e.target.value))}
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-700">Base XP</label>
-                  <input type="number" className={inputBox} value={eXP} onChange={(e) => setEXP(Number(e.target.value))} />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold text-gray-700">Base Gold</label>
-                  <input type="number" className={inputBox} value={eGold} onChange={(e) => setEGold(Number(e.target.value))} />
-                </div>
-
-                <div className="md:col-span-2 flex items-center gap-2">
-                  <input
-                    id="public"
-                    type="checkbox"
-                    checked={ePublic}
-                    onChange={(e) => setEPublic(e.target.checked)}
-                  />
-                  <label htmlFor="public" className="text-sm text-gray-700">
-                    Shared publicly
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  className="px-4 py-2 rounded-lg border border-gray-300 hover:border-gray-400 text-black"
-                  onClick={() => {
-                    setEditOpen(false);
-                    setEditing(null);
-                  }}
-                  disabled={editSaving}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="px-4 py-2 rounded-lg bg-blue-700 text-white hover:bg-blue-800 disabled:opacity-60"
-                  onClick={saveEdit}
-                  disabled={editSaving}
-                >
-                  {editSaving ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <EditQuestModal
+        isOpen={editOpen}
+        editing={editing}
+        editError={editError}
+        editSaving={editSaving}
+        eTitle={eTitle}
+        eSubject={eSubject}
+        eDescription={eDescription}
+        eType={eType}
+        eDifficulty={eDifficulty}
+        eGrade={eGrade}
+        eDuration={eDuration}
+        eXP={eXP}
+        eGold={eGold}
+        ePublic={ePublic}
+        questInstances={questInstances}
+        classes={classes}
+        inputBox={inputBox}
+        onTitleChange={setETitle}
+        onSubjectChange={setESubject}
+        onDescriptionChange={setEDescription}
+        onTypeChange={setEType}
+        onDifficultyChange={setEDifficulty}
+        onGradeChange={setEGrade}
+        onDurationChange={setEDuration}
+        onXPChange={setEXP}
+        onGoldChange={setEGold}
+        onPublicChange={setEPublic}
+        onClose={() => { setEditOpen(false); setEditing(null); }}
+        onSave={saveEdit}
+        onExtensionClick={openExtensionModal}
+        onRemoveAssignment={removeAssignedClass}
+        getInstancesForTemplate={getInstancesForTemplate}
+        getClassNameById={getClassNameById}
+      />
 
       {/* Assign Quest to Class Modal */}
-      {assignModalOpen && assigningTemplate && (
-        <div className="fixed inset-0 bg-black/50 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center px-4">
-          <div className="bg-white w-full max-w-2xl rounded-xl shadow-xl overflow-hidden">
-            <div className="bg-green-700 text-white px-6 py-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Assign Quest to Class</h2>
-              <button
-                className="text-white/90 hover:text-white"
-                onClick={() => {
-                  setAssignModalOpen(false);
-                  setAssigningTemplate(null);
-                }}
-                disabled={assignLoading}
-              >
-                <i data-feather="x-circle"></i>
-              </button>
-            </div>
+      <AssignQuestModal
+        isOpen={assignModalOpen}
+        assigningTemplate={assigningTemplate}
+        assignError={assignError}
+        assignLoading={assignLoading}
+        assignClassId={assignClassId}
+        assignStartDate={assignStartDate}
+        assignDueDate={assignDueDate}
+        assignManualApproval={assignManualApproval}
+        assignTitleOverride={assignTitleOverride}
+        assignDescriptionOverride={assignDescriptionOverride}
+        classes={classes}
+        inputBox={inputBox}
+        onClassChange={setAssignClassId}
+        onStartDateChange={setAssignStartDate}
+        onDueDateChange={setAssignDueDate}
+        onManualApprovalChange={setAssignManualApproval}
+        onTitleOverrideChange={setAssignTitleOverride}
+        onDescriptionOverrideChange={setAssignDescriptionOverride}
+        onClose={() => { setAssignModalOpen(false); setAssigningTemplate(null); }}
+        onAssign={handleAssignQuest}
+        safeStr={safeStr}
+      />
 
-            <div className="p-6 space-y-4 text-black">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm font-semibold text-blue-700">Quest Template</p>
-                <p className="text-lg font-bold text-blue-900">{safeStr((assigningTemplate as any).title)}</p>
-                <p className="text-sm text-blue-700">{safeStr((assigningTemplate as any).subject)}</p>
-              </div>
+      {/* Extension Date Editor Modal */}
+      <ExtensionDateModal
+        isOpen={extensionModalOpen}
+        selectedInstance={selectedInstanceForExtension}
+        extensionDueDate={extensionDueDate}
+        extensionError={extensionError}
+        extensionSaving={extensionSaving}
+        inputBox={inputBox}
+        onDueDateChange={setExtensionDueDate}
+        onClose={() => { setExtensionModalOpen(false); setSelectedInstanceForExtension(null); }}
+        onSave={saveExtensionDate}
+        getClassNameById={getClassNameById}
+      />
 
-              {assignError && (
-                <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg">
-                  {assignError}
-                </div>
-              )}
+      {/* Questions Viewer Modal */}
+      <QuestionsListModal
+        isOpen={questionsModalOpen}
+        questionsList={questionsList}
+        inputBox={inputBox}
+        onClose={closeQuestionsEditor}
+        onEditClick={openQuestionEditModal}
+        onDeleteClick={deleteQuestion}
+      />
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Select Class <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    className={inputBox}
-                    value={assignClassId}
-                    onChange={(e) => setAssignClassId(e.target.value)}
-                    required
-                    disabled={assignLoading}
-                  >
-                    <option value="">Choose a class...</option>
-                    {classes
-                      .filter((cls) => (cls as any).is_active !== false)
-                      .map((cls) => (
-                        <option key={(cls as any).class_id} value={(cls as any).class_id}>
-                          {(cls as any).name} (Grade {(cls as any).grade_level})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Start Date</label>
-                    <input
-                      type="datetime-local"
-                      className={inputBox}
-                      value={assignStartDate}
-                      onChange={(e) => setAssignStartDate(e.target.value)}
-                      disabled={assignLoading}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Optional - when quest becomes available</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Due Date</label>
-                    <input
-                      type="datetime-local"
-                      className={inputBox}
-                      value={assignDueDate}
-                      onChange={(e) => setAssignDueDate(e.target.value)}
-                      disabled={assignLoading}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Optional - when quest expires</p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Status <span className="text-red-500">*</span></label> 
-                  <select
-                    className={inputBox}
-                    value={assignStatus}
-                    onChange={(e) => setAssignStatus(e.target.value as "DRAFT" | "ACTIVE")}
-                    disabled={assignLoading}
-                  >
-                    <option value="DRAFT">DRAFT - Not visible to students yet</option>
-                    <option value="ACTIVE">ACTIVE - Visible and available to students</option>
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    id="manualApproval"
-                    type="checkbox"
-                    checked={assignManualApproval}
-                    onChange={(e) => setAssignManualApproval(e.target.checked)}
-                    disabled={assignLoading}
-                    className="h-4 w-4"
-                  />
-                  <label htmlFor="manualApproval" className="text-sm text-gray-700">
-                    Requires manual approval (teacher must review submissions)
-                  </label>
-                </div>
-
-                <div className="border-t pt-4">
-                  <p className="text-sm font-semibold text-gray-700 mb-2">Override Fields (Optional)</p>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Custom Title</label>
-                      <input
-                        type="text"
-                        className={inputBox}
-                        value={assignTitleOverride}
-                        onChange={(e) => setAssignTitleOverride(e.target.value)}
-                        placeholder="Leave empty to use template title"
-                        disabled={assignLoading}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Custom Description</label>
-                      <textarea
-                        className={inputBox + " min-h-[80px]"}
-                        value={assignDescriptionOverride}
-                        onChange={(e) => setAssignDescriptionOverride(e.target.value)}
-                        placeholder="Leave empty to use template description"
-                        disabled={assignLoading}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t">
-                <button
-                  className="px-4 py-2 rounded-lg border border-gray-300 hover:border-gray-400 text-black"
-                  onClick={() => {
-                    setAssignModalOpen(false);
-                    setAssigningTemplate(null);
-                  }}
-                  disabled={assignLoading}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="px-4 py-2 rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-60"
-                  onClick={handleAssignQuest}
-                  disabled={assignLoading || !assignClassId}
-                >
-                  {assignLoading ? "Assigning..." : "Assign to Class"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Question Edit Modal */}
+      <QuestionEditModal
+        isOpen={questionEditModalOpen}
+        editingQuestion={editingQuestion}
+        editFormState={editFormState}
+        questionEditLoading={questionEditLoading}
+        questionEditError={questionEditError}
+        inputBox={inputBox}
+        onFormFieldChange={setEditFormField}
+        onClose={closeQuestionEditModal}
+        onSave={saveQuestionEdit}
+      />
     </div>
   );
 };

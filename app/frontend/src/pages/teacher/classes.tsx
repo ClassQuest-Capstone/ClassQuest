@@ -423,13 +423,13 @@ const Classes = () => {
                       Rewards
                     </button>
 
-                    <button
+                    {/*<button
                       className="col-span-2 bg-blue-600 hover:bg-blue-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
                       onClick={() => navigate("/Subjects", { state: { openCreateQuest: true, class_id: c.class_id } })}
                     >
                       <i data-feather="plus-circle" className="mr-1 w-4 h-4"></i>{" "}
                       Create Quest
-                    </button>
+                    </button>*/}
                     <button
                       className="col-span-2 bg-purple-600 hover:bg-purple-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
                       onClick={() => navigate("/Subjects", { state: { class_id: c.class_id, viewMode: "class" } })}
