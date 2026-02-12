@@ -153,6 +153,40 @@ export function createTables(ctx: StackContext) {
         },
     });
 
+    // QuestQuestionResponses table - student answers to quest questions (v2 with uniqueness)
+    const questQuestionResponsesTable = new Table(stack, "QuestQuestionResponses", {
+        fields: {
+            instance_student_pk: "string",  // PK: quest_instance_id#student_id
+            question_id: "string",          // SK: question_id
+            response_id: "string",          // UUID for audit
+            quest_instance_id: "string",
+            student_id: "string",
+            class_id: "string",
+            submitted_at: "string",         // ISO timestamp
+            gsi1sk: "string",               // submitted_at#student_id#question_id
+            gsi2sk: "string",               // submitted_at#quest_instance_id#question_id
+            gsi3sk: "string",               // submitted_at#student_id#quest_instance_id
+        },
+        primaryIndex: {
+            partitionKey: "instance_student_pk",
+            sortKey: "question_id"
+        },
+        globalIndexes: {
+            gsi1: {  // by instance
+                partitionKey: "quest_instance_id",
+                sortKey: "gsi1sk"
+            },
+            gsi2: {  // by student
+                partitionKey: "student_id",
+                sortKey: "gsi2sk"
+            },
+            gsi3: {  // by question
+                partitionKey: "question_id",
+                sortKey: "gsi3sk"
+            },
+        },
+    });
+
     return {
         usersTable,
         teacherProfilesTable,
@@ -163,5 +197,6 @@ export function createTables(ctx: StackContext) {
         questTemplatesTable,
         questQuestionsTable,
         questInstancesTable,
+        questQuestionResponsesTable,
     };
 }

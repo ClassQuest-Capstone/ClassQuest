@@ -19,6 +19,7 @@ export function ClassQuestStack(ctx: StackContext) {
         Region: stack.region,
         UserPoolId: userPool.userPoolId,
         UserPoolClientId: userPoolClient.userPoolClientId,
+        QuestQuestionResponsesTableName: tables.questQuestionResponsesTable.tableName,
     });
 
     return { assetsBucket, userPool, userPoolClient, ...tables, api };

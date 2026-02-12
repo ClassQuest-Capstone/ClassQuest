@@ -14,6 +14,7 @@ export function createApi(
         questTemplatesTable: Table;
         questQuestionsTable: Table;
         questInstancesTable: Table;
+        questQuestionResponsesTable: Table;
     }
     ) {
     const api = new Api(stack, "HttpApi", {
@@ -79,6 +80,14 @@ export function createApi(
         "GET /quest-templates/{quest_template_id}/quest-instances": "packages/functions/src/questInstances/list-by-template.handler",
         "PATCH /quest-instances/{quest_instance_id}/status": "packages/functions/src/questInstances/update-status.handler",
         "PATCH /quest-instances/{quest_instance_id}/dates": "packages/functions/src/questInstances/update-dates.handler",
+
+        // QuestQuestionResponses
+        "PUT /quest-instances/{quest_instance_id}/questions/{question_id}/responses/{student_id}": "packages/functions/src/quest-question-responses/upsert-response.handler",
+        "GET /quest-instances/{quest_instance_id}/responses/{student_id}": "packages/functions/src/quest-question-responses/get-by-instance-and-student.handler",
+        "GET /quest-instances/{quest_instance_id}/responses": "packages/functions/src/quest-question-responses/list-by-instance.handler",
+        "GET /students/{student_id}/responses": "packages/functions/src/quest-question-responses/list-by-student.handler",
+        "GET /questions/{question_id}/responses": "packages/functions/src/quest-question-responses/list-by-question.handler",
+        "PATCH /quest-instances/{quest_instance_id}/questions/{question_id}/responses/{student_id}/grade": "packages/functions/src/quest-question-responses/grade-response.handler",
         },
         defaults: {
         function: {
@@ -92,6 +101,7 @@ export function createApi(
             QUEST_TEMPLATES_TABLE_NAME: tables.questTemplatesTable.tableName,
             QUEST_QUESTIONS_TABLE_NAME: tables.questQuestionsTable.tableName,
             QUEST_INSTANCES_TABLE_NAME: tables.questInstancesTable.tableName,
+            QUEST_QUESTION_RESPONSES_TABLE_NAME: tables.questQuestionResponsesTable.tableName,
             },
         },
         },
@@ -108,6 +118,7 @@ export function createApi(
         tables.questTemplatesTable,
         tables.questQuestionsTable,
         tables.questInstancesTable,
+        tables.questQuestionResponsesTable,
     ]);
 
     return api;
