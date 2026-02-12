@@ -183,7 +183,7 @@ export default function Home() {
                 Make friends along the way
               </p>
               <p className="mt-3 text-lg text-gray-100 sm:mt-5">
-                Join Guilds complete quests, earn rewards, with your friends by your side.
+                Join Guilds complete boss battles, earn rewards, with your friends by your side.
               </p>
               {/** Guild image */}
               <div className="mt-1 sm:max-w-lg sm:mx-auto sm:text-center lg:text-left lg:mx-11">
@@ -219,7 +219,7 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="mt-4 sm:mt-6">
-                    <h4 className="text-sm sm:text-md font-medium text-gray-900">Guild Quests</h4>
+                    <h4 className="text-sm sm:text-md font-medium text-gray-900">Guild Battles</h4>
                     <div className="grid grid-cols-1 gap-3 sm:gap-4">
                       <div className="bg-gradient-to-r from-purple-600 to-purple-800 p-3 sm:p-4 rounded-lg border-2 border-blue-400 shadow-lg">
                         <h3 className="font-bold text-white text-sm sm:text-base">Algebraic Equations</h3>

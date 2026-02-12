@@ -432,7 +432,7 @@ const Classes = () => {
                     </button>*/}
                     <button
                       className="col-span-2 bg-purple-600 hover:bg-purple-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
-                      onClick={() => navigate("/Subjects", { state: { class_id: c.class_id, viewMode: "class" } })}
+                      onClick={() => navigate("/ClassQuest", { state: { class_id: c.class_id, className: c.name } })}
                     >
                       <i data-feather="eye" className="mr-1 w-4 h-4"></i>{" "}
                       View Quests

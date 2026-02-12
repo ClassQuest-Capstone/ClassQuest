@@ -1,10 +1,6 @@
 import { useState, useCallback } from "react";
 import { type QuestQuestion } from "../../../api/questQuestions.js";
-import {
-  listQuestQuestions,
-  updateQuestQuestion,
-  deleteQuestQuestion,
-} from "../../../api/questQuestions.js";
+import { listQuestQuestions, updateQuestQuestion, deleteQuestQuestion, } from "../../../api/questQuestions.js";
 
 interface QuestionEditState {
   prompt: string;

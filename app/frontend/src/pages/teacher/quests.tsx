@@ -139,8 +139,8 @@ const Quests = () => {
         const questType = "QUEST";
 
         // these can NEVER be NaN now
-        const baseXP = clampNonNeg(toInt(questDataFromModal.XP, 100)); // default 100
-        const baseGold = clampNonNeg(toInt(questDataFromModal.reward, 30)); // default 30
+        const baseXP = clampNonNeg(toInt(questDataFromModal.base_xp_reward, 100)); // default 100
+        const baseGold = clampNonNeg(toInt(questDataFromModal.base_gold_reward, 30)); // default 30
 
         const template = await createQuestTemplate({
           title: questDataFromModal.name || "Untitled Quest",

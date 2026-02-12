@@ -281,7 +281,7 @@ const TeacherDashboard = () => {
               <div id="Active-tab" className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-4">
                 <StatsCard icon="users" label="Active Students" value={stats.activeStudents} />
                 <StatsCard icon="book" label="Active Classes" value={stats.activeSubjects} />
-                <StatsCard icon="award" label="Active Tasks" value={stats.activeTasks} />
+                <StatsCard icon="award" label="Active Quests" value={stats.activeTasks} />
                 <StatsCard icon="check-circle" label="Completion Rate" value={`${stats.completionRate}%`} />
               </div>
             )}

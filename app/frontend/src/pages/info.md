@@ -78,10 +78,10 @@ for boss fight
 - if boss fight assign boss based on subject
 
 Current TODO:
-1. Login & logout implementation (Alsmost Done)
-2. Signup implementation (Almost done)
-3. Quest creation implementation (started)
-4. adding quests to students side 
+1. Login & logout implementation (DONE)
+2. Signup implementation (DONE)
+3. Quest creation implementation (DONE)
+4. adding quests to students side (DONE)
 
 Dynamic (TODO:)
 
@@ -90,7 +90,7 @@ GOLD: +30 per quests / +100 per boss battles (remove individual dolg reward opti
 
 Dynamic question generation / question pools (Future work)
 
-Dynamic profile syncing (Cognito → DynamoDB) (in progress)
+Dynamic profile syncing (Cognito → DynamoDB) (DONE)
 
 Dynamic UI components (React/Tailwind) (Done)
 
@@ -105,9 +105,9 @@ TODO:
 
 Document tutorial and fix so it only shows on first signup (DONE)
 
-TODO: fix the missing information on classes page and start work on restructuring quests apge and implementing backend
+TODO: fix the missing information on classes page and start work on restructuring quests apge and implementing backend (DONE)
 
-TODO: Remove my subjects for students (class Rewards )
+TODO: Remove my subjects for students (class Rewards)
 
 
 TODO: greyed out & invisible armours/ equipments

@@ -4,7 +4,6 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
 import { useQuestions } from "../hooks/teacher/useQuestions.js";
-import { CreateQuestModal } from "../components/teacher/modals/CreateQuestModal.js";
 import { EditQuestModal } from "../components/teacher/modals/EditQuestModal.js";
 import { AssignQuestModal } from "../components/teacher/modals/AssignQuestModal.js";
 import { ExtensionDateModal } from "../components/teacher/modals/ExtensionDateModal.js";
@@ -16,6 +15,7 @@ import {
   getPublicQuestTemplates,
   updateQuestTemplate,
   softDeleteQuestTemplate,
+  deleteQuestTemplate,
   type QuestTemplate,
 } from "../../api/questTemplates.js";
 import { listClassesByTeacher, type ClassItem } from "../../api/classes.js";
@@ -233,10 +233,6 @@ const Subjects = () => {
           return safeStr((a as any).title).localeCompare(safeStr((b as any).title));
         });
 
-      if (location.state?.viewMode === "class" && location.state?.class_id) {
-        list = list.filter((t: any) => t.class_id === location.state.class_id);
-      }
-
       setTemplates(list);
     } catch (e: any) {
       setError(e?.message || "Failed to load quest templates");
@@ -244,7 +240,7 @@ const Subjects = () => {
     } finally {
       setLoading(false);
     }
-  }, [teacher?.id, location.state?.class_id, location.state?.viewMode]);
+  }, [teacher?.id]);
 
   useEffect(() => {
     if (teacher?.id) loadTemplates();
@@ -321,10 +317,11 @@ const Subjects = () => {
       difficulty: safeStr(formData.get("difficulty")),
       base_xp_reward: xp,
       base_gold_reward: gold,
+      //class_id: location.state?.class_id || safeStr(formData.get("class_id")),
     };
 
     setIsModalOpen(false);
-    navigate("/quests", { state: { questData } });
+    navigate("/quests", { state: { questData, class_id: location.state?.class_id } });
   };
 
   // Open edit modal with current values
@@ -388,16 +385,13 @@ const Subjects = () => {
     }
   };
 
-  // Delete (UI remove; real delete requires backend)
+  // Delete
   const deleteTemplate = async (t: QuestTemplate) => {
     const id = (t as any).quest_template_id;
     if (!window.confirm(`Delete "${safeStr((t as any).title)}"?`)) return;
 
     try {
-      // Use soft delete instead of hard delete
       await softDeleteQuestTemplate(id, teacher?.id || "");
-      
-      // Remove from UI immediately
       setTemplates((prev) => prev.filter((x) => (x as any).quest_template_id !== id));
     } catch (e: any) {
       console.error("Failed to delete template:", e);
@@ -715,12 +709,12 @@ const Subjects = () => {
                         key={(t as any).quest_template_id}
                         className="bg-white rounded-xl shadow-md overflow-hidden transition duration-300"
                       >
-                        <div className="bg-linear-to-r from-blue-500 to-indigo-600 p-6 text-white text-center">
+                        <div className="bg-linear-to-r from-green-500 to-orange-300 p-6 text-white text-center">
                           <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4">
                             <i data-feather={icon} className="w-10 h-10 text-gray-800"></i>
                           </div>
                           <h3 className="text-xl font-bold">{safeStr((t as any).title)}</h3>
-                          <p className="text-white/80">{safeStr((t as any).subject)}</p>
+                          <p className="text-white">{safeStr((t as any).subject)}</p>
                         </div>
 
                         <div className="p-5 space-y-4">
@@ -857,7 +851,7 @@ const Subjects = () => {
                                               onClick={() => removeAssignedClass(instance)}
                                               title="Remove from class"
                                             >
-                                              <i data-feather="x" className="w-3 h-3"></i>
+                                              <i data-feather="trash-2" className="w-3 h-3"></i> Remove
                                             </button>
                                           </div>
                                         </div>
@@ -910,15 +904,109 @@ const Subjects = () => {
         )}
       </main>
 
-      {/* Create Modal */}
-      <CreateQuestModal
-        isOpen={isModalOpen}
-        inputBox={inputBox}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleCreateQuest}
-      />
+     {/* Create Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-white/300 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center text-gray-900">
+          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Create New Quest</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-blue-500 hover:text-blue-700">
+                <i data-feather="x-circle"></i>
+              </button>
+            </div>
 
-      {/* ✅ Edit Template Modal */}
+            <form className="space-y-4" onSubmit={handleCreateQuest}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Quest Name</label>
+                <input type="text" name="questName" className="w-full border border-gray-300 rounded-lg px-4 py-2" required />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <select name="type" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="Quest">
+                  <option value="Quest">Quest</option>
+                  <option value="Side Quest">Side Quest</option>
+                  <option value="Boss Fight">Boss Fight</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                <select name="subject" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="Mathematics">
+                  <option value="Mathematics">Mathematics</option>
+                  <option value="Science">Science</option>
+                  <option value="Social Studies">Social Studies</option>
+                  <option value="Health Education">Health Education</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
+                <select name="grade" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="Grade 5">
+                  <option value="Grade 5">Grade 5</option>
+                  <option value="Grade 6">Grade 6</option>
+                  <option value="Grade 7">Grade 7</option>
+                  <option value="Grade 8">Grade 8</option>
+                </select>
+              </div>
+
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea name="description" className="w-full border border-gray-300 rounded-lg px-4 py-2" rows={3} required />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
+                  <select name="difficulty" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="Easy">
+                    <option value="Easy">Easy</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Hard">Hard</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">XP</label>
+                  <select name="base_xp_reward" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="">
+                    <option value="">Select XP</option>
+                    <option value="100">100 XP</option>
+                    <option value="200">200 XP</option>
+                    <option value="300">300 XP</option>
+                    <option value="400">400 XP</option>
+                    <option value="500">500 XP</option>
+                    <option value="1000">1000 XP</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reward</label>
+                  <select name="base_gold_reward" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="">
+                    <option value="">Select Gold</option>
+                    <option value="30">30 Gold</option>
+                    <option value="100">100 Gold</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-500"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
+                  Create Quest
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Template Modal */}
       <EditQuestModal
         isOpen={editOpen}
         editing={editing}
