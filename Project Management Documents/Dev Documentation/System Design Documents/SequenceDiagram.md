@@ -57,7 +57,7 @@ sequenceDiagram
     API-->>FE: Class created
 
     %% Create Quest
-    Teacher->>FE: Create Quest (title, XP, gold, description, class, subject, difficulty, type, grade)
+    Teacher->>FE: Create Quest (title, XP, gold, description, subject, difficulty, type, grade)
     FE->>API: POST /quests
     API->>DB: Insert quest
     DB-->>API: Success
@@ -69,6 +69,27 @@ sequenceDiagram
     API->>DB: Insert boss battle
     DB-->>API: Success
     API-->>FE: Boss battle created
+
+    %% Assign Quest to Class
+    Teacher->>FE: Assign Quest to Class
+    FE->>API: POST /questInstances
+    API->>DB: Create quest instance with due date
+    DB-->>API: Success
+    API-->>FE: Quest assigned to class
+
+    %% Extend Due Date
+    Teacher->>FE: Extend Quest Due Date
+    FE->>API: PUT /questInstances/dates
+    API->>DB: Update due date
+    DB-->>API: Success
+    API-->>FE: Due date extended
+
+    %% View Class Quests
+    Teacher->>FE: View Quests for Class
+    FE->>API: GET /questInstances/class/{classId}
+    API->>DB: Query quest instances by class
+    DB-->>API: Quest list
+    API-->>FE: Display class quests
 
     %% Create Reward
     Teacher->>FE: Create Reward (item, class, cost)
@@ -93,10 +114,24 @@ sequenceDiagram
 
     %% STUDENT ACTIONS
 
+    %% View Class Quests
+    Student->>FE: View Quests for Class
+    FE->>API: GET /questInstances/class/{classId}
+    API->>DB: Query quest instances by class
+    DB-->>API: Quest assignments
+    API-->>FE: Display available quests
+
+    %% Answer Quest Questions
+    Student->>FE: Answer Quest Questions
+    FE->>API: POST /questQuestionResponses
+    API->>DB: Record student responses
+    DB-->>API: Success
+    API-->>FE: Responses recorded
+
     %% Complete Quest
     Student->>FE: Complete Quest
-    FE->>API: POST /quests/complete
-    API->>DB: Update XP, progress
+    FE->>API: POST /questInstances/complete
+    API->>DB: Update quest status, award XP & gold
     DB-->>API: Success
     API-->>FE: Quest completion recorded
 

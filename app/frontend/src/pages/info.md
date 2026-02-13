@@ -82,6 +82,11 @@ Current TODO:
 2. Signup implementation (DONE)
 3. Quest creation implementation (DONE)
 4. adding quests to students side (DONE)
+5. adding quests to teachers side (DONE)
+6. adding students to classes alongside their xp, gold and level to make this editable
+7. adding rewards to classes & creating custom rewards for classes
+8. 
+
 
 Dynamic (TODO:)
 
@@ -107,7 +112,11 @@ Document tutorial and fix so it only shows on first signup (DONE)
 
 TODO: fix the missing information on classes page and start work on restructuring quests apge and implementing backend (DONE)
 
-TODO: Remove my subjects for students (class Rewards)
+TODO: Remove my subjects for students (class Rewards) (DONE)
+
+TODO: system architecture diagram (DONE)
+
+TODO: fix sequence diagram (DONE)
 
 
 TODO: greyed out & invisible armours/ equipments
