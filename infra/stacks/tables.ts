@@ -187,6 +187,68 @@ export function createTables(ctx: StackContext) {
         },
     });
 
+    // PlayerStates table - one player state per student per class
+    const playerStatesTable = new Table(stack, "PlayerStates", {
+        fields: {
+            class_id: "string",           // PK: class
+            student_id: "string",         // SK: student
+            leaderboard_sort: "string",   // GSI1 SK: inverted XP for descending leaderboard
+        },
+        primaryIndex: {
+            partitionKey: "class_id",
+            sortKey: "student_id"
+        },
+        globalIndexes: {
+            gsi1: {  // leaderboard by class (descending XP order via inverted sort key)
+                partitionKey: "class_id",
+                sortKey: "leaderboard_sort"
+            },
+        },
+    });
+
+    // Guilds table - student teams within a class
+    const guildsTable = new Table(stack, "Guilds", {
+        fields: {
+            guild_id: "string",         // PK: guild UUID
+            class_id: "string",         // GSI1 PK: for listing guilds by class
+            gsi1sk: "string",           // GSI1 SK: created_at#guild_id (stable ordering)
+        },
+        primaryIndex: {
+            partitionKey: "guild_id"
+        },
+        globalIndexes: {
+            gsi1: {  // list guilds by class, ordered by creation time
+                partitionKey: "class_id",
+                sortKey: "gsi1sk"
+            },
+        },
+    });
+
+    // GuildMemberships table - one membership per (class_id, student_id)
+    const guildMembershipsTable = new Table(stack, "GuildMemberships", {
+        fields: {
+            class_id: "string",         // PK: class
+            student_id: "string",       // SK: student (ensures one guild per student per class)
+            guild_id: "string",         // GSI1 PK: for listing members by guild
+            gsi1sk: "string",           // GSI1 SK: joined_at#student_id
+            gsi2sk: "string",           // GSI2 SK: joined_at#class_id#guild_id
+        },
+        primaryIndex: {
+            partitionKey: "class_id",
+            sortKey: "student_id"
+        },
+        globalIndexes: {
+            gsi1: {  // list members by guild (roster)
+                partitionKey: "guild_id",
+                sortKey: "gsi1sk"
+            },
+            gsi2: {  // list student's memberships across classes
+                partitionKey: "student_id",
+                sortKey: "gsi2sk"
+            },
+        },
+    });
+
     return {
         usersTable,
         teacherProfilesTable,
@@ -198,5 +260,8 @@ export function createTables(ctx: StackContext) {
         questQuestionsTable,
         questInstancesTable,
         questQuestionResponsesTable,
+        playerStatesTable,
+        guildsTable,
+        guildMembershipsTable,
     };
 }

@@ -20,6 +20,9 @@ export function ClassQuestStack(ctx: StackContext) {
         UserPoolId: userPool.userPoolId,
         UserPoolClientId: userPoolClient.userPoolClientId,
         QuestQuestionResponsesTableName: tables.questQuestionResponsesTable.tableName,
+        PlayerStatesTableName: tables.playerStatesTable.tableName,
+        GuildsTableName: tables.guildsTable.tableName,
+        GuildMembershipsTableName: tables.guildMembershipsTable.tableName,
     });
 
     return { assetsBucket, userPool, userPoolClient, ...tables, api };

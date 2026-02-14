@@ -15,6 +15,9 @@ export function createApi(
         questQuestionsTable: Table;
         questInstancesTable: Table;
         questQuestionResponsesTable: Table;
+        playerStatesTable: Table;
+        guildsTable: Table;
+        guildMembershipsTable: Table;
     }
     ) {
     const api = new Api(stack, "HttpApi", {
@@ -89,6 +92,25 @@ export function createApi(
         "GET /students/{student_id}/responses": "packages/functions/src/quest-question-responses/list-by-student.handler",
         "GET /questions/{question_id}/responses": "packages/functions/src/quest-question-responses/list-by-question.handler",
         "PATCH /quest-instances/{quest_instance_id}/questions/{question_id}/responses/{student_id}/grade": "packages/functions/src/quest-question-responses/grade-response.handler",
+
+        // PlayerStates
+        "PUT /classes/{class_id}/players/{student_id}/state": "packages/functions/src/playerStates/upsert-state.handler",
+        "GET /classes/{class_id}/players/{student_id}/state": "packages/functions/src/playerStates/get.handler",
+        "GET /classes/{class_id}/leaderboard": "packages/functions/src/playerStates/get-leaderboard.handler",
+
+        // Guilds
+        "POST /classes/{class_id}/guilds": "packages/functions/src/guilds/create.handler",
+        "GET /guilds/{guild_id}": "packages/functions/src/guilds/get.handler",
+        "GET /classes/{class_id}/guilds": "packages/functions/src/guilds/list-by-class.handler",
+        "PATCH /guilds/{guild_id}": "packages/functions/src/guilds/update.handler",
+        "PATCH /guilds/{guild_id}/deactivate": "packages/functions/src/guilds/deactivate.handler",
+
+        // GuildMemberships
+        "PUT /classes/{class_id}/guild-memberships/{student_id}": "packages/functions/src/guildMemberships/upsert-membership.handler",
+        "GET /classes/{class_id}/guild-memberships/{student_id}": "packages/functions/src/guildMemberships/get.handler",
+        "GET /guilds/{guild_id}/members": "packages/functions/src/guildMemberships/list-by-guild.handler",
+        "GET /students/{student_id}/guild-memberships": "packages/functions/src/guildMemberships/list-by-student.handler",
+        "PATCH /classes/{class_id}/guild-memberships/{student_id}/leave": "packages/functions/src/guildMemberships/leave.handler",
         },
         defaults: {
         function: {
@@ -103,6 +125,9 @@ export function createApi(
             QUEST_QUESTIONS_TABLE_NAME: tables.questQuestionsTable.tableName,
             QUEST_INSTANCES_TABLE_NAME: tables.questInstancesTable.tableName,
             QUEST_QUESTION_RESPONSES_TABLE_NAME: tables.questQuestionResponsesTable.tableName,
+            PLAYER_STATES_TABLE_NAME: tables.playerStatesTable.tableName,
+            GUILDS_TABLE_NAME: tables.guildsTable.tableName,
+            GUILD_MEMBERSHIPS_TABLE_NAME: tables.guildMembershipsTable.tableName,
             },
         },
         },
@@ -120,6 +145,9 @@ export function createApi(
         tables.questQuestionsTable,
         tables.questInstancesTable,
         tables.questQuestionResponsesTable,
+        tables.playerStatesTable,
+        tables.guildsTable,
+        tables.guildMembershipsTable,
     ]);
 
     return api;
