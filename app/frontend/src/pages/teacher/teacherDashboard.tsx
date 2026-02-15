@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import feather from "feather-icons";
-import StatsCard from "../components/teacher/statsCard";
-import { fetchTeacherStats, TeacherStats } from "../features/teacher/teacherService";
+import StatsCard from "../components/teacher/statsCard.js";
+import { fetchTeacherStats, TeacherStats } from "../features/teacher/teacherService.js";
 import { CurrencyDollarIcon } from "@heroicons/react/24/solid";
-import DropDownProfile from "../features/teacher/dropDownProfile";
-import { TutorialProvider } from "../components/tutorial/context";
-import { TutorialIntroModal } from "../components/tutorial/IntroModal";
-import { TutorialOverlay } from "../components/tutorial/overlay";
-import { ensureClassExists } from "../../utils/classStore";
-
-/** Todo: separate dashboard components into different files */
+import DropDownProfile from "../features/teacher/dropDownProfile.js";
+import { TutorialProvider } from "../components/tutorial/context.js";
+import { TutorialIntroModal } from "../components/tutorial/IntroModal.js";
+import { TutorialOverlay } from "../components/tutorial/overlay.js";
+import { ensureClassExists } from "../../utils/classStore.js";
 
 type TeacherUser = {
   id: string;
@@ -119,7 +117,7 @@ const TeacherDashboard = () => {
     { icon: "book", label: "Classes", href: "/classes" },
     { icon: "briefcase", label: "Quest Management", href: "/subjects" },
     { icon: "clock", label: "Activity", href: "/Activity" }, // matches app.tsx
-    { icon: "shopping-bag", label: "Rewards", href: "/rewards" },
+    { icon: "shield", label: "Guilds", href: "/" },
     { icon: "user", label: "Profile", href: "/profile" },
   ];
 
@@ -273,22 +271,21 @@ const TeacherDashboard = () => {
 
           {/* Content */}
           <main className="flex-1 overflow-y-auto p-4 ml-3 mr-3">
-            <p className="text-2xl font-bold text-white">Teacher Dashboard</p>
+            <p className="text-2xl font-bold text-yellow-300">Teacher Dashboard</p>
 
             {loading ? (
-              <div className="mt-6 text-center text-gray-500">Loading stats...</div>
+              <div className="mt-6 text-center text-gray-500 ">Loading stats...</div>
             ) : (
-              <div id="Active-tab" className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-4">
+              <div id="Active-tab" className="mt-3 grid grid-cols-1 gap-8 sm:grid-cols-3 text-xl">
                 <StatsCard icon="users" label="Active Students" value={stats.activeStudents} />
                 <StatsCard icon="book" label="Active Classes" value={stats.activeSubjects} />
                 <StatsCard icon="award" label="Active Quests" value={stats.activeTasks} />
-                <StatsCard icon="check-circle" label="Completion Rate" value={`${stats.completionRate}%`} />
               </div>
             )}
 
             {/* Recent Activity */}
             <div id="recent-activity">
-              <p className="text-2xl font-bold text-white mt-6"> Recent Activity</p>
+              <p className="text-2xl font-bold text-yellow-300 mt-6"> Recent Activity</p>
               <div className="mt-4 p-4 bg-white/300 rounded-lg shadow-md">
                 <div className=" bg-white shadow overflow-hidden sm:rounded-md">
                   <ul className="divide-y divide-gray-200">
@@ -365,7 +362,7 @@ const TeacherDashboard = () => {
 
             {/* Top Students */}
             <div className="mt-5">
-              <p id="Top-students" className="text-2xl font-bold text-white mt-6">
+              <p id="Top-students" className="text-2xl font-bold text-yellow-300 mt-6">
                 Top Students
               </p>
 

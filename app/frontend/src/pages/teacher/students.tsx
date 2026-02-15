@@ -7,10 +7,8 @@ import { validateJoinCode } from "../../api/classes.js";
 import { getClassEnrollments, unenrollStudent } from "../../api/classEnrollments.js";
 import { getStudentProfile, updateStudentProfile } from "../../api/studentProfiles.js";
 import { getPlayerState, upsertPlayerState } from "../../api/playerStates.js";
+import xpIcon from "../../../dist/assets/icons/XP.png";
 
-
-// Fix add buttom to delete students with profiles from classes and fix the issue with updating student information
-// add gold image next to gold and something for xp
 
 type CurrentUser =
   | {
@@ -236,7 +234,7 @@ const Students = () => {
     );
   };
 
-  // Remove an orphan student (unenroll from class)
+  // Remove a student (unenroll from class)
   const handleRemoveStudent = async (studentId: string, enrollmentId: string) => {
     if (!confirm("Remove this student from the class?")) {
       return;
@@ -540,7 +538,7 @@ const Students = () => {
                         )}
                       </td>
 
-                      {/* Password column */}
+                      {/* Password column TODO: get password from cognito */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         {s.error ? (
                           <span className="text-gray-400">—</span>
@@ -560,22 +558,31 @@ const Students = () => {
 
                       {/* XP column */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {s.error ? (
-                          <span className="text-gray-400">—</span>
-                        ) : (
-                          <input
-                            type="number"
-                            value={s.xp}
-                            onChange={(e) =>
-                              updateStudentField(s.id, "xp", parseInt(e.target.value) || 0)
-                            }
-                            className="w-24 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
-                        )}
-                      </td>
+                        <div className="flex items-center gap-2">
+                          <img src={xpIcon} alt="xp" className="h-8 w-8" />
 
+                          {s.error ? (
+                            <span className="text-gray-400">—</span>
+                          ) : (
+                            <input
+                              type="number"
+                              value={s.xp}
+                              onChange={(e) =>
+                                updateStudentField(s.id, "xp", parseInt(e.target.value) || 0)
+                              }
+                              className="w-24 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          )}
+                        </div>
+                      </td>
                       {/* Gold column */}
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap flex items-center gap-2">
+                        <img
+                          src="/assets/icons/gold-bar.png"
+                          alt="Gold"
+                          className="h-5 w-5"
+                        />
+
                         {s.error ? (
                           <span className="text-gray-400">—</span>
                         ) : (
@@ -585,17 +592,19 @@ const Students = () => {
                             onChange={(e) =>
                               updateStudentField(s.id, "gold", parseInt(e.target.value) || 0)
                             }
-                            className="w-24 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-24 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 mr-1"
                           />
                         )}
-                         <button
-                              onClick={() => handleRemoveStudent(s.id, s.enrollmentId)}
-                              className="px-2 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-700 ml-3"
-                              title="Remove enrollment"
-                            >
-                              Remove
-                          </button>
+
+                        <button
+                          onClick={() => handleRemoveStudent(s.id, s.enrollmentId)}
+                          className="px-2 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-700"
+                          title="Remove enrollment"
+                        >
+                          Remove
+                        </button>
                       </td>
+
                       
 
                       {/* Status indicator */}

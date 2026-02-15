@@ -417,7 +417,9 @@ const Classes = () => {
 
                     <button
                       className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
-                      onClick={() => alert("rewards page later")}
+                      onClick={() => navigate(
+                          `/rewards?classCode=${encodeURIComponent(c.join_code)}`
+                        )}
                     >
                       <i data-feather="gift" className="mr-1 w-4 h-4"></i>{" "}
                       Rewards

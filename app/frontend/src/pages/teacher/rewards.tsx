@@ -92,7 +92,7 @@ const rewards = () => {
               </nav>
               {/* Back button */}
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                          <Link to="/teacherDashboard" className="inline-flex items-center bg-indigo-600 text-white border-2 border-indigo-600 rounded-md px-3 py-2 hover:bg-indigo-700">
+                          <Link to="/classes" className="inline-flex items-center bg-indigo-600 text-white border-2 border-indigo-600 rounded-md px-3 py-2 hover:bg-indigo-700">
                             <i data-feather="arrow-left" className="w-5 h-5 mr-2"></i>
                             <span className="text-sm font-medium">Back</span>
                           </Link>
