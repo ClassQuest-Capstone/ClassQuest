@@ -87,12 +87,12 @@ export function createApi(
         "PATCH /quest-instances/{quest_instance_id}/dates": "packages/functions/src/questInstances/update-dates.handler",
 
         // QuestQuestionResponses
-        "PUT /quest-instances/{quest_instance_id}/questions/{question_id}/responses/{student_id}": "packages/functions/src/quest-question-responses/upsert-response.handler",
-        "GET /quest-instances/{quest_instance_id}/responses/{student_id}": "packages/functions/src/quest-question-responses/get-by-instance-and-student.handler",
-        "GET /quest-instances/{quest_instance_id}/responses": "packages/functions/src/quest-question-responses/list-by-instance.handler",
-        "GET /students/{student_id}/responses": "packages/functions/src/quest-question-responses/list-by-student.handler",
-        "GET /questions/{question_id}/responses": "packages/functions/src/quest-question-responses/list-by-question.handler",
-        "PATCH /quest-instances/{quest_instance_id}/questions/{question_id}/responses/{student_id}/grade": "packages/functions/src/quest-question-responses/grade-response.handler",
+        "PUT /quest-instances/{quest_instance_id}/questions/{question_id}/responses/{student_id}": "packages/functions/src/questQuestionResponses/upsert-response.handler",
+        "GET /quest-instances/{quest_instance_id}/responses/{student_id}": "packages/functions/src/questQuestionResponses/get-by-instance-and-student.handler",
+        "GET /quest-instances/{quest_instance_id}/responses": "packages/functions/src/questQuestionResponses/list-by-instance.handler",
+        "GET /students/{student_id}/responses": "packages/functions/src/questQuestionResponses/list-by-student.handler",
+        "GET /questions/{question_id}/responses": "packages/functions/src/questQuestionResponses/list-by-question.handler",
+        "PATCH /quest-instances/{quest_instance_id}/questions/{question_id}/responses/{student_id}/grade": "packages/functions/src/questQuestionResponses/grade-response.handler",
 
         // PlayerStates
         "PUT /classes/{class_id}/players/{student_id}/state": "packages/functions/src/playerStates/upsert-state.handler",
