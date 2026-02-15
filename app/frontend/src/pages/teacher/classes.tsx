@@ -297,7 +297,7 @@ const Classes = () => {
         {/* Header */}
         <div className="flex flex-wrap gap-4 justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-indigo-800">
+            <h1 className="text-3xl font-bold text-yellow-300">
               Class Management
             </h1>
             <p className="text-white">

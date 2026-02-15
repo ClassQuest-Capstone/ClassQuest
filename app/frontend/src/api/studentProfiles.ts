@@ -30,3 +30,16 @@ export function getStudentProfile(student_id: string) {
 export function listStudentsBySchool(school_id: string) {
     return api<{ items: StudentProfile[] }>(`/schools/${encodeURIComponent(school_id)}/students`);
 }
+
+export function updateStudentProfile(student_id: string, input: {
+    display_name?: string;
+    username?: string;
+}) {
+    return api<{ ok: true; student_id: string }>(
+        `/student-profiles/${encodeURIComponent(student_id)}`,
+        {
+            method: "PATCH",
+            body: JSON.stringify(input),
+        }
+    );
+}

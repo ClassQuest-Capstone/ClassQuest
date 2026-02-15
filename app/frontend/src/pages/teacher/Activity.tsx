@@ -126,7 +126,7 @@ const ActivityPage = () => {
                 </div>
       {/* Page content*/}
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-indigo-600">Activity</h1>
+        <h1 className="text-3xl font-bold text-yellow-300">Activity</h1>
         <p className="text-white mb-6">
           View your students' activity log and measure their performance
         </p>

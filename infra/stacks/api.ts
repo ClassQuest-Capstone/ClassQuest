@@ -38,6 +38,7 @@ export function createApi(
         // StudentProfiles
         "POST /student-profiles": "packages/functions/src/student-profiles/create.handler",
         "GET /student-profiles/{student_id}": "packages/functions/src/student-profiles/get.handler",
+        "PATCH /student-profiles/{student_id}": "packages/functions/src/student-profiles/update.handler",
         "GET /schools/{school_id}/students": "packages/functions/src/student-profiles/list-by-school.handler",
             
 

@@ -647,7 +647,7 @@ const Subjects = () => {
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex flex-wrap gap-4 justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-indigo-800">Quest Management</h1>
+            <h1 className="text-3xl font-bold text-yellow-300">Quest Management</h1>
             <p className="text-white">Browse quest templates (yours + public)</p>
           </div>
 

@@ -1,5 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
@@ -34,6 +34,49 @@ export async function getStudentProfile(student_id: string): Promise<StudentProf
         })
     );
     return (res.Item as StudentProfileItem) ?? null;
+}
+
+export async function updateStudentProfile(
+    student_id: string, 
+    updates: { display_name?: string; username?: string }
+): Promise<StudentProfileItem | null> {
+    const updateExpressions: string[] = [];
+    const expressionAttributeNames: Record<string, string> = {};
+    const expressionAttributeValues: Record<string, any> = {};
+
+    if (updates.display_name !== undefined) {
+        updateExpressions.push("#display_name = :display_name");
+        expressionAttributeNames["#display_name"] = "display_name";
+        expressionAttributeValues[":display_name"] = updates.display_name;
+    }
+
+    if (updates.username !== undefined) {
+        updateExpressions.push("#username = :username");
+        expressionAttributeNames["#username"] = "username";
+        expressionAttributeValues[":username"] = updates.username;
+    }
+
+    if (updateExpressions.length === 0) {
+        return await getStudentProfile(student_id);
+    }
+
+    // Update the updated_at timestamp
+    updateExpressions.push("#updated_at = :updated_at");
+    expressionAttributeNames["#updated_at"] = "updated_at";
+    expressionAttributeValues[":updated_at"] = new Date().toISOString();
+
+    const res = await ddb.send(
+        new UpdateCommand({
+            TableName: TABLE,
+            Key: { student_id },
+            UpdateExpression: `SET ${updateExpressions.join(", ")}`,
+            ExpressionAttributeNames: expressionAttributeNames,
+            ExpressionAttributeValues: expressionAttributeValues,
+            ReturnValues: "ALL_NEW",
+        })
+    );
+
+    return (res.Attributes as StudentProfileItem) ?? null;
 }
 
 export async function listStudentsBySchool(school_id: string): Promise<StudentProfileItem[]> {
