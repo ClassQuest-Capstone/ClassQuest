@@ -4,23 +4,28 @@ import feather from "feather-icons";
 import { Link } from "react-router-dom";
 import { usePlayerProgression } from "../hooks/students/usePlayerProgression.js";
 
-import {
-  createGuild as apiCreateGuild,
-  getGuild as apiGetGuild,
-  listGuildsByClass,
-  type Guild,
-} from "../../api/guilds";
+import { getGuild as apiGetGuild, type Guild } from "../../api/guilds";
 
 import {
   getGuildMembership,
-  joinGuild,
-  leaveGuild,
   listGuildMembers,
   type GuildMembership,
 } from "../../api/guildMemberships";
 
-// ✅ Correct endpoint for display names
+// ✅ pull classId from enrollments if missing
+import {
+  getStudentEnrollments,
+  type EnrollmentItem,
+} from "../../api/classEnrollments";
+
+// ✅ class type (NO getClass export in your file)
+import type { ClassItem } from "../../api/classes";
+
+// ✅ display names
 import { getStudentProfile } from "../../api/studentProfiles";
+
+// ✅ your shared http client (so we can fetch class by id safely)
+import { api } from "../../api/http.js";
 
 // --------------------
 // Student helper
@@ -47,19 +52,135 @@ function getCurrentStudent(): StudentUser | null {
 
 const GuildPage: React.FC = () => {
   const student = useMemo(() => getCurrentStudent(), []);
-  const studentId = student?.id ?? "student-001";
+  const studentId = student?.id ?? null;
 
-  // TODO: replace with your real current class source
-  const classId =
-    student?.classId ?? localStorage.getItem("cq_currentClassId") ?? "class-123";
+  // --------------------
+  // Resolve classId
+  // --------------------
+  const [classId, setClassId] = useState<string | null>(null);
+  const [classLoading, setClassLoading] = useState(true);
+  const [classError, setClassError] = useState<string | null>(null);
+
+  // --------------------
+  // Resolve class name (show name instead of id)
+  // --------------------
+  const [classInfo, setClassInfo] = useState<ClassItem | null>(null);
+  const [classInfoLoading, setClassInfoLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resolveClassId() {
+      setClassLoading(true);
+      setClassError(null);
+
+      // 1) student object
+      if (student?.classId) {
+        if (!cancelled) {
+          setClassId(student.classId);
+          setClassLoading(false);
+        }
+        return;
+      }
+
+      // 2) localStorage
+      const stored = localStorage.getItem("cq_currentClassId");
+      if (stored) {
+        if (!cancelled) {
+          setClassId(stored);
+          setClassLoading(false);
+        }
+        return;
+      }
+
+      // 3) fetch enrollments
+      if (!studentId) {
+        if (!cancelled) {
+          setClassId(null);
+          setClassError("Missing studentId (not logged in as student).");
+          setClassLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const res = await getStudentEnrollments(studentId);
+        const items: EnrollmentItem[] = res?.items ?? [];
+
+        const active = items.filter((e) => e.status === "active");
+        if (active.length === 0) {
+          if (!cancelled) {
+            setClassId(null);
+            setClassError("No active class enrollment found for this student.");
+          }
+          return;
+        }
+
+        // choose most recent active enrollment
+        active.sort(
+          (a, b) =>
+            new Date(b.joined_at).getTime() - new Date(a.joined_at).getTime()
+        );
+        const cid = active[0].class_id;
+
+        if (!cancelled) {
+          setClassId(cid);
+          localStorage.setItem("cq_currentClassId", cid);
+        }
+      } catch (e: any) {
+        if (!cancelled) {
+          setClassId(null);
+          setClassError(e?.message ?? "Failed to load class enrollment.");
+        }
+      } finally {
+        if (!cancelled) setClassLoading(false);
+      }
+    }
+
+    resolveClassId();
+    return () => {
+      cancelled = true;
+    };
+  }, [student?.classId, studentId]);
+
+  // ✅ fetch class details (name) via api directly (no getClass import)
+  useEffect(() => {
+    if (!classId) {
+      setClassInfo(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadClassInfo() {
+      try {
+        setClassInfoLoading(true);
+
+        // assumes your backend supports GET /classes/:id
+        const cls = await api<ClassItem>(`/classes/${encodeURIComponent(classId)}`);
+
+        if (!cancelled) setClassInfo(cls);
+      } catch {
+        // if endpoint doesn’t exist yet, fail gracefully (no white screen)
+        if (!cancelled) setClassInfo(null);
+      } finally {
+        if (!cancelled) setClassInfoLoading(false);
+      }
+    }
+
+    loadClassInfo();
+    return () => {
+      cancelled = true;
+    };
+  }, [classId]);
 
   // Keep icons updated
   useEffect(() => {
     feather.replace();
-  });
+  }, []);
 
   const { profile } = usePlayerProgression({
-    studentId,
+    studentId: studentId ?? "unknown-student",
     level: 1,
     totalXP: 300,
     gold: 0,
@@ -74,14 +195,7 @@ const GuildPage: React.FC = () => {
   };
 
   // --------------------
-  // Guild list state
-  // --------------------
-  const [guilds, setGuilds] = useState<Guild[]>([]);
-  const [guildsLoading, setGuildsLoading] = useState(true);
-  const [guildsError, setGuildsError] = useState<string | null>(null);
-
-  // --------------------
-  // Membership state
+  // Membership + Guild state
   // --------------------
   const [membership, setMembership] = useState<GuildMembership | null>(null);
   const [membershipLoading, setMembershipLoading] = useState(true);
@@ -89,10 +203,9 @@ const GuildPage: React.FC = () => {
 
   const myGuildId = membership?.is_active ? membership.guild_id : null;
 
-  const myGuild = useMemo(() => {
-    if (!myGuildId) return null;
-    return guilds.find((g) => g.guild_id === myGuildId) ?? null;
-  }, [guilds, myGuildId]);
+  const [myGuild, setMyGuild] = useState<Guild | null>(null);
+  const [myGuildLoading, setMyGuildLoading] = useState(false);
+  const [myGuildError, setMyGuildError] = useState<string | null>(null);
 
   // --------------------
   // Roster state
@@ -101,29 +214,26 @@ const GuildPage: React.FC = () => {
   const [rosterLoading, setRosterLoading] = useState(false);
   const [rosterError, setRosterError] = useState<string | null>(null);
 
-  // ✅ Name cache (student_id -> display_name)
+  // ✅ Name cache
   const [nameByStudentId, setNameByStudentId] = useState<Record<string, string>>(
     {}
   );
-
-  // ✅ Avoid stale closures inside hydrateNames
   const nameCacheRef = useRef<Record<string, string>>({});
   useEffect(() => {
     nameCacheRef.current = nameByStudentId;
   }, [nameByStudentId]);
 
-  // ✅ Pre-fill your own name instantly (so leader/me doesn't stay Loading)
   useEffect(() => {
     const myName = student?.displayName?.trim();
     if (studentId && myName) {
-      setNameByStudentId((prev) => (prev[studentId] ? prev : { ...prev, [studentId]: myName }));
+      setNameByStudentId((prev) =>
+        prev[studentId] ? prev : { ...prev, [studentId]: myName }
+      );
     }
   }, [studentId, student?.displayName]);
 
   async function hydrateNames(studentIds: string[]) {
     const unique = Array.from(new Set(studentIds)).filter(Boolean);
-
-    // only fetch the ones we don't already have (using ref = latest)
     const missing = unique.filter((id) => !nameCacheRef.current[id]);
     if (missing.length === 0) return;
 
@@ -131,7 +241,6 @@ const GuildPage: React.FC = () => {
       missing.map(async (sid) => {
         try {
           const prof: any = await getStudentProfile(sid);
-          // studentProfiles.ts uses display_name (snake_case)
           const name = String(prof?.display_name ?? "").trim();
           return { sid, name: name || "Unknown Student" };
         } catch {
@@ -147,32 +256,20 @@ const GuildPage: React.FC = () => {
   }
 
   // --------------------
-  // Create Guild modal state
-  // --------------------
-  const [showCreate, setShowCreate] = useState(false);
-  const [newGuildName, setNewGuildName] = useState("");
-  const [createLoading, setCreateLoading] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  // --------------------
   // Loaders
   // --------------------
-  async function refreshGuilds() {
-    try {
-      setGuildsLoading(true);
-      setGuildsError(null);
-
-      const res = await listGuildsByClass(classId, 50);
-      const active = (res.items ?? []).filter((g) => g.is_active !== false);
-      setGuilds(active);
-    } catch (e: any) {
-      setGuildsError(e?.message ?? "Failed to load guilds.");
-    } finally {
-      setGuildsLoading(false);
-    }
-  }
-
   async function refreshMembership() {
+    if (!classId || !studentId) {
+      setMembership(null);
+      setMembershipLoading(false);
+      setMembershipError(
+        !studentId
+          ? "Missing studentId (not logged in as student)."
+          : "Missing classId (no current class selected)."
+      );
+      return;
+    }
+
     try {
       setMembershipLoading(true);
       setMembershipError(null);
@@ -192,6 +289,20 @@ const GuildPage: React.FC = () => {
     }
   }
 
+  async function refreshMyGuild(guildId: string) {
+    try {
+      setMyGuildLoading(true);
+      setMyGuildError(null);
+      const g = await apiGetGuild(guildId);
+      setMyGuild(g);
+    } catch (e: any) {
+      setMyGuildError(e?.message ?? "Failed to load your guild.");
+      setMyGuild(null);
+    } finally {
+      setMyGuildLoading(false);
+    }
+  }
+
   async function refreshRoster(guildId: string) {
     try {
       setRosterLoading(true);
@@ -201,7 +312,6 @@ const GuildPage: React.FC = () => {
       const active = (res.items ?? []).filter((m) => m.is_active !== false);
       setRoster(active);
 
-      // ✅ fetch display names for roster
       hydrateNames(active.map((m) => m.student_id));
     } catch (e: any) {
       setRosterError(e?.message ?? "Failed to load guild members.");
@@ -212,14 +322,18 @@ const GuildPage: React.FC = () => {
   }
 
   useEffect(() => {
-    refreshGuilds();
+    if (classLoading) return;
     refreshMembership();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classId, studentId]);
+  }, [classLoading, classId, studentId]);
 
   useEffect(() => {
-    if (myGuildId) refreshRoster(myGuildId);
-    else {
+    if (myGuildId) {
+      refreshMyGuild(myGuildId);
+      refreshRoster(myGuildId);
+    } else {
+      setMyGuild(null);
+      setMyGuildError(null);
       setRoster([]);
       setRosterError(null);
     }
@@ -228,63 +342,15 @@ const GuildPage: React.FC = () => {
 
   useEffect(() => {
     feather.replace();
-  }, [guilds, myGuildId, roster, showCreate, guildsLoading, rosterLoading]);
+  }, [myGuild, roster, membershipLoading, rosterLoading]);
 
-  // --------------------
-  // Actions
-  // --------------------
-  async function handleCreateGuild() {
-    const name = newGuildName.trim();
-    if (!name) {
-      setCreateError("Guild name cannot be empty.");
-      return;
-    }
+  // Placeholder guild stats (not implemented yet)
+  const guildPower = "—";
+  const guildHearts = "—";
 
-    try {
-      setCreateLoading(true);
-      setCreateError(null);
-
-      const created = await apiCreateGuild(classId, { name });
-
-      // auto-join as LEADER
-      await joinGuild(classId, studentId, created.guild_id, "LEADER");
-
-      setShowCreate(false);
-      setNewGuildName("");
-
-      await refreshGuilds();
-      await refreshMembership();
-    } catch (e: any) {
-      setCreateError(e?.message ?? "Failed to create guild.");
-    } finally {
-      setCreateLoading(false);
-    }
-  }
-
-  async function handleJoinGuild(guildId: string) {
-    try {
-      setMembershipError(null);
-      await joinGuild(classId, studentId, guildId, "MEMBER");
-      await refreshMembership();
-    } catch (e: any) {
-      setMembershipError(e?.message ?? "Failed to join guild.");
-    }
-  }
-
-  async function handleLeaveGuild() {
-    try {
-      setMembershipError(null);
-      await leaveGuild(classId, studentId);
-      await refreshMembership();
-    } catch (e: any) {
-      setMembershipError(e?.message ?? "Failed to leave guild.");
-    }
-  }
-
-  // --------------------
-  // UI helpers
-  // --------------------
-  const topGuilds = guilds.slice(0, 10);
+  const classLabel = classInfoLoading
+    ? "Loading..."
+    : classInfo?.name ?? "—";
 
   return (
     <div className={pageBg} style={pageStyle}>
@@ -316,7 +382,7 @@ const GuildPage: React.FC = () => {
                 to="/guilds"
                 className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900"
               >
-                Guilds
+                Guild
               </Link>
 
               <Link
@@ -375,147 +441,127 @@ const GuildPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-100">Guilds</h1>
-            <p className="text-gray-200">
-              Team up with classmates to defeat powerful bosses!
-            </p>
+            <h1 className="text-3xl font-bold text-gray-100">Guild</h1>
+            <p className="text-gray-200">Your assigned guild and members.</p>
             <p className="text-xs text-gray-300 mt-1">
-              Class: <span className="font-mono">{classId}</span>
+              Class: <span className="font-semibold">{classLabel}</span>
             </p>
           </div>
 
-          <div className="flex gap-3">
-            <button
-              onClick={() => {
-                refreshGuilds();
-                refreshMembership();
-                if (myGuildId) refreshRoster(myGuildId);
-              }}
-              className="bg-white/10 hover:bg-white/20 text-white font-semibold py-2 px-4 border border-white/30 rounded-lg transition-colors"
-            >
-              Refresh
-            </button>
-
-            <button
-              onClick={() => setShowCreate(true)}
-              className="bg-black hover:bg-gray-100 text-yellow-400 font-semibold hover:text-yellow-600 py-2 px-6 border border-yellow-600 hover:border-yellow-700 rounded-lg transition-colors"
-            >
-              Create Guild
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              refreshMembership();
+              if (myGuildId) {
+                refreshMyGuild(myGuildId);
+                refreshRoster(myGuildId);
+              }
+            }}
+            className="bg-white/10 hover:bg-white/20 text-white font-semibold py-2 px-4 border border-white/30 rounded-lg transition-colors"
+          >
+            Refresh
+          </button>
         </div>
 
-        {/* Errors */}
-        {(guildsError || membershipError) && (
+        {classError && (
           <div className="bg-red-500/20 border border-red-500/40 text-red-100 rounded-xl p-4 mb-6">
             <div className="flex items-center gap-2">
               <i data-feather="alert-triangle" className="w-5 h-5" />
               <span className="font-semibold">Error:</span>
-              <span>{guildsError ?? membershipError}</span>
+              <span>{classError}</span>
             </div>
           </div>
         )}
 
-        {/* My Guild */}
-        <div className="bg-white/90 rounded-xl shadow-lg p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800">My Guild</h2>
-
-            {myGuildId && (
-              <button
-                onClick={handleLeaveGuild}
-                className="text-sm font-semibold text-red-700 hover:text-red-900"
-              >
-                Leave Guild
-              </button>
-            )}
+        {(membershipError || myGuildError) && (
+          <div className="bg-red-500/20 border border-red-500/40 text-red-100 rounded-xl p-4 mb-6">
+            <div className="flex items-center gap-2">
+              <i data-feather="alert-triangle" className="w-5 h-5" />
+              <span className="font-semibold">Error:</span>
+              <span>{membershipError ?? myGuildError}</span>
+            </div>
           </div>
+        )}
 
-          {(membershipLoading || guildsLoading) && (
+        <div className="bg-white/90 rounded-xl shadow-lg p-6">
+          {(classLoading || membershipLoading || myGuildLoading) && (
             <p className="text-gray-700">Loading…</p>
           )}
 
-          {!membershipLoading && !myGuildId && (
+          {!classLoading && !classId && (
             <div className="text-gray-700">
-              <p className="mb-3">
-                You aren&apos;t in a guild yet. Join one below or create your own.
+              <p className="mb-1 font-semibold">No Class Found</p>
+              <p className="text-sm text-gray-600">
+                This student is not enrolled in any active class.
               </p>
-              <button
-                onClick={() => setShowCreate(true)}
-                className="bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 px-4 rounded-lg"
-              >
-                Create a Guild
-              </button>
             </div>
           )}
 
-          {myGuildId && !myGuild && !guildsLoading && (
+          {!membershipLoading && !!classId && !myGuildId && (
             <div className="text-gray-700">
-              <p className="mb-2">Your guild wasn&apos;t found in the list.</p>
-              <button
-                onClick={async () => {
-                  try {
-                    const g = await apiGetGuild(myGuildId);
-                    setGuilds((prev) => {
-                      if (prev.some((x) => x.guild_id === g.guild_id)) return prev;
-                      return [g, ...prev];
-                    });
-                  } catch {
-                    // ignore
-                  }
-                }}
-                className="text-sm font-semibold text-blue-700 hover:text-blue-900"
-              >
-                Try fetching guild
-              </button>
+              <p className="mb-1 font-semibold">No Guild Assigned</p>
+              <p className="text-sm text-gray-600">
+                Your teacher hasn&apos;t placed you into a guild yet.
+              </p>
+            </div>
+          )}
+
+          {myGuildId && !myGuild && !myGuildLoading && (
+            <div className="text-gray-700">
+              <p className="mb-1 font-semibold">Guild not found</p>
+              <p className="text-sm text-gray-600">
+                You&apos;re marked as in a guild, but the guild details couldn&apos;t be loaded.
+              </p>
             </div>
           )}
 
           {myGuild && (
             <>
-              <h3 className="text-lg font-bold mb-4 text-gray-800">
-                <span className="text-gray-600">Guild:</span>{" "}
-                <span className="text-blue-700">{myGuild.name}</span>
-                {membership?.role_in_guild && (
-                  <span className="ml-3 text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-semibold">
-                    {membership.role_in_guild}
-                  </span>
-                )}
-              </h3>
+              <div className="flex items-start justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800">
+                    {myGuild.name}
+                  </h2>
 
-              <div className="flex items-center mb-6">
-                <div className="relative">
-                  <img
-                    src="http://static.photos/education/200x200/20"
-                    alt="Guild Banner"
-                    className="w-32 h-32 rounded-lg"
-                  />
-                  <div className="absolute bottom-0 left-0 bg-yellow-500 text-white px-3 py-1 rounded-r-full text-xs">
-                    Active Guild
-                  </div>
+                  {membership?.role_in_guild && (
+                    <div className="mt-2 inline-flex items-center gap-2">
+                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-semibold">
+                        {membership.role_in_guild}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Joined{" "}
+                        {membership?.joined_at
+                          ? new Date(membership.joined_at).toLocaleDateString()
+                          : "—"}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="ml-6">
-                  <p className="text-gray-700 mb-2">
-                    Joined:{" "}
-                    <span className="font-semibold">
-                      {membership?.joined_at
-                        ? new Date(membership.joined_at).toLocaleDateString()
-                        : "—"}
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 min-w-[220px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-gray-600">
+                      Guild Power
                     </span>
-                  </p>
-
-                  <p className="text-gray-700 mb-2">
-                    Members:{" "}
-                    <span className="font-semibold">
-                      {rosterLoading ? "…" : roster.length}
+                    <span className="text-sm font-bold text-gray-900">
+                      {guildPower}
                     </span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-gray-600">
+                      Guild Hearts
+                    </span>
+                    <span className="text-sm font-bold text-gray-900">
+                      {guildHearts}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-[11px] text-gray-500">
+                    (Not implemented yet)
                   </p>
                 </div>
               </div>
 
               <h3 className="text-lg font-medium mb-4 text-gray-800">
-                Current Members
+                Members
               </h3>
 
               {rosterError && (
@@ -531,8 +577,8 @@ const GuildPage: React.FC = () => {
 
                 {!rosterLoading &&
                   roster.map((m) => {
-                    // ✅ ONLY show display name (never show id)
-                    const displayName = nameByStudentId[m.student_id] ?? "Loading…";
+                    const displayName =
+                      nameByStudentId[m.student_id] ?? "Loading…";
 
                     return (
                       <div
@@ -572,202 +618,17 @@ const GuildPage: React.FC = () => {
                       </div>
                     );
                   })}
+
+                {!rosterLoading && myGuildId && roster.length === 0 && (
+                  <div className="text-gray-600">
+                    No members found for this guild.
+                  </div>
+                )}
               </div>
             </>
           )}
         </div>
-
-        {/* Browse / Join Guilds */}
-        <div className="bg-white/90 rounded-xl shadow-lg p-6 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800">
-              Browse Guilds in Your Class
-            </h2>
-            {guildsLoading && (
-              <span className="text-sm text-gray-600">Loading…</span>
-            )}
-          </div>
-
-          {!guildsLoading && guilds.length === 0 && (
-            <p className="text-gray-700">
-              No guilds yet. Be the first to create one!
-            </p>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {guilds.map((g) => {
-              const joined = myGuildId === g.guild_id;
-              const inSomeGuild = !!myGuildId;
-
-              return (
-                <div
-                  key={g.guild_id}
-                  className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-bold text-gray-800">{g.name}</h3>
-                    </div>
-
-                    {joined ? (
-                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-semibold">
-                        Joined
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleJoinGuild(g.guild_id)}
-                        className={`text-sm font-semibold py-2 px-3 rounded-lg ${
-                          inSomeGuild
-                            ? "bg-amber-600 hover:bg-amber-700 text-white"
-                            : "bg-blue-700 hover:bg-blue-800 text-white"
-                        }`}
-                        title={
-                          inSomeGuild
-                            ? "This will switch your guild."
-                            : "Join this guild."
-                        }
-                      >
-                        {inSomeGuild ? "Switch" : "Join"}
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="mt-3 flex justify-between">
-                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                      {g.is_active ? "Active" : "Inactive"}
-                    </span>
-                    <span className="text-xs text-gray-600">
-                      Created {new Date(g.created_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Top Guilds */}
-        <div className="bg-white/90 rounded-xl shadow-lg p-6">
-          <h2 className="text-xl font-bold mb-4 text-gray-800">Top Guilds</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Rank
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Guild
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {topGuilds.map((g, idx) => (
-                  <tr key={g.guild_id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">
-                      {idx + 1}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="font-medium text-gray-800">
-                        {g.name}
-                        {myGuildId === g.guild_id && (
-                          <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-semibold">
-                            Your Guild
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                      {new Date(g.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                      {g.is_active ? "Active" : "Inactive"}
-                    </td>
-                  </tr>
-                ))}
-
-                {!guildsLoading && topGuilds.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-6 py-8 text-center text-gray-500"
-                    >
-                      No guilds yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
       </div>
-
-      {/* Create Modal */}
-      {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">Create Guild</h2>
-              <button
-                onClick={() => {
-                  setShowCreate(false);
-                  setCreateError(null);
-                }}
-                className="text-gray-500 hover:text-gray-800"
-              >
-                <i data-feather="x" className="w-5 h-5" />
-              </button>
-            </div>
-
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Guild Name
-            </label>
-            <input
-              value={newGuildName}
-              onChange={(e) => setNewGuildName(e.target.value)}
-              placeholder="e.g. Dragon Slayers"
-              className="w-full bg-white text-black placeholder-gray-400 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600"
-            />
-
-            {createError && (
-              <div className="mt-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">
-                {createError}
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowCreate(false);
-                  setCreateError(null);
-                }}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50"
-                disabled={createLoading}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateGuild}
-                className="px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 text-white font-semibold disabled:opacity-60"
-                disabled={createLoading}
-              >
-                {createLoading ? "Creating..." : "Create"}
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-500 mt-4">
-              Creates guild in class <span className="font-mono">{classId}</span>{" "}
-              and auto-joins you as <span className="font-semibold">LEADER</span>.
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
