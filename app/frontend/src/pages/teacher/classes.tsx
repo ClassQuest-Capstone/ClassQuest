@@ -403,17 +403,30 @@ const Classes = () => {
 
                   {/* Buttons */}
                   <div className="grid grid-cols-2 gap-2">
-                    <button
-                      className="bg-green-600 hover:bg-green-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
-                      onClick={() =>
-                        navigate(
-                          `/students?classCode=${encodeURIComponent(c.join_code)}`
-                        )
-                      }
-                    >
-                      <i data-feather="users" className="mr-1 w-4 h-4"></i>{" "}
-                      Students
-                    </button>
+                  <button
+                    className="bg-green-600 hover:bg-green-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
+                    onClick={() =>
+                      navigate(
+                        `/students?classCode=${encodeURIComponent(c.join_code)}`
+                      )
+                    }
+                  >
+                    <i data-feather="users" className="mr-1 w-4 h-4"></i>{" "}
+                    Students
+                  </button>
+
+                  {/* ✅ NEW Guilds button */}
+                  <button
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
+                    onClick={() =>
+                      navigate("/teacherGuilds", {
+                        state: { class_id: c.class_id, className: c.name },
+                      })
+                    }
+                  >
+                    <i data-feather="shield" className="mr-1 w-4 h-4"></i>{" "}
+                    Guilds
+                  </button>
 
                     <button
                       className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"

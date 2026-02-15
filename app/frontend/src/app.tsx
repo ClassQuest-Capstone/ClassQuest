@@ -21,6 +21,7 @@ import Guild from "./pages/students/guilds.js";
 import StudentShop from "./pages/students/studentshop.js";
 import Profile from "./pages/teacher/profile.js";
 import Welcome from "./pages/students/welcome.js";
+import TeacherGuilds from "./pages/teacher/teacherGuilds.js";
 
 // -------------- api test component --------------
 import ApiSmoke from "./pages/api/ApiSmoke.js";
@@ -77,7 +78,7 @@ export default function App() {
         <Route path="/guilds" element={<Guild />} />
         <Route path="/shop" element={<StudentShop />} />
         <Route path="/welcome" element={<Welcome />} />
-
+        <Route path="/teacherGuilds" element={<TeacherGuilds />} />
         {/* Optional fallback */}
         <Route path="*" element={<Home />} />
       </Routes>
