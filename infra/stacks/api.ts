@@ -1,5 +1,7 @@
 import { StackContext, Api } from "sst/constructs";
 import type { Table } from "sst/constructs";
+import type * as cognito from "aws-cdk-lib/aws-cognito";
+import * as iam from "aws-cdk-lib/aws-iam";
 
 // file focused: routes + shared defaults only.
 export function createApi(
@@ -18,7 +20,8 @@ export function createApi(
         playerStatesTable: Table;
         guildsTable: Table;
         guildMembershipsTable: Table;
-    }
+    },
+    userPool: cognito.UserPool
     ) {
     const api = new Api(stack, "HttpApi", {
         cors: {
@@ -40,6 +43,7 @@ export function createApi(
         "GET /student-profiles/{student_id}": "packages/functions/src/student-profiles/get.handler",
         "PATCH /student-profiles/{student_id}": "packages/functions/src/student-profiles/update.handler",
         "GET /schools/{school_id}/students": "packages/functions/src/student-profiles/list-by-school.handler",
+        "POST /students/{student_id}/set-password": "packages/functions/src/student-profiles/set-password.handler",
             
 
         // TeacherProfiles
@@ -129,6 +133,7 @@ export function createApi(
             PLAYER_STATES_TABLE_NAME: tables.playerStatesTable.tableName,
             GUILDS_TABLE_NAME: tables.guildsTable.tableName,
             GUILD_MEMBERSHIPS_TABLE_NAME: tables.guildMembershipsTable.tableName,
+            USER_POOL_ID: userPool.userPoolId,
             },
         },
         },
@@ -149,6 +154,15 @@ export function createApi(
         tables.playerStatesTable,
         tables.guildsTable,
         tables.guildMembershipsTable,
+        // Cognito permissions for password management and user attribute updates
+        new iam.PolicyStatement({
+            actions: [
+                "cognito-idp:AdminSetUserPassword",
+                "cognito-idp:AdminUpdateUserAttributes",
+                "cognito-idp:AdminGetUser",
+            ],
+            resources: [userPool.userPoolArn],
+        }),
     ]);
 
     return api;

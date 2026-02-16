@@ -8,11 +8,19 @@ if (!API_URL) {
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+    // TODO: Implement JWT token retrieval from AWS Amplify session
+    // Example:
+    // import { fetchAuthSession } from 'aws-amplify/auth';
+    // const session = await fetchAuthSession();
+    // const token = session.tokens?.idToken?.toString();
+
     const res = await fetch(`${API_URL}${path}`, {
         ...init,
         headers: {
         ...(init.headers || {}),
         "content-type": "application/json",
+        // TODO: Uncomment when frontend is ready to send JWT
+        // ...(token && { "authorization": `Bearer ${token}` }),
         },
     });
 

@@ -12,17 +12,14 @@ export function ClassQuestStack(ctx: StackContext) {
 
     const { userPool, userPoolClient } = createAuth(ctx, tables.usersTable);
 
-    const api = createApi(stack, tables);
+    const api = createApi(stack, tables, userPool);
 
     stack.addOutputs({
         ApiUrl: api.url,
         Region: stack.region,
         UserPoolId: userPool.userPoolId,
         UserPoolClientId: userPoolClient.userPoolClientId,
-        QuestQuestionResponsesTableName: tables.questQuestionResponsesTable.tableName,
-        PlayerStatesTableName: tables.playerStatesTable.tableName,
-        GuildsTableName: tables.guildsTable.tableName,
-        GuildMembershipsTableName: tables.guildMembershipsTable.tableName,
+        
     });
 
     return { assetsBucket, userPool, userPoolClient, ...tables, api };

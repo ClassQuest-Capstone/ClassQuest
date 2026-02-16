@@ -37,8 +37,9 @@ export async function getStudentProfile(student_id: string): Promise<StudentProf
 }
 
 export async function updateStudentProfile(
-    student_id: string, 
-    updates: { display_name?: string; username?: string }
+    student_id: string,
+    updates: { display_name?: string; username?: string },
+    currentUsername?: string  // For conditional check to prevent race conditions
 ): Promise<StudentProfileItem | null> {
     const updateExpressions: string[] = [];
     const expressionAttributeNames: Record<string, string> = {};
@@ -53,7 +54,8 @@ export async function updateStudentProfile(
     if (updates.username !== undefined) {
         updateExpressions.push("#username = :username");
         expressionAttributeNames["#username"] = "username";
-        expressionAttributeValues[":username"] = updates.username;
+        // Normalize username to lowercase for case-insensitive storage
+        expressionAttributeValues[":username"] = updates.username.toLowerCase();
     }
 
     if (updateExpressions.length === 0) {
@@ -65,11 +67,20 @@ export async function updateStudentProfile(
     expressionAttributeNames["#updated_at"] = "updated_at";
     expressionAttributeValues[":updated_at"] = new Date().toISOString();
 
+    // Build condition expression to prevent race conditions
+    let conditionExpression = "attribute_exists(student_id)";
+    if (updates.username !== undefined && currentUsername) {
+        // Ensure username hasn't changed since we checked it
+        conditionExpression += " AND #username = :current_username";
+        expressionAttributeValues[":current_username"] = currentUsername.toLowerCase();
+    }
+
     const res = await ddb.send(
         new UpdateCommand({
             TableName: TABLE,
             Key: { student_id },
             UpdateExpression: `SET ${updateExpressions.join(", ")}`,
+            ConditionExpression: conditionExpression,
             ExpressionAttributeNames: expressionAttributeNames,
             ExpressionAttributeValues: expressionAttributeValues,
             ReturnValues: "ALL_NEW",
@@ -77,6 +88,25 @@ export async function updateStudentProfile(
     );
 
     return (res.Attributes as StudentProfileItem) ?? null;
+}
+
+/**
+ * Query student profile by username (GSI2)
+ * Used for username uniqueness checks
+ * @param username Username to search for (case-insensitive)
+ * @returns StudentProfileItem or null if not found
+ */
+export async function getStudentProfileByUsername(username: string): Promise<StudentProfileItem | null> {
+    const res = await ddb.send(
+        new QueryCommand({
+            TableName: TABLE,
+            IndexName: "gsi2",
+            KeyConditionExpression: "username = :username",
+            ExpressionAttributeValues: { ":username": username.toLowerCase() },
+            Limit: 1,
+        })
+    );
+    return (res.Items?.[0] as StudentProfileItem) ?? null;
 }
 
 export async function listStudentsBySchool(school_id: string): Promise<StudentProfileItem[]> {

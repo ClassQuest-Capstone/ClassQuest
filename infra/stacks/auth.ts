@@ -25,7 +25,7 @@ export const GROUPS = {
         
 
         passwordPolicy: {
-            minLength: 8,
+            minLength: 6,
             requireDigits: true,
             requireLowercase: true,
             requireUppercase: true,
