@@ -149,12 +149,12 @@ const Students = () => {
               username: profile.username,
               displayName: profile.display_name,
               password: "",
-              xp: playerState.current_xp ?? 0,
+              xp: playerState.total_xp_earned ?? 0,
               gold: playerState.gold ?? 0,
               originalUsername: profile.username,
               originalDisplayName: profile.display_name,
               originalPassword: "",
-              originalXp: playerState.current_xp ?? 0,
+              originalXp: playerState.total_xp_earned ?? 0,
               originalGold: playerState.gold ?? 0,
               isLoading: false,
             };
@@ -292,8 +292,8 @@ const Students = () => {
           getPlayerState(classId, s.id).then((state) =>
             upsertPlayerState(classId, s.id, {
               current_xp: s.xp !== s.originalXp ? s.xp : state.current_xp,
+              total_xp_earned: s.xp !== s.originalXp ? s.xp : state.total_xp_earned,
               xp_to_next_level: state.xp_to_next_level,
-              total_xp_earned: state.total_xp_earned,
               hearts: state.hearts,
               max_hearts: state.max_hearts,
               gold: s.gold !== s.originalGold ? s.gold : state.gold,

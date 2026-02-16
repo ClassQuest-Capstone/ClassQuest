@@ -118,6 +118,10 @@ TODO: system architecture diagram (DONE)
 
 TODO: fix sequence diagram (DONE)
 
+TODO: call the hearts regen function in characters and let it populate backend 
+
+TODO: look into XP not being added to students teacher management
+
 
 TODO: greyed out & invisible armours/ equipments
 

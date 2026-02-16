@@ -11,16 +11,10 @@ import { getGuildMembership } from "../../api/guildMemberships.js";
 import { HeartIcon as HeartSolid } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartOutline } from "@heroicons/react/24/outline";
 
-import {
-  listQuestInstancesByClass,
-  type QuestInstance,
-} from "../../api/questInstances";
+import { listQuestInstancesByClass, type QuestInstance, } from "../../api/questInstances.js";
 
 // ✅ use enrollments instead of student.class_id
-import {
-  getStudentEnrollments,
-  type EnrollmentItem,
-} from "../../api/classEnrollments";
+import { getStudentEnrollments, type EnrollmentItem, } from "../../api/classEnrollments.js";
 
 import { usePlayerProgression } from "../hooks/students/usePlayerProgression.js";
 
@@ -259,12 +253,30 @@ const CharacterPage: React.FC = () => {
     getRewardsWithStatus,
     getXPProgress,
     getMilestoneProgress,
+    regenerateHearts,
+    weekendReset,
   } = usePlayerProgression(studentId, classId || "");
 
   // Get current XP progress for bars
   const xpProgress = getXPProgress();
   const milestoneProgress = getMilestoneProgress();
   const rewards = getRewardsWithStatus();
+
+  // Check for heart regeneration every 60 seconds
+  useEffect(() => {
+    const heartRegenInterval = setInterval(() => {
+      regenerateHearts();
+    }, 60 * 1000);
+    return () => clearInterval(heartRegenInterval);
+  }, [regenerateHearts]);
+
+  // Check for weekend reset every hour
+  useEffect(() => {
+    const weekendResetInterval = setInterval(() => {
+      weekendReset();
+    }, 60 * 60 * 1000);
+    return () => clearInterval(weekendResetInterval);
+  }, [weekendReset]);
 
   // --------------------
   // ✅ Dynamic quests via enrollments (multi-class)
@@ -1186,9 +1198,18 @@ const CharacterPage: React.FC = () => {
                       <div className="text-3xl font-bold text-red-300 mt-4">
                         {profile.hearts} / {profile.maxHearts} Hearts
                       </div>
-                      <p className="text-gray-300 mt-2 text-sm">
-                        Hearts regenerate over time or reset during weekends.
-                      </p>
+                      
+                      {/* Regeneration info */}
+                      <div className="mt-6 space-y-3">
+                        {profile.lastHeartRegenAt && profile.hearts < profile.maxHearts && (
+                          <p className="text-yellow-300 text-sm">
+                            ⏱️ Next regen: <span className="font-semibold">~{Math.ceil((3* 60 * 60 * 1000 - (Date.now() - profile.lastHeartRegenAt)) / (60 * 1000))} minutes</span>
+                          </p>
+                        )}
+                        <p className="text-blue-300 text-sm">
+                          📅 <span className="font-semibold">Weekend reset:</span> Full hearts every Saturday at midnight
+                        </p>
+                      </div>
                     </div>
 
                     {/* Hearts tips */}
@@ -1197,7 +1218,7 @@ const CharacterPage: React.FC = () => {
                         <h3 className="font-bold text-red-300 mb-2">How Hearts Work</h3>
                         <ul className="text-sm text-gray-300 space-y-2">
                           <li>• Lose a heart when you get a question wrong</li>
-                          <li>• Hearts regenerate after 1 hour</li>
+                          <li>• 💚 Hearts regenerate every 3 hours</li>
                         </ul>
                       </div>
 

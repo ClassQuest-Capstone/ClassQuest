@@ -16,6 +16,7 @@ export interface PlayerProfile {
   unlockedRewards: number[]; // reward levels
   purchasedRewards: number[];
   equippedItems: Record<string, string | null>;
+  lastHeartRegenAt?: number; // timestamp of last heart regeneration
 }
 
 export interface Reward {
@@ -145,6 +146,7 @@ export const usePlayerProgression = (
     unlockedRewards: [],
     purchasedRewards: [],
     equippedItems: {},
+    lastHeartRegenAt: Date.now(),
   });
 
   const [loading, setLoading] = useState(false);
@@ -303,7 +305,7 @@ export const usePlayerProgression = (
   }, [profile.level]);
 
   /**
-   * Equip an item
+   * Equip an item in a slot (armors only for now, but can be expanded later)
    */
   const equipItem = useCallback((slot: string, itemId: string | null) => {
     setProfile((prev) => ({
@@ -314,6 +316,100 @@ export const usePlayerProgression = (
       },
     }));
   }, []);
+
+/**
+ * Regenerate hearts
+ * 1 heart regenerates every 3 hours until maxHearts is reached
+ */
+  const regenerateHearts = useCallback(async () => {
+    const now = Date.now();
+    const THREE_HOURS_MS = 3* 60 * 60 * 1000;
+    const lastRegenTime = profile.lastHeartRegenAt || now;
+
+    // Check if 3 hours have passed since last regen
+    if (now - lastRegenTime < THREE_HOURS_MS) {
+      return; // Not enough time has passed
+    }
+
+    if (profile.hearts >= profile.maxHearts) {
+      return; // Already at max hearts
+    }
+
+    const newHearts = Math.min(profile.hearts + 1, profile.maxHearts);
+    const updatedProfile = {
+      ...profile,
+      hearts: newHearts,
+      lastHeartRegenAt: now,
+    };
+
+    setProfile(updatedProfile);
+
+    // Save last regen time to localStorage
+    localStorage.setItem(`cq_lastHeartRegenAt_${studentId}_${classId}`, now.toString());
+
+    // Build the payload 
+    const xpToNextLevel = calculateTotalXPForLevel(updatedProfile.level + 1) - updatedProfile.totalXP;
+    const payload = {
+      current_xp: updatedProfile.currentXP,
+      xp_to_next_level: xpToNextLevel,
+      total_xp_earned: updatedProfile.totalXP,
+      hearts: newHearts,
+      max_hearts: updatedProfile.maxHearts,
+      gold: updatedProfile.gold,
+      status: "ALIVE" as const,
+    };
+
+    console.log("[regenerateHearts] Payload:", {
+      level: updatedProfile.level,
+      totalXP: updatedProfile.totalXP,
+      currentXP: updatedProfile.currentXP,
+      xpToNextLevel,
+      hearts: newHearts,
+      maxHearts: updatedProfile.maxHearts,
+      gold: updatedProfile.gold,
+    });
+
+    // Persist to backend using the updated values
+    try {
+      await upsertPlayerState(classId, studentId, payload);
+      console.log("[regenerateHearts] Successfully persisted!");
+    } catch (err) {
+      console.error("[regenerateHearts] Failed to persist heart regeneration:", err);
+    }
+  }, [profile, classId, studentId]);
+
+  /** 
+   * Weekend reset function to reset hearts to full every Saturday at midnight
+   */
+  const weekendReset = useCallback(async () => {
+    const now = new Date();
+    const dayOfWeek = now.getDay(); 
+    const hours = now.getHours();
+    if (dayOfWeek === 6 && hours === 0) {
+      const updatedProfile = {
+        ...profile,
+        hearts: profile.maxHearts,
+      };
+      
+      setProfile(updatedProfile);
+
+      // Persist the heart reset to backend - use calculateTotalXPForLevel for proper calculation
+      const xpToNextLevel = calculateTotalXPForLevel(updatedProfile.level + 1) - updatedProfile.totalXP;
+      try {
+        await upsertPlayerState(classId, studentId, {
+          current_xp: updatedProfile.currentXP,
+          xp_to_next_level: xpToNextLevel,
+          total_xp_earned: updatedProfile.totalXP,
+          hearts: updatedProfile.maxHearts,
+          max_hearts: updatedProfile.maxHearts,
+          gold: updatedProfile.gold,
+          status: "ALIVE" as const,
+        });
+      } catch (err) {
+        console.error("Failed to persist weekend heart reset:", err);
+      }
+    }
+  }, [profile, classId, studentId]);
 
   /**
    * Load player profile and state from backend on mount
@@ -373,6 +469,10 @@ export const usePlayerProgression = (
         const newLevel = getLevelFromXP(playerState.total_xp_earned);
         const newUnlockedRewards = getUnlockedRewardsForLevel(newLevel);
 
+        // Use localStorage to persist last regen time across page refreshes
+        const savedLastRegenAt = localStorage.getItem(`cq_lastHeartRegenAt_${studentId}_${classId}`);
+        const lastRegenAt = savedLastRegenAt ? parseInt(savedLastRegenAt, 10) : Date.now();
+
         setProfile({
           studentId,
           classId,
@@ -386,7 +486,11 @@ export const usePlayerProgression = (
           unlockedRewards: newUnlockedRewards,
           purchasedRewards: [],
           equippedItems: {},
+          lastHeartRegenAt: lastRegenAt,
         });
+
+        // Save to localStorage
+        localStorage.setItem(`cq_lastHeartRegenAt_${studentId}_${classId}`, lastRegenAt.toString());
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load player profile";
         setError(message);
@@ -410,5 +514,7 @@ export const usePlayerProgression = (
     getXPProgress,
     getMilestoneProgress,
     equipItem,
+    regenerateHearts,
+    weekendReset,
   };
 };
