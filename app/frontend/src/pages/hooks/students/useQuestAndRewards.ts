@@ -3,8 +3,8 @@ import { usePlayerProgression } from "./usePlayerProgression.ts";
 /**
  * Hook usage for gaining XP and leveling up
  */
-export function useQuestCompletion() {
-  const { profile, gainXP } = usePlayerProgression();
+export function useQuestCompletion(studentId: string, classId: string) {
+  const { profile, gainXP } = usePlayerProgression(studentId, classId);
 
   const completeQuest = async (questId: string) => {
     try {
@@ -46,23 +46,13 @@ export function useQuestCompletion() {
 /**
  * Hook usage for purchasing rewards
  */
-export function useRewardPurchase() {
-  const { profile, purchaseReward, getRewardsWithStatus } = usePlayerProgression();
-  const rewards = getRewardsWithStatus();
-
-  const buyReward = async (rewardLevel: number) => {
-    try {
-      const result = await purchaseReward(rewardLevel);
-      console.log(`Reward purchased! Gold remaining: ${result.goldRemaining}`);
-      return result;
-    } catch (error) {
-      console.error("Purchase failed:", error);
-    }
-  };
+export function useRewardPurchase(studentId: string, classId: string) {
+  const { profile, purchaseReward, getRewardsWithStatus } = usePlayerProgression(studentId, classId);
+     
 
   return {
     profile,
-    rewards,
-    buyReward,
+    purchaseReward,
+    getRewardsWithStatus,
   };
 }

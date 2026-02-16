@@ -4,9 +4,9 @@ import { Link, Navigate, useLocation } from "react-router-dom";
 import feather from "feather-icons";
 import { fetchAuthSession } from "aws-amplify/auth";
 
-import { getTeacherProfile } from "../../api/teacherProfiles";
-import { listClassesByTeacher, type ClassItem } from "../../api/classes";
-import { createGuild, listGuildsByClass, type Guild } from "../../api/guilds";
+import { getTeacherProfile } from "../../api/teacherProfiles.js";
+import { listClassesByTeacher, type ClassItem } from "../../api/classes.js";
+import { createGuild, listGuildsByClass, type Guild } from "../../api/guilds.js";
 
 import {
   getGuildMembership,
@@ -14,10 +14,10 @@ import {
   listGuildMembers,
   leaveGuild,
   type GuildMembership,
-} from "../../api/guildMemberships";
+} from "../../api/guildMemberships.js";
 
-import { getClassEnrollments, type EnrollmentItem } from "../../api/classEnrollments";
-import { listStudentsBySchool, type StudentProfile } from "../../api/studentProfiles";
+import { getClassEnrollments, type EnrollmentItem } from "../../api/classEnrollments.js";
+import { listStudentsBySchool, type StudentProfile } from "../../api/studentProfiles.js";
 
 // --------------------
 // Teacher types / context
@@ -520,7 +520,7 @@ const TeacherGuilds = () => {
         {/* Header */}
         <div className="flex flex-wrap gap-4 justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-indigo-800">Guild Management</h1>
+            <h1 className="text-3xl font-bold text-yellow-300">Guild Management</h1>
             <p className="text-white">Create guilds for a class and assign students into teams.</p>
           </div>
 

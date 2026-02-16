@@ -1,20 +1,18 @@
 import { useState, useCallback, useEffect } from "react";
+import { getPlayerState, upsertPlayerState, type PlayerState } from "../../../api/playerStates.js";
+import { getStudentProfile, type StudentProfile } from "../../../api/studentProfiles.js";
 
 // Types
-export interface PlayerStats {
-  hp: number;
-  strength: number;
-  intelligence: number;
-  speed: number;
-}
-
 export interface PlayerProfile {
   studentId: string;
+  classId: string;
+  displayName: string;
   level: number;
   totalXP: number;
   currentXP: number;
   gold: number;
-  stats: PlayerStats;
+  hearts: number;
+  maxHearts: number;
   unlockedRewards: number[]; // reward levels
   purchasedRewards: number[];
   equippedItems: Record<string, string | null>;
@@ -33,10 +31,6 @@ export interface Reward {
 const BASE_XP_FOR_LEVEL_2 = 500; // XP needed to reach level 2
 const XP_INCREASE_PER_LEVEL = 100; // Each level requires +100 more XP
 const MAX_LEVEL = 30;
-const BASE_HP = 20;
-const HP_PER_LEVEL = 5;
-const STAT_CAP = 100;
-const MAX_STAT_POINTS_PER_LEVEL = 5;
 
 // Reward milestones
 export const REWARD_MILESTONES: Reward[] = [
@@ -132,51 +126,26 @@ export const getXPIntoLevel = (totalXP: number): number => {
 };
 
 /**
- * Calculate HP based on level
- */
-export const calculateHP = (level: number): number => {
-  return BASE_HP + HP_PER_LEVEL * level;
-};
-
-/**
- * Calculate stat progression (scales gradually from 0 to 100)
- * Formula: (level / MAX_LEVEL) * STAT_CAP
- */
-export const calculateStat = (level: number): number => {
-  return Math.min((level / MAX_LEVEL) * STAT_CAP, STAT_CAP);
-};
-
-/**
- * Initialize or update player stats based on level
- */
-export const calculateStats = (level: number): PlayerStats => {
-  const baseStat = calculateStat(level);
-
-  return {
-    hp: calculateHP(level),
-    strength: Math.round(baseStat),
-    intelligence: Math.round(baseStat),
-    speed: Math.round(baseStat),
-  };
-};
-
-/**
  * Main hook for player progression
  */
 export const usePlayerProgression = (
-  initialProfile?: Partial<PlayerProfile>
+  studentId: string,
+  classId: string
 ) => {
-  const [profile, setProfile] = useState<PlayerProfile>(() => ({
-    studentId: initialProfile?.studentId || "student-001",
-    level: initialProfile?.level || 1,
-    totalXP: initialProfile?.totalXP || 0,
-    currentXP: initialProfile?.currentXP || 0,
-    gold: initialProfile?.gold || 0,
-    stats: initialProfile?.stats || calculateStats(1),
-    unlockedRewards: initialProfile?.unlockedRewards || [],
-    purchasedRewards: initialProfile?.purchasedRewards || [],
-    equippedItems: initialProfile?.equippedItems || {},
-  }));
+  const [profile, setProfile] = useState<PlayerProfile>({
+    studentId,
+    classId,
+    displayName: "",
+    level: 1,
+    totalXP: 0,
+    currentXP: 0,
+    gold: 0,
+    hearts: 0,
+    maxHearts: 5,
+    unlockedRewards: [],
+    purchasedRewards: [],
+    equippedItems: {},
+  });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -191,9 +160,8 @@ export const usePlayerProgression = (
 
       try {
         const goldGain = source === "quest" ? 30 : 100;
-        const newTotalXP = profile.totalXP + amount; // update XP earned (FOR MY SELF)
+        const newTotalXP = profile.totalXP + amount;
         const newLevel = getLevelFromXP(newTotalXP);
-        const newStats = calculateStats(newLevel);
         const newUnlockedRewards = getUnlockedRewardsForLevel(newLevel);
 
         const updatedProfile: PlayerProfile = {
@@ -202,14 +170,10 @@ export const usePlayerProgression = (
           currentXP: getXPIntoLevel(newTotalXP),
           level: newLevel,
           gold: profile.gold + goldGain,
-          stats: newStats,
           unlockedRewards: [
             ...new Set([...profile.unlockedRewards, ...newUnlockedRewards]),
           ],
         };
-
-        // TODO: Call backend API to persist
-        // await updatePlayerBackend(profile.studentId, updatedProfile);
 
         setProfile(updatedProfile);
 
@@ -273,9 +237,6 @@ export const usePlayerProgression = (
           purchasedRewards: [...profile.purchasedRewards, rewardLevel],
         };
 
-        // TODO: Call backend API to persist
-        // await purchaseRewardBackend(profile.studentId, rewardLevel);
-
         setProfile(updatedProfile);
         return { success: true, goldRemaining: updatedProfile.gold };
       } catch (err) {
@@ -301,7 +262,7 @@ export const usePlayerProgression = (
   }, [profile.unlockedRewards, profile.purchasedRewards]);
 
   /**
-   * Get current XP progress for level bar
+   * Get current XP progress for level bar (total_xp_earned used for level calculation, current_xp used for progress within level)
    */
   const getXPProgress = useCallback((): {
     current: number;
@@ -355,33 +316,89 @@ export const usePlayerProgression = (
   }, []);
 
   /**
-   * Load player profile (e.g., from backend)
+   * Load player profile and state from backend on mount
    */
-  const loadProfile = useCallback(
-    async (studentId: string) => {
+  useEffect(() => {
+    // Only fetch if both studentId and classId are valid
+    if (!studentId || !classId) {
+      return;
+    }
+
+    const initializeProfile = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        // TODO: Replace with actual backend call
-        // const data = await fetchPlayerProfile(studentId);
-        // setProfile(data);
+        // Fetch student profile for display name
+        const studentProfile = await getStudentProfile(studentId);
+        
+        // Try to fetch player state for XP, gold, hearts
+        let playerState: PlayerState;
 
-        // For now, just set the studentId
-        setProfile((prev) => ({
-          ...prev,
+        try {
+          playerState = await getPlayerState(classId, studentId);
+        } catch (fetchError: any) {
+          // If player state doesn't exist, backend returns an error like "Player state not found" or HTTP 404 
+          const msg =
+            typeof fetchError?.message === "string"
+              ? fetchError.message.toLowerCase()
+              : "";
+
+          if (
+            msg.includes("player state not found") ||
+            msg.includes("http 404") ||
+            msg.includes("404")
+          ) {
+            const defaultState = {
+              current_xp: 0,
+              xp_to_next_level: BASE_XP_FOR_LEVEL_2,
+              total_xp_earned: 0,
+              hearts: 5,
+              max_hearts: 5,
+              gold: 0,
+              status: "ALIVE" as const,
+            };
+
+            // Upsert the new player state
+            await upsertPlayerState(classId, studentId, defaultState);
+
+            // Fetch it back to get the full object with metadata
+            playerState = await getPlayerState(classId, studentId);
+          } else {
+            // Re-throw if it's a different error
+            throw fetchError;
+          }
+        }
+
+        const newLevel = getLevelFromXP(playerState.total_xp_earned);
+        const newUnlockedRewards = getUnlockedRewardsForLevel(newLevel);
+
+        setProfile({
           studentId,
-        }));
+          classId,
+          displayName: studentProfile.display_name || "",
+          level: newLevel,
+          totalXP: playerState.total_xp_earned,
+          currentXP: playerState.current_xp,
+          gold: playerState.gold,
+          hearts: playerState.hearts,
+          maxHearts: playerState.max_hearts,
+          unlockedRewards: newUnlockedRewards,
+          purchasedRewards: [],
+          equippedItems: {},
+        });
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Unknown error";
+        const message = err instanceof Error ? err.message : "Failed to load player profile";
         setError(message);
-        throw err;
+        console.error("Player progression initialization error:", err);
+        // Keep initial state on error
       } finally {
         setLoading(false);
       }
-    },
-    []
-  );
+    };
+
+    initializeProfile();
+  }, [studentId, classId]);
 
   return {
     profile,
@@ -393,6 +410,5 @@ export const usePlayerProgression = (
     getXPProgress,
     getMilestoneProgress,
     equipItem,
-    loadProfile,
   };
 };

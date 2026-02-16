@@ -179,13 +179,10 @@ const GuildPage: React.FC = () => {
     feather.replace();
   }, []);
 
-  const { profile } = usePlayerProgression({
-    studentId: studentId ?? "unknown-student",
-    level: 1,
-    totalXP: 300,
-    gold: 0,
-    stats: { hp: 55, strength: 17, intelligence: 17, speed: 17 },
-  });
+  const { profile } = usePlayerProgression(
+    studentId || "",
+    classId || ""
+  );
 
   const pageBg =
     "min-h-screen bg-cover bg-center bg-fixed bg-no-repeat bg-gray-900";

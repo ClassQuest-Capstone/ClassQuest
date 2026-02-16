@@ -117,7 +117,7 @@ const TeacherDashboard = () => {
     { icon: "book", label: "Classes", href: "/classes" },
     { icon: "briefcase", label: "Quest Management", href: "/subjects" },
     { icon: "clock", label: "Activity", href: "/Activity" }, // matches app.tsx
-    { icon: "shield", label: "Guilds", href: "/" },
+    { icon: "shield", label: "Guilds", href: "/teacherGuilds" },
     { icon: "user", label: "Profile", href: "/profile" },
   ];
 

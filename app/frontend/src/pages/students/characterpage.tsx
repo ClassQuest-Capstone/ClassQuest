@@ -6,6 +6,10 @@ import "../../styles/character.css";
 import { TutorialProvider } from "../components/tutorial/contextStudent.tsx";
 import { TutorialIntroModal } from "../components/tutorial/introModalStudent.tsx";
 import { TutorialOverlay } from "../components/tutorial/overlayStudent.tsx";
+import { getGuild as apiGetGuild, type Guild } from "../../api/guilds.js";
+import { getGuildMembership } from "../../api/guildMemberships.js";
+import { HeartIcon as HeartSolid } from "@heroicons/react/24/solid";
+import { HeartIcon as HeartOutline } from "@heroicons/react/24/outline";
 
 import {
   listQuestInstancesByClass,
@@ -109,7 +113,7 @@ const INITIAL_INVENTORY: EquipmentItem[] = [
 // --------------------
 // Tabs + Rewards helpers
 // --------------------
-type TabKey = "quests" | "subjects" | "rewards";
+type TabKey = "quests" | "subjects" | "rewards" | "hearts";
 
 // Subject color mapping
 const SUBJECT_COLORS = {
@@ -222,7 +226,32 @@ const CharacterPage: React.FC = () => {
   const displayName = student.displayName ?? "Student";
   const avatarUrl = student.avatarUrl ?? "http://static.photos/people/200x200/8";
 
-  // ✅ Player progression uses the real studentId now
+  // Track class_id for player progression hook
+  const [classId, setClassId] = useState<string | null>(
+    student.class_id || localStorage.getItem("cq_currentClassId")
+  );
+
+  // Fetch first active class enrollment to get classId if not already set
+  useEffect(() => {
+    if (!studentId || classId) return; // Skip if classId is already set
+
+    (async () => {
+      try {
+        const enr = await getStudentEnrollments(studentId);
+        const activeEnrollment = (enr.items || []).find(
+          (e: EnrollmentItem) => e.status === "active"
+        );
+        if (activeEnrollment?.class_id) {
+          setClassId(activeEnrollment.class_id);
+          localStorage.setItem("cq_currentClassId", activeEnrollment.class_id);
+        }
+      } catch (err) {
+        console.error("Failed to fetch enrollments:", err);
+      }
+    })();
+  }, [studentId, classId]);
+
+  // Player progression fetches from player state and student profile
   const {
     profile,
     gainXP,
@@ -230,19 +259,7 @@ const CharacterPage: React.FC = () => {
     getRewardsWithStatus,
     getXPProgress,
     getMilestoneProgress,
-  } = usePlayerProgression({
-    studentId,
-    // keep defaults if your hook expects them, but studentId is real
-    level: 1,
-    totalXP: 0,
-    gold: 0,
-    stats: {
-      hp: 55,
-      strength: 17,
-      intelligence: 17,
-      speed: 17,
-    },
-  });
+  } = usePlayerProgression(studentId, classId || "");
 
   // Get current XP progress for bars
   const xpProgress = getXPProgress();
@@ -255,6 +272,7 @@ const CharacterPage: React.FC = () => {
   const [quests, setQuests] = useState<UIQuest[]>([]);
   const [questsLoading, setQuestsLoading] = useState(false);
   const [questsError, setQuestsError] = useState<string | null>(null);
+  const [myGuild, setMyGuild] = useState<Guild | null>(null);
 
   useEffect(() => {
     if (!studentId) return;
@@ -352,6 +370,44 @@ const CharacterPage: React.FC = () => {
         setQuests([]);
       } finally {
         setQuestsLoading(false);
+      }
+    })();
+  }, [studentId]);
+
+  // Fetch guild for the student
+  useEffect(() => {
+    if (!studentId) return;
+
+    (async () => {
+      try {
+        // Get the first active enrollment to get a class_id
+        const enr = await getStudentEnrollments(studentId);
+        const activeEnrollment = (enr.items || []).find(
+          (e: EnrollmentItem) => e.status === "active"
+        );
+
+        if (!activeEnrollment?.class_id) {
+          setMyGuild(null);
+          return;
+        }
+
+        // Get the student's guild membership in this class
+        const membership = await getGuildMembership(
+          activeEnrollment.class_id,
+          studentId
+        );
+
+        if (!membership?.guild_id) {
+          setMyGuild(null);
+          return;
+        }
+
+        // Fetch the guild details
+        const guild = await apiGetGuild(membership.guild_id);
+        setMyGuild(guild || null);
+      } catch (e: any) {
+        // Student not in a guild or API error
+        setMyGuild(null);
       }
     })();
   }, [studentId]);
@@ -572,10 +628,10 @@ const CharacterPage: React.FC = () => {
                 </span>
               </div>
 
-              {/* You can swap this later with real guild/class name */}
+              {/* Guild name*/}
               <div className="flex items-center bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2 rounded-full shadow-lg">
                 <i data-feather="users" className="mr-2 text-blue-200" />
-                <span className="font-bold text-white">My Class</span>
+                <span className="font-bold text-white">{myGuild?.name ?? "No Guild"}</span>
               </div>
             </div>
           </div>
@@ -803,135 +859,34 @@ const CharacterPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Stats + Skills + Tabs section */}
-            <div className="bg-gray-800 bg-opacity-80 rounded-lg p-6 mt-6">
+            {/* Hearts & tabs section*/}
+            <div className="bg-gray-800 bg-opacity-80 rounded-lg p-6 mt-6 ">
               <div className="w-full max-w-6xl mx-auto px-4">
-                <div className="grid grid-cols-2 gap-6">
-                  {/* Stats */}
-                  <div
-                    id="stats"
-                    className="bg-gray-800 bg-opacity-80 rounded-xl p-6 w-full"
-                  >
-                    <h3 className="text-xl font-bold text-center mb-4">
-                      {displayName}
-                    </h3>
-
-                    <div className="flex justify-center space-x-4 mb-6">
-                      <span className="text-yellow-400">Warrior</span>
-                      <span>|</span>
-                      <span>Grade</span>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="font-medium">Strength</span>
-                          <span>{profile.stats.strength}/100</span>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-2.5">
-                          <div
-                            className="bg-red-500 h-2.5 rounded-full"
-                            style={{ width: `${profile.stats.strength}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="font-medium">Intelligence</span>
-                          <span>{profile.stats.intelligence}/100</span>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-2.5">
-                          <div
-                            className="bg-blue-500 h-2.5 rounded-full"
-                            style={{ width: `${profile.stats.intelligence}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="font-medium">HP</span>
-                          <span>
-                            {profile.stats.hp}/{100 + profile.level * 5}
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-2.5">
-                          <div
-                            className="bg-green-500 h-2.5 rounded-full"
-                            style={{
-                              width: `${
-                                (profile.stats.hp / (100 + profile.level * 5)) * 100
-                              }%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="font-medium">Speed</span>
-                          <span>{profile.stats.speed}/100</span>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-2.5">
-                          <div
-                            className="bg-purple-500 h-2.5 rounded-full"
-                            style={{ width: `${profile.stats.speed}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
+                {/* Quick Hearts Display */}
+                <div className="flex items-center justify-center gap-2 mb-6 p-4 ">
+                  <span className="text-xl font-bold text-red-500">Hearts available:</span>
+                  <div className="flex gap-1">
+                    {[...Array(profile.maxHearts)].map((_, i) => (
+                      <span key={i}>
+                        {i < profile.hearts ? (
+                          <HeartSolid className="w-5 h-5 text-red-500" />
+                        ) : (
+                          <HeartOutline className="w-5 h-5 text-gray-600" />
+                        )}
+                      </span>
+                    ))}
                   </div>
-
-                  {/* Skills */}
-                  <div
-                    id="skills"
-                    className="bg-gray-800 bg-opacity-80 rounded-xl p-6 w-full"
-                  >
-                    <h2 className="text-2xl font-bold mb-6 text-yellow-400 text-center">
-                      Warrior Skills
-                    </h2>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-gray-900 rounded-lg p-4">
-                        <div className="flex items-center mb-3">
-                          <div className="bg-red-600 rounded-full p-2 mr-3">
-                            <i data-feather="zap" className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h4 className="font-medium">Equation Smash</h4>
-                            <p className="text-sm text-gray-400">Level 3</p>
-                          </div>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-2">
-                          <div className="bg-red-500 h-2 rounded-full" style={{ width: "60%" }} />
-                        </div>
-                      </div>
-
-                      <div className="bg-gray-900 rounded-lg p-4">
-                        <div className="flex items-center mb-3">
-                          <div className="bg-blue-600 rounded-full p-2 mr-3">
-                            <i data-feather="shield" className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h4 className="font-medium">Math Guard</h4>
-                            <p className="text-sm text-gray-400">Level 2</p>
-                          </div>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-2">
-                          <div className="bg-blue-500 h-2 rounded-full" style={{ width: "30%" }} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <span className="text-lg text-red-300 font-bold ml-0.1">
+                    {profile.hearts} / {profile.maxHearts}
+                  </span>
                 </div>
 
                 {/* --- TABS HEADER --- */}
                 <div className="mt-8 mb-6 flex flex-wrap gap-3 items-center justify-between">
                   <div id="footer" className="flex flex-wrap gap-3">
                     <TabButton value="quests" label="Active Quests" icon="flag" />
-                    <TabButton value="subjects" label="My Subjects" icon="grid" />
                     <TabButton value="rewards" label="Rewards" icon="gift" />
+                    <TabButton value="hearts" label="Hearts" icon="heart" />
                   </div>
 
                   <div className="text-sm text-gray-300 flex items-center gap-2">
@@ -1199,6 +1154,60 @@ const CharacterPage: React.FC = () => {
                             View
                           </button>
                         </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {tab === "hearts" && (
+                  <>
+                    <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-2xl font-bold text-red-400">
+                        Hearts
+                      </h2>
+                      <div className="text-sm text-gray-300">
+                        Use hearts to attempt quests & boss battles. Each failure costs a heart.
+                      </div>
+                    </div>
+
+                    {/* Hearts display */}
+                    <div className="bg-gray-900/60 border border-gray-700 rounded-xl p-8 mb-8 text-center">
+                      <div className="text-6xl mb-4">
+                        {[...Array(profile.maxHearts)].map((_, i) => (
+                          <span key={i} className="inline-block mx-2">
+                            {i < profile.hearts ? (
+                              <i data-feather="heart" className="w-12 h-12 text-red-500 fill-red-500 inline" />
+                            ) : (
+                              <i data-feather="heart" className="w-12 h-12 text-gray-600 inline" />
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="text-3xl font-bold text-red-300 mt-4">
+                        {profile.hearts} / {profile.maxHearts} Hearts
+                      </div>
+                      <p className="text-gray-300 mt-2 text-sm">
+                        Hearts regenerate over time or reset during weekends.
+                      </p>
+                    </div>
+
+                    {/* Hearts tips */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-gradient-to-r from-red-600/20 to-red-800/20 border border-red-600/50 rounded-lg p-4">
+                        <h3 className="font-bold text-red-300 mb-2">How Hearts Work</h3>
+                        <ul className="text-sm text-gray-300 space-y-2">
+                          <li>• Lose a heart when you get a question wrong</li>
+                          <li>• Hearts regenerate after 1 hour</li>
+                        </ul>
+                      </div>
+
+                      <div className="bg-gradient-to-r from-yellow-600/20 to-yellow-800/20 border border-yellow-600/50 rounded-lg p-4">
+                        <h3 className="font-bold text-yellow-300 mb-2">Perfect Attempt Bonus</h3>
+                        <ul className="text-sm text-gray-300 space-y-2">
+                          <li>✨ Complete a quest without losing any hearts</li>
+                          <li>✨ Increase your leaderboard score</li>
+                          
+                        </ul>
                       </div>
                     </div>
                   </>
