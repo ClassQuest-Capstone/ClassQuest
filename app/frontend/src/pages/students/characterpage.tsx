@@ -12,6 +12,7 @@ import { HeartIcon as HeartSolid } from "@heroicons/react/24/solid";
 import { HeartIcon as HeartOutline } from "@heroicons/react/24/outline";
 
 import { listQuestInstancesByClass, type QuestInstance, } from "../../api/questInstances.js";
+import { getResponsesByInstanceAndStudent } from "../../api/questQuestionResponses.js";
 
 // ✅ use enrollments instead of student.class_id
 import { getStudentEnrollments, type EnrollmentItem, } from "../../api/classEnrollments.js";
@@ -114,25 +115,25 @@ const SUBJECT_COLORS = {
   mathematics: {
     gradient: "from-blue-600 to-blue-800",
     text: "text-blue-100",
-    bar: "bg-blue-400",
+    bar: "bg-green-400",
     label: "Mathematics",
   },
   science: {
     gradient: "from-green-600 to-green-800",
     text: "text-green-100",
-    bar: "bg-green-400",
+    bar: "bg-blue-400",
     label: "Science",
   },
   history: {
     gradient: "from-red-600 to-red-800",
     text: "text-red-100",
-    bar: "bg-red-400",
+    bar: "bg-purple-400",
     label: "History",
   },
   ELA: {
     gradient: "from-purple-600 to-purple-800",
     text: "text-purple-100",
-    bar: "bg-purple-400",
+    bar: "bg-red-400",
     label: "ELA",
   },
 };
@@ -152,6 +153,21 @@ type UIQuest = {
   dueDate?: string | null;
   questTemplateId?: string | null;
 };
+
+// Format ISO date string to readable format (e.g., "Feb 27, 2:19 PM")
+function formatDueDate(dateString: string | null | undefined): string {
+  if (!dateString) return "";
+  try {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = date.toLocaleString('en-US', { month: 'short' });
+    const day = date.getDate();
+    const time = date.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return `${month}. ${day} ${year}, ${time}`;
+  } catch (e) {
+    return dateString;
+  }
+}
 
 // --------------------
 // Current student
@@ -353,28 +369,45 @@ const CharacterPage: React.FC = () => {
           }
         }
 
-        // 5) Convert to UI model
-        const ui: UIQuest[] = active.map((inst: QuestInstance) => {
-          const tmpl = inst.quest_template_id
-            ? templateMap.get(inst.quest_template_id)
-            : null;
+        // 5) Convert to UI model & fetch progress for each quest
+        const ui: UIQuest[] = await Promise.all(
+          active.map(async (inst: QuestInstance) => {
+            const tmple = inst.quest_template_id
+              ? templateMap.get(inst.quest_template_id)
+              : null;
 
-          const subjectKey = normalizeSubjectKey(tmpl?.subject);
+            const subjectKey = normalizeSubjectKey(tmple?.subject);
+            const total = Number(tmple?.question_count ?? 1) || 1;
 
-          return {
-            id: inst.quest_instance_id,
-            questTemplateId: inst.quest_template_id ?? null,
-            title: inst.title_override || tmpl?.title || "Quest",
-            description: inst.description_override || tmpl?.description || "",
-            subjectKey,
-            // progress not wired yet (needs quest attempt/progress table)
-            completed: 0,
-            total: Number(tmpl?.question_count ?? 1) || 1,
-            rewardText: safeStr(tmpl?.reward ?? ""),
-            action: "Start",
-            dueDate: inst.due_date ?? null,
-          };
-        });
+            // Fetch responses to calculate progress
+            let completed = 0;
+            try {
+              const responses = await getResponsesByInstanceAndStudent(
+                inst.quest_instance_id,
+                studentId
+              );
+              if (responses.ok) {
+                completed = responses.responses?.length ?? 0;
+              }
+            } catch (e) {
+              // If fetching responses fails, leave completed as 0
+              console.warn("Failed to fetch quest progress:", e);
+            }
+
+            return {
+              id: inst.quest_instance_id,
+              questTemplateId: inst.quest_template_id ?? null,
+              title: inst.title_override || tmple?.title || "Quest",
+              description: inst.description_override || tmple?.description || "",
+              subjectKey,
+              completed: Math.min(completed, total), // Cap at total
+              total,
+              rewardText: safeStr(tmple?.reward ?? ""),
+              action: completed >= total ? "Review" : "Continue",
+              dueDate: inst.due_date ?? null,
+            };
+          })
+        );
 
         setQuests(ui);
       } catch (e: any) {
@@ -976,7 +1009,7 @@ const CharacterPage: React.FC = () => {
                               <div className="flex justify-between items-center">
                                 <span className="text-yellow-300 text-sm">
                                   {quest.rewardText ||
-                                    (quest.dueDate ? `Due: ${quest.dueDate}` : "")}
+                                    (quest.dueDate ? `Due: ${formatDueDate(quest.dueDate)}` : "")}
                                 </span>
 
                                 <Link
@@ -1068,7 +1101,7 @@ const CharacterPage: React.FC = () => {
                                           <span className="text-yellow-300 font-medium">
                                             {quest.rewardText ||
                                               (quest.dueDate
-                                                ? `Due: ${quest.dueDate}`
+                                                ? `Due: ${formatDueDate(quest.dueDate)}`
                                                 : "")}
                                           </span>
 

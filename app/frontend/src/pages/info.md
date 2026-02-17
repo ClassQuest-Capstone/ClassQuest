@@ -83,7 +83,7 @@ Current TODO:
 3. Quest creation implementation (DONE)
 4. adding quests to students side (DONE)
 5. adding quests to teachers side (DONE)
-6. adding students to classes alongside their xp, gold and level to make this editable
+6. adding students to classes alongside their xp, gold and level to make this editable(Almost DONE)
 7. adding rewards to classes & creating custom rewards for classes
 8. 
 
@@ -97,7 +97,7 @@ Dynamic question generation / question pools (Future work)
 
 Dynamic profile syncing (Cognito → DynamoDB) (DONE)
 
-Dynamic UI components (React/Tailwind) (Done)
+Dynamic UI components (React/Tailwind) (DONE)
 
 
 Dynamic teacher dashboards (Almost done waiting on backend)
