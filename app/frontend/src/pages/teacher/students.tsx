@@ -5,7 +5,7 @@ import DropDownProfile from "../features/teacher/dropDownProfile.js";
 
 import { validateJoinCode } from "../../api/classes.js";
 import { getClassEnrollments, unenrollStudent } from "../../api/classEnrollments.js";
-import { getStudentProfile, updateStudentProfile } from "../../api/studentProfiles.js";
+import { getStudentProfile, updateStudentProfile, setStudentPassword } from "../../api/studentProfiles.js";
 import { getPlayerState, upsertPlayerState } from "../../api/playerStates.js";
 import xpIcon from "../../../dist/assets/icons/XP.png";
 
@@ -54,6 +54,7 @@ const Students = () => {
   const [unsavedChanges, setUnsavedChanges] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [classId, setClassId] = useState<string | null>(null);
+  const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
 
   //  read teacher
   const teacher = useMemo<CurrentUser | null>(() => {
@@ -234,6 +235,19 @@ const Students = () => {
     );
   };
 
+  // Toggle password visibility
+  const togglePasswordVisibility = (studentId: string) => {
+    setVisiblePasswords((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(studentId)) {
+        newSet.delete(studentId);
+      } else {
+        newSet.add(studentId);
+      }
+      return newSet;
+    });
+  };
+
   // Remove a student (unenroll from class)
   const handleRemoveStudent = async (studentId: string, enrollmentId: string) => {
     if (!confirm("Remove this student from the class?")) {
@@ -282,6 +296,14 @@ const Students = () => {
           })
         );
 
+      // update password (separately)
+      const passwordUpdate = updates
+        .filter((s) => s.password !== s.originalPassword)
+        .map((s) => {
+          console.log(`Updating password for ${s.id}`);
+          return setStudentPassword(s.id, s.password);
+        });
+
       // Update player states (XP and Gold)
       if (!classId) {
         throw new Error("Class ID not available");
@@ -303,7 +325,7 @@ const Students = () => {
         );
 
       // Execute all updates in parallel
-      await Promise.all([...profileUpdates, ...playerStateUpdates]);
+      await Promise.all([...profileUpdates, ...passwordUpdate, ...playerStateUpdates]);
 
       // Update original values to mark as saved
       setRows((prevRows) =>
@@ -538,21 +560,34 @@ const Students = () => {
                         )}
                       </td>
 
-                      {/* Password column TODO: get password from cognito */}
+                      {/* Password column */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         {s.error ? (
                           <span className="text-gray-400">—</span>
                         ) : (
-                          <input
-                            type="password"
-                            value={s.password}
-                            onChange={(e) =>
-                              updateStudentField(s.id, "password", e.target.value)
-                            }
-                            placeholder="••••••••"
-                            autoComplete="new-password"
-                            className="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
+                          <div className="flex items-center gap-2">
+                            <input
+                              type={visiblePasswords.has(s.id) ? "text" : "password"}
+                              value={s.password}
+                              onChange={(e) =>
+                                updateStudentField(s.id, "password", e.target.value)
+                              }
+                              placeholder="••••••••"
+                              autoComplete="new-password"
+                              className="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => togglePasswordVisibility(s.id)}
+                              className="text-gray-500 hover:text-gray-700"
+                              title={visiblePasswords.has(s.id) ? "Hide password" : "Show password"}
+                            >
+                              <i 
+                                data-feather={visiblePasswords.has(s.id) ? "eye-off" : "eye"}
+                                className="w-4 h-4"
+                              ></i>
+                            </button>
+                          </div>
                         )}
                       </td>
 

@@ -129,6 +129,8 @@ npx sst dev --stage local1
 
 pwd: Dev12345!
 
+pwd student: Student50!
+
 
 EXTRA TIME: (TODO:)
 
