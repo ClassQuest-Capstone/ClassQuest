@@ -118,10 +118,23 @@ TODO: system architecture diagram (DONE)
 
 TODO: fix sequence diagram (DONE)
 
-TODO: call the hearts regen function in characters and let it populate backend 
+SCRUM NOTES
 
-TODO: look into XP not being added to students teacher management
+TODO: Student management page (teachers) & integration with backend (DONE)
 
+TODO: call the hearts regen function in characters and let it populate backend (DONE)
+
+TODO: look into XP not being added to students teacher management (DONE)
+
+TODO: Active tabs should call from backend (DONE)
+
+TODO: Top 3 students should call from backend (DONE)
+
+TODO: Boss battle implementation for teachers & students side
+
+TODO: recent activity display of 3 latest activities on teachers page
+
+NOTE: Heart timer stacks on it self on logout (tell team)
 
 TODO: greyed out & invisible armours/ equipments
 

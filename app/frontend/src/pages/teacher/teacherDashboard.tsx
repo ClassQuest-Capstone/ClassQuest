@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import feather from "feather-icons";
 import StatsCard from "../components/teacher/statsCard.js";
-import { fetchTeacherStats, TeacherStats } from "../features/teacher/teacherService.js";
+import { fetchTeacherStats, TeacherStats, fetchTopStudents, TopStudent } from "../features/teacher/teacherService.js";
 import { CurrencyDollarIcon } from "@heroicons/react/24/solid";
 import DropDownProfile from "../features/teacher/dropDownProfile.js";
 import { TutorialProvider } from "../components/tutorial/context.js";
@@ -33,8 +33,8 @@ const TeacherDashboard = () => {
     activeStudents: 0,
     activeSubjects: 0,
     activeTasks: 0,
-    completionRate: 0,
   });
+  const [topStudents, setTopStudents] = useState<TopStudent[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -98,7 +98,9 @@ const TeacherDashboard = () => {
       setLoading(true);
       const teacherId = teacher.id || localStorage.getItem("teacherId") || "teacher-123";
       const data = await fetchTeacherStats(teacherId);
+      const topStudentsData = await fetchTopStudents(teacherId);
       setStats(data);
+      setTopStudents(topStudentsData);
       setLoading(false);
     };
 
@@ -367,68 +369,54 @@ const TeacherDashboard = () => {
               </p>
 
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="bg-gradient-to-r from-gray-200 to-gray-500 overflow-hidden shadow rounded-lg">
-                  <div className="px-4 py-5 sm:p-6">
-                    <div className="flex items-center">
-                      <div className="shrink-0">
-                        <img className="h-12 w-12 rounded-full" src="/assets/mage-head.png" alt="" />
-                      </div>
-                      <div className="ml-4">
-                        <h3 className="text-lg font-medium text-gray-900">Emma Smith</h3>
-                        <div className="flex items-center mt-1">
-                          <div className="h-2 w-24 bg-gray-500 rounded-full overflow-hidden">
-                            <div className="h-full bg-green-500 rounded-full"></div>
+                {topStudents.length === 0 ? (
+                  <p className="text-white font-bold text-2xl">No students yet</p>
+                ) : (
+                  topStudents.map((student) => {
+                    const avatars = [ "/assets/mage-head.png", "/assets/warrior-head.png", "/assets/healer-head.png", ];
+                    return (
+                      <div
+                        key={student.student_id}
+                        className="bg-gradient-to-r from-gray-200 to-gray-500 overflow-hidden shadow rounded-lg"
+                      >
+                        <div className="px-4 py-5 sm:p-6">
+                          <div className="flex items-center">
+                            <div className="shrink-0">
+                              
+                              <img
+                                className="h-12 w-12 rounded-full"
+                                src={avatars[Math.floor(Math.random() * avatars.length)]}
+                                alt={student.display_name}
+                              />
+                            </div>
+                            <div className="ml-4">
+                              <h3 className="text-lg font-bold text-gray-900">
+                                {student.display_name}
+                              </h3>
+                              <p className="text-md font-bold text-green-500"> {student.class_name}</p>
+                            
+                            </div>
                           </div>
-                          <span className="ml-2 text-sm text-gray-900">Level 8</span>
+                          <div className="mt-4 grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">Total XP</p>
+                              <p className="text-xl font-semibold text-gray-900">
+                                {student.total_xp_earned.toLocaleString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">Gold</p>
+                              <p className=" flex items-center text-xl font-semibold text-gray-900">
+                                <CurrencyDollarIcon className="h-6 w-6 text-yellow-500" />{" "}
+                                {student.gold.toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="mt-4 grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Total XP</p>
-                        <p className="text-xl font-semibold text-gray-900">4,850</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Gold</p>
-                        <p className=" flex items-center text-xl font-semibold text-gray-900">
-                          <CurrencyDollarIcon className="h-6 w-6 text-yellow-500" /> 1,250
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-r from-gray-200 to-gray-500 overflow-hidden shadow rounded-lg">
-                  <div className="px-4 py-5 sm:p-6">
-                    <div className="flex items-center">
-                      <div className="shrink-0">
-                        <img className="h-12 w-12 rounded-full" src="/assets/warrior-head.png" alt="" />
-                      </div>
-                      <div className="ml-4">
-                        <h3 className="text-lg font-medium text-gray-900">Olivia brown</h3>
-                        <div className="flex items-center mt-1">
-                          <div className="h-2 w-24 bg-gray-500 rounded-full overflow-hidden">
-                            <div className="h-full bg-green-500 rounded-full"></div>
-                          </div>
-                          <span className="ml-2 text-sm text-gray-900">Level 6</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-4 grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Total XP</p>
-                        <p className="text-xl font-semibold text-gray-900">3,750</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Gold</p>
-                        <p className=" flex items-center text-xl font-semibold text-gray-900">
-                          <CurrencyDollarIcon className="h-6 w-6 text-yellow-500" /> 850
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
+                    );
+                  })
+                )}
               </div>
             </div>
 

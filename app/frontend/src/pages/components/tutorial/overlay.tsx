@@ -1,6 +1,6 @@
 import React from "react";
-import { useTutorial } from "./context";
-import { MageSprite } from "./tutorialSprite";
+import { useTutorial } from "./context.js";
+import { MageSprite } from "./tutorialSprite.js";
 import "./styles/tutorial.css";
 
 /**
@@ -31,7 +31,7 @@ export const TutorialOverlay: React.FC = () => {
           targetId: "Active-tab",
           title: "Active tabs",
           text:
-            "Use these cards to monitor active quests, active students and completion rate of quests",
+            "Use these cards to monitor active quests, active students and active classes at a glance",
         };
       case "recent-activity":
         return {
