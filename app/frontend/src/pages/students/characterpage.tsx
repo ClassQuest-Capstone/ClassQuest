@@ -154,7 +154,7 @@ type UIQuest = {
   questTemplateId?: string | null;
 };
 
-// Format ISO date string to readable format (e.g., "Feb 27, 2:19 PM")
+// Format ISO date string to readable format
 function formatDueDate(dateString: string | null | undefined): string {
   if (!dateString) return "";
   try {
@@ -1250,7 +1250,7 @@ const CharacterPage: React.FC = () => {
                       <div className="bg-gradient-to-r from-red-600/20 to-red-800/20 border border-red-600/50 rounded-lg p-4">
                         <h3 className="font-bold text-red-300 mb-2">How Hearts Work</h3>
                         <ul className="text-sm text-gray-300 space-y-2">
-                          <li>• Lose a heart when you get a question wrong</li>
+                          <li>• Lose a heart when you get less than 50% on a quest</li>
                           <li>• 💚 Hearts regenerate every 3 hours</li>
                         </ul>
                       </div>

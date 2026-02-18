@@ -1,8 +1,56 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import feather from "feather-icons";
 import { Link } from "react-router-dom";
+import { usePlayerProgression } from "../hooks/students/usePlayerProgression.js";
+
+type StudentUser = {
+  id: string;
+  role: "student";
+  displayName?: string;
+  email?: string;
+  classId?: string;
+};
+
+function getCurrentStudent(): StudentUser | null {
+  const raw = localStorage.getItem("cq_currentUser");
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.role === "student") return parsed;
+  } catch {
+    // ignore
+  }
+  return null;
+}
 
 const StudentShop: React.FC = () => {
+  const student = useMemo(() => getCurrentStudent(), []);
+  const studentId = student?.id ?? null;
+  const [classId, setClassId] = useState<string | null>(null);
+  
+    useEffect(() => {
+    // From student
+    if (student?.classId) {
+      setClassId(student.classId);
+      return;
+    }
+  
+    // From localStorage (most important)
+    const stored = localStorage.getItem("cq_currentClassId");
+    if (stored) {
+      setClassId(stored);
+      return;
+    }
+  
+    // Fallback → no class
+    setClassId(null);
+  }, [student?.classId]);
+  
+  const { profile } = usePlayerProgression(
+    studentId || "",
+    classId || ""
+  );
+  
   useEffect(() => {
     feather.replace();
   }, []);
@@ -61,7 +109,9 @@ const StudentShop: React.FC = () => {
                 />
 
                 {/* Amount */}
-                <span className="text-white font-medium">1,245</span>
+                <span className="text-white font-medium">
+                  {profile.gold.toLocaleString()}
+                  </span>
             </Link>
             </div>
 
@@ -74,7 +124,7 @@ const StudentShop: React.FC = () => {
                     src="http://static.photos/people/200x200/8"
                     alt="profile"
                   />
-                  <span className="ml-2 text-sm font-medium">Alex</span>
+                  <span className="ml-2 text-sm font-medium">{student?.displayName ?? "Student"}</span>
                 </button>
               </div>
             </div>
@@ -106,7 +156,7 @@ const StudentShop: React.FC = () => {
                 alt="Gold"
                 className="h-5 w-5 mr-1"
                 />
-            <span className="text-gray-600 font-bold">1,245 Gold</span>
+            <span className="text-gray-600 font-bold">{profile.gold.toLocaleString()} Gold</span>
           </div>
         </div>
 

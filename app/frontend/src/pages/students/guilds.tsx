@@ -4,25 +4,25 @@ import feather from "feather-icons";
 import { Link } from "react-router-dom";
 import { usePlayerProgression } from "../hooks/students/usePlayerProgression.js";
 
-import { getGuild as apiGetGuild, type Guild } from "../../api/guilds";
+import { getGuild as apiGetGuild, type Guild } from "../../api/guilds.js";
 
 import {
   getGuildMembership,
   listGuildMembers,
   type GuildMembership,
-} from "../../api/guildMemberships";
+} from "../../api/guildMemberships.js";
 
 // ✅ pull classId from enrollments if missing
 import {
   getStudentEnrollments,
   type EnrollmentItem,
-} from "../../api/classEnrollments";
+} from "../../api/classEnrollments.js";
 
 // ✅ class type (NO getClass export in your file)
-import type { ClassItem } from "../../api/classes";
+import type { ClassItem } from "../../api/classes.js";
 
 // ✅ display names
-import { getStudentProfile } from "../../api/studentProfiles";
+import { getStudentProfile } from "../../api/studentProfiles.js";
 
 // ✅ your shared http client (so we can fetch class by id safely)
 import { api } from "../../api/http.js";
