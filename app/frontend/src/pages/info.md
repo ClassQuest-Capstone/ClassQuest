@@ -130,6 +130,8 @@ TODO: Active tabs should call from backend (DONE)
 
 TODO: Top 3 students should call from backend (DONE)
 
+TODO: Adjust quest cards so that it shows date/ time more clearly and progress bar updates (DONE)
+
 TODO: Boss battle implementation for teachers & students side 
 
 TODO: recent activity display of 3 latest activities on teachers page

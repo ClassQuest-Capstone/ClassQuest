@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import feather from 'feather-icons';
 import { CurrencyDollarIcon } from "@heroicons/react/24/solid";
 import { Link } from 'react-router-dom';
-import { CharacterGrid } from './pages/components/cards/characterGrid';
-import { CardStack } from './pages/components/cards/cardStack'
+import { CharacterGrid } from './pages/components/cards/characterGrid.js';
+import { CardStack } from './pages/components/cards/cardStack.js'
 
 /** Todo: Fix nest mess */
 
