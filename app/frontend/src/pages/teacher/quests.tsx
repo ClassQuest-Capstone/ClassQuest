@@ -1,4 +1,4 @@
-// Quests.tsx (FIXED) ✅
+// Quests.tsx 
 // This version prevents INVALID_BASE_XP_REWARD by ALWAYS sending valid NUMBERS
 // for base_xp_reward / base_gold_reward (never NaN / undefined / "100XP").
 // - Default XP/Gold if missing
@@ -8,6 +8,13 @@ import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
 import { createQuestTemplate, updateQuestTemplate, QuestTemplate } from "../../api/questTemplates.js";
 import { createQuestQuestion, updateQuestQuestion, deleteQuestQuestion } from "../../api/questQuestions.js";
+type TeacherUser = {
+  id: string;
+  role: "teacher";
+  displayName?: string;
+  email?: string;
+  classCode?: string;
+};
 
 type QuestionType = "Multiple Choice" | "True/False" | "Short Answer" | "Matching";
 
@@ -94,6 +101,24 @@ const Quests = () => {
   const [tags, setTags] = useState(questDataFromModal?.subject || "");
   const [enableTimeLimit, setEnableTimeLimit] = useState(false);
   const [timeLimit, setTimeLimit] = useState(120);
+  const [teacher, setTeacher] = useState<TeacherUser | null>(null);
+  
+    useEffect(() => {
+      feather.replace();
+    }, []);
+  
+    // Load teacher data from localStorage
+      useEffect(() => {
+        const currentUserJson = localStorage.getItem("cq_currentUser");
+        if (currentUserJson) {
+          try {
+            const teacherData = JSON.parse(currentUserJson) as TeacherUser;
+            setTeacher(teacherData);
+          } catch (error) {
+            console.error("Failed to parse teacher data from localStorage:", error);
+          }
+        }
+      }, []);
 
   useEffect(() => {
     feather.replace();
@@ -450,13 +475,19 @@ const Quests = () => {
               </div>
             </div>
             <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
-              <Link to="/teacherDashboard" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
-                Dashboard
-              </Link>
-              <Link to="/subjects" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
-                Subjects
-              </Link>
-              <DropDownProfile username="user" onLogout={() => { console.log("Logging out"); }} />
+              <Link to="/teacherDashboard" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Dashboard</Link>
+              <Link to="/Classes" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Classes</Link>
+              <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900">Quests</Link>
+              <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Activity</Link>
+              <Link to="/teacherGuilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Guilds</Link>
+              <Link to="/profile" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Profile</Link>
+              <DropDownProfile
+                                    username={teacher?.displayName || "user"}
+                                    onLogout={() => {
+                                      localStorage.removeItem("cq_currentUser");
+                                      navigate("/TeacherLogin");
+                                    }}
+                                  />
             </div>
           </div>
         </div>
@@ -465,7 +496,7 @@ const Quests = () => {
       <main className="max-w-7xl mx-auto px-4 py-8 pt-24 text-gray-900">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-indigo-600">Question Editor</h1>
+            <h1 className="text-3xl font-bold text-yellow-300">Question Editor</h1>
             {questTemplateId && (
               <p className="text-sm text-gray-600 mt-1">Quest ID: {questTemplateId.substring(0, 8)}...</p>
             )}

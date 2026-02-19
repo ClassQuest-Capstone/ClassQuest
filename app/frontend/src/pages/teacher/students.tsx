@@ -372,39 +372,25 @@ const Students = () => {
                   className="flex items-center px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
                 >
                   <i data-feather="book-open" className="w-8 h-8 mr-2"></i>
-                  <span className="text-xl font-bold">classQuest</span>
+                  <span className="text-xl font-bold">ClassQuest</span>
                 </Link>
               </div>
             </div>
 
             <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
-              <Link
-                to="/teacher/dashboard"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
-                Dashboard
-              </Link>
-              <Link
-                to="/students"
-                className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900"
-              >
-                Students
-              </Link>
-              <Link
-                to="/profile"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
-                Profile
-              </Link>
-
+              <Link to="/teacherDashboard" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Dashboard</Link>
+              <Link to="/Classes" className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900">Classes</Link>
+              <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Quests</Link>
+              <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Activity</Link>
+              <Link to="/teacherGuilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Guilds</Link>
+              <Link to="/profile" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Profile</Link>
               <DropDownProfile
-                username={teacher.displayName || " "}
-                onLogout={() => {
-                  // simple logout
-                  localStorage.removeItem("cq_currentUser");
-                  navigate("/TeacherLogin");
-                }}
-              />
+                                    username={teacher?.displayName || "user"}
+                                    onLogout={() => {
+                                      localStorage.removeItem("cq_currentUser");
+                                      navigate("/TeacherLogin");
+                                    }}
+                                  />
             </div>
           </div>
         </div>

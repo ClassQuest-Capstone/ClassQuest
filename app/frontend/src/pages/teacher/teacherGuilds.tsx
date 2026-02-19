@@ -1,9 +1,9 @@
 // src/pages/teacher/teacherGuilds.tsx
-import React, { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useLocation } from "react-router-dom";
+import React, { useEffect, useMemo, useState,  } from "react";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import { fetchAuthSession } from "aws-amplify/auth";
-
+import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
 import { getTeacherProfile } from "../../api/teacherProfiles.js";
 import { listClassesByTeacher, type ClassItem } from "../../api/classes.js";
 import { createGuild, listGuildsByClass, type Guild } from "../../api/guilds.js";
@@ -118,6 +118,7 @@ const TeacherGuilds = () => {
     (location as any)?.state?.classId ??
     "";
 
+  const navigate = useNavigate();
   const [teacherCtx, setTeacherCtx] = useState<TeacherContext | null>(null);
 
   const [classes, setClasses] = useState<ClassItem[]>([]);
@@ -494,6 +495,14 @@ const TeacherGuilds = () => {
               >
                 Guilds
               </Link>
+              <Link to="/profile" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Profile</Link>
+               <DropDownProfile
+                                                  username={teacher?.displayName || "user"}
+                                                  onLogout={() => {
+                                                    localStorage.removeItem("cq_currentUser");
+                                                    navigate("/TeacherLogin");
+                                                  }}
+                                                />
             </div>
 
             <div className="-mr-2 flex items-center md:hidden">

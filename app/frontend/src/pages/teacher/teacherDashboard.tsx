@@ -244,7 +244,7 @@ const TeacherDashboard = () => {
         </div>
 
         {/* Main */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden bg-white/5 backdrop-blur-[5px]">
           <div className="sticky top-0 z-10 md:hidden pl-1 pt-1 sm:pl-3 sm:pt-3 bg-white/300 bg-center bg-cover bg-no-repeat">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -272,7 +272,7 @@ const TeacherDashboard = () => {
           </div>
 
           {/* Content */}
-          <main className="flex-1 overflow-y-auto p-4 ml-3 mr-3">
+          <main className="flex-1 overflow-y-auto p-4 ml-3 mr-3 ">
             <p className="text-2xl font-bold text-yellow-300">Teacher Dashboard</p>
 
             {loading ? (

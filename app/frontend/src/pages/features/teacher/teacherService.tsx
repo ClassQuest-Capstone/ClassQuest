@@ -75,7 +75,7 @@ export const fetchTeacherStats = async (teacherId: string): Promise<TeacherStats
         
         // Count only active quests (quest assigned to a class)
         const activeQuests = questsResponse.items.filter(
-          q => q.status && q.status !== "draft" && q.status !== "cancelled"
+          q => q.status && q.status !== "ARCHIVED" && q.status !== "CANCELLED"
         );
         totalActiveQuests += activeQuests.length;
       } catch (err) {

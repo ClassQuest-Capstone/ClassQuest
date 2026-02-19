@@ -51,36 +51,24 @@ const rewards = () => {
                           className="flex items-center px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
                         >
                           <i data-feather="book-open" className="w-8 h-8 mr-2"></i>
-                          <span className="text-xl font-bold">classQuest</span>
+                          <span className="text-xl font-bold">ClassQuest</span>
                         </Link>
                       </div>
                     </div>
                     <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
-                      <Link
-                        to="/teacherDashboard"
-                        className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-                      >
-                        Dashboard
-                      </Link>
-                      <Link
-                        to="/rewards"
-                        className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900"
-                      >
-                        Rewards
-                      </Link>
-                      <Link
-                        to="/Activity"
-                        className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-                      >
-                        Activity
-                      </Link>
+                     <Link to="/teacherDashboard" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Dashboard</Link>
+                      <Link to="/Classes" className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900">Classes</Link>
+                      <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Quests</Link>
+                      <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Activity</Link>
+                      <Link to="/teacherGuilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Guilds</Link>
+                      <Link to="/profile" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Profile</Link>
                       <DropDownProfile
-                                    username={teacher?.displayName || "user"}
-                                    onLogout={() => {
-                                      localStorage.removeItem("cq_currentUser");
-                                      navigate("/TeacherLogin");
-                                    }}
-                                  />
+                                            username={teacher?.displayName || "user"}
+                                            onLogout={() => {
+                                              localStorage.removeItem("cq_currentUser");
+                                              navigate("/TeacherLogin");
+                                            }}
+                                          />
                     </div>
                     <div className="-mr-2 flex items-center md:hidden">
                       <button className="inline-flex items-center justify-center p-2 rounded-md text-blue-100 hover:text-white hover:bg-blue-600">
@@ -101,7 +89,7 @@ const rewards = () => {
               <main className="max-w-7xl mx-auto px-4 py-8">
                     <div className="flex flex-wrap gap-4 justify-between items-center mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-indigo-600">Shop & Reward</h1>
+                        <h1 className="text-3xl font-bold text-yellow-300">Shop & Reward</h1>
                         <p className="text-white">Add and manage items available for students to purchase</p>
                     </div>
                     <button

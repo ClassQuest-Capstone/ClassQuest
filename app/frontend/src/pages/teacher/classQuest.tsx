@@ -5,6 +5,7 @@ import feather from "feather-icons";
 import { listQuestInstancesByClass, updateQuestInstanceDates, type QuestInstance, } from "../../api/questInstances.js";
 import { getQuestTemplatesByOwner, getPublicQuestTemplates, type QuestTemplate, } from "../../api/questTemplates.js";
 import { use } from "passport";
+import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
 
 // Utility to convert string input to int
 function toInt(val: unknown, fallback = 0) {
@@ -22,6 +23,14 @@ type ClassQuestState = {
   className: string;
 };
 
+type TeacherUser = {
+  id: string;
+  role: "teacher";
+  displayName?: string;
+  email?: string;
+  classCode?: string;
+};
+
 const ClassQuest = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -37,6 +46,24 @@ const ClassQuest = () => {
   const [extensionDueDate, setExtensionDueDate] = useState<string>("");
   const [extensionError, setExtensionError] = useState<string | null>(null);
   const [extensionSaving, setExtensionSaving] = useState(false);
+  const [teacher, setTeacher] = useState<TeacherUser | null>(null);
+  
+    useEffect(() => {
+      feather.replace();
+    }, []);
+  
+    // Load teacher data from localStorage
+      useEffect(() => {
+        const currentUserJson = localStorage.getItem("cq_currentUser");
+        if (currentUserJson) {
+          try {
+            const teacherData = JSON.parse(currentUserJson) as TeacherUser;
+            setTeacher(teacherData);
+          } catch (error) {
+            console.error("Failed to parse teacher data from localStorage:", error);
+          }
+        }
+      }, []);
 
   // Load quest instances for this class
   useEffect(() => {
@@ -213,30 +240,19 @@ const ClassQuest = () => {
             </div>
 
             <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
-              <Link
-                to="/teacherDashboard"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
-                Dashboard
-              </Link>
-              <Link
-                to="/classes"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
-                Classes
-              </Link>
-              <Link
-                to="/Subjects"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
-                Quests
-              </Link>
-              <Link
-                to="/Activity"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
-                Activity
-              </Link>
+              <Link to="/teacherDashboard" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Dashboard</Link>
+              <Link to="/Classes" className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900">Classes</Link>
+              <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Quests</Link>
+              <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Activity</Link>
+              <Link to="/teacherGuilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Guilds</Link>
+              <Link to="/profile" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Profile</Link>
+              <DropDownProfile
+                                    username={teacher?.displayName || "user"}
+                                    onLogout={() => {
+                                      localStorage.removeItem("cq_currentUser");
+                                      navigate("/TeacherLogin");
+                                    }}
+                                  />
             </div>
 
             <div className="-mr-2 flex items-center md:hidden">
@@ -339,7 +355,7 @@ const ClassQuest = () => {
                       </div>
                       <div>
                         <p className="text-xs font-semibold text-gray-500 uppercase">Rewards</p>
-                        <p className="text-gray-900 font-medium text-sm">+ {xp} / {gold}</p>
+                        <p className="text-gray-900 font-medium text-sm">+ {xp} XP / {gold} Gold</p>
                       </div>
                     </div>
 
