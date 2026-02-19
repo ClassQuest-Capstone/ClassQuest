@@ -26,7 +26,10 @@ import { SSTConfig } from "sst";
 import type { StackContext } from "sst/constructs";
 import { DataStack } from "./stacks/DataStack";
 import { AuthStack } from "./stacks/AuthStack";
-import { ApiStack } from "./stacks/ApiStack";
+import { ApiCoreStack } from "./stacks/ApiCoreStack";
+import { TeacherApiStack } from "./stacks/TeacherApiStack";
+import { StudentApiStack } from "./stacks/StudentApiStack";
+import { QuestApiStack } from "./stacks/QuestApiStack";
 
 export default {
     config() {
@@ -41,6 +44,7 @@ export default {
 
         let dataStackOutputs: ReturnType<typeof DataStack>;
         let authStackOutputs: ReturnType<typeof AuthStack>;
+        let apiCoreStackOutputs: ReturnType<typeof ApiCoreStack>;
 
         // 1. DataStack - DynamoDB tables
         function ClassQuestDataStack(ctx: StackContext) {
@@ -59,15 +63,47 @@ export default {
         }
         app.stack(ClassQuestAuthStack);
 
-        // 3. ApiStack - API Gateway + Lambdas (depends on DataStack and AuthStack)
-        function ClassQuestApiStack(ctx: StackContext) {
-            return ApiStack(ctx, {
+        // 3. ApiCoreStack - HttpApi + Stage (base API infrastructure)
+        function ClassQuestApiCoreStack(ctx: StackContext) {
+            apiCoreStackOutputs = ApiCoreStack(ctx);
+            return apiCoreStackOutputs;
+        }
+        app.stack(ClassQuestApiCoreStack);
+
+        // 4. TeacherApiStack - Teacher domain routes (depends on ApiCore, Data, Auth)
+        function ClassQuestTeacherApiStack(ctx: StackContext) {
+            return TeacherApiStack(ctx, {
+                apiId: apiCoreStackOutputs.apiId,
                 tableNames: dataStackOutputs.tableNames,
                 tableArns: dataStackOutputs.tableArns,
                 userPoolId: authStackOutputs.userPoolId,
                 userPoolArn: authStackOutputs.userPoolArn,
             });
         }
-        app.stack(ClassQuestApiStack);
+        app.stack(ClassQuestTeacherApiStack);
+
+        // 5. StudentApiStack - Student domain routes (depends on ApiCore, Data, Auth)
+        function ClassQuestStudentApiStack(ctx: StackContext) {
+            return StudentApiStack(ctx, {
+                apiId: apiCoreStackOutputs.apiId,
+                tableNames: dataStackOutputs.tableNames,
+                tableArns: dataStackOutputs.tableArns,
+                userPoolId: authStackOutputs.userPoolId,
+                userPoolArn: authStackOutputs.userPoolArn,
+            });
+        }
+        app.stack(ClassQuestStudentApiStack);
+
+        // 6. QuestApiStack - Quest domain routes (depends on ApiCore, Data, Auth)
+        function ClassQuestQuestApiStack(ctx: StackContext) {
+            return QuestApiStack(ctx, {
+                apiId: apiCoreStackOutputs.apiId,
+                tableNames: dataStackOutputs.tableNames,
+                tableArns: dataStackOutputs.tableArns,
+                userPoolId: authStackOutputs.userPoolId,
+                userPoolArn: authStackOutputs.userPoolArn,
+            });
+        }
+        app.stack(ClassQuestQuestApiStack);
     },
 } satisfies SSTConfig;
