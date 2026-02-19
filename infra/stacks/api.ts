@@ -20,6 +20,8 @@ export function createApi(
         playerStatesTable: Table;
         guildsTable: Table;
         guildMembershipsTable: Table;
+        bossQuestionsTable: Table;
+        bossBattleTemplatesTable: Table;
     },
     userPool: cognito.UserPool
     ) {
@@ -116,6 +118,19 @@ export function createApi(
         "GET /guilds/{guild_id}/members": "packages/functions/src/guildMemberships/list-by-guild.handler",
         "GET /students/{student_id}/guild-memberships": "packages/functions/src/guildMemberships/list-by-student.handler",
         "PATCH /classes/{class_id}/guild-memberships/{student_id}/leave": "packages/functions/src/guildMemberships/leave.handler",
+
+        // BossQuestions
+        "POST /boss-templates/{boss_template_id}/questions": "packages/functions/src/bossQuestions/create.handler",
+        "GET /boss-questions/{question_id}": "packages/functions/src/bossQuestions/get.handler",
+        "GET /boss-templates/{boss_template_id}/questions": "packages/functions/src/bossQuestions/list-by-template.handler",
+        "PATCH /boss-questions/{question_id}": "packages/functions/src/bossQuestions/update.handler",
+        "DELETE /boss-questions/{question_id}": "packages/functions/src/bossQuestions/delete.handler",
+
+        // BossBattleTemplates
+        "POST /boss-battle-templates": "packages/functions/src/bossBattleTemplates/create.handler",
+        "GET /boss-battle-templates/{boss_template_id}": "packages/functions/src/bossBattleTemplates/get.handler",
+        "GET /teachers/{teacher_id}/boss-battle-templates": "packages/functions/src/bossBattleTemplates/list-by-owner.handler",
+        "GET /boss-battle-templates/public": "packages/functions/src/bossBattleTemplates/list-public.handler",
         },
         defaults: {
         function: {
@@ -133,6 +148,8 @@ export function createApi(
             PLAYER_STATES_TABLE_NAME: tables.playerStatesTable.tableName,
             GUILDS_TABLE_NAME: tables.guildsTable.tableName,
             GUILD_MEMBERSHIPS_TABLE_NAME: tables.guildMembershipsTable.tableName,
+            BOSS_QUESTIONS_TABLE_NAME: tables.bossQuestionsTable.tableName,
+            BOSS_BATTLE_TEMPLATES_TABLE_NAME: tables.bossBattleTemplatesTable.tableName,
             USER_POOL_ID: userPool.userPoolId,
             },
         },
@@ -154,12 +171,16 @@ export function createApi(
         tables.playerStatesTable,
         tables.guildsTable,
         tables.guildMembershipsTable,
+        tables.bossQuestionsTable,
+        tables.bossBattleTemplatesTable,
         // Cognito permissions for password management and user attribute updates
         new iam.PolicyStatement({
             actions: [
                 "cognito-idp:AdminSetUserPassword",
                 "cognito-idp:AdminUpdateUserAttributes",
                 "cognito-idp:AdminGetUser",
+                "cognito-idp:AdminCreateUser",
+                "cognito-idp:AdminAddUserToGroup",
             ],
             resources: [userPool.userPoolArn],
         }),

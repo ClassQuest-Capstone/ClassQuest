@@ -1,6 +1,8 @@
 // CLIENT
 /// <reference types="vite/client" />
 
+import { fetchAuthSession } from 'aws-amplify/auth';
+
 const API_URL = import.meta.env.VITE_API_URL as string;
 
 if (!API_URL) {
@@ -8,19 +10,22 @@ if (!API_URL) {
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-    // TODO: Implement JWT token retrieval from AWS Amplify session
-    // Example:
-    // import { fetchAuthSession } from 'aws-amplify/auth';
-    // const session = await fetchAuthSession();
-    // const token = session.tokens?.idToken?.toString();
+    // Retrieve JWT token from AWS Amplify session
+    let token: string | undefined;
+    try {
+        const session = await fetchAuthSession();
+        token = session.tokens?.idToken?.toString();
+    } catch (err) {
+        // User might not be authenticated - token will be undefined
+        console.debug('Failed to fetch auth session:', err);
+    }
 
     const res = await fetch(`${API_URL}${path}`, {
         ...init,
         headers: {
         ...(init.headers || {}),
         "content-type": "application/json",
-        // TODO: Uncomment when frontend is ready to send JWT
-        // ...(token && { "authorization": `Bearer ${token}` }),
+        ...(token && { "authorization": `Bearer ${token}` }),
         },
     });
 

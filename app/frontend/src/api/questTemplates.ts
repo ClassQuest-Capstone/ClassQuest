@@ -1,7 +1,7 @@
 // questTemplates.ts
 import { api } from "./http.js";
 
-export type QuestType = "QUEST" | "DAILY_QUEST" | "BOSS_FIGHT";
+export type QuestType = "QUEST" | "DAILY_QUEST";
 export type Difficulty = "EASY" | "MEDIUM" | "HARD";
 
 export type QuestTemplate = {

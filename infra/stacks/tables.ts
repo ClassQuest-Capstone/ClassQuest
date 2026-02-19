@@ -249,6 +249,46 @@ export function createTables(ctx: StackContext) {
         },
     });
 
+    // BossQuestions table - questions for boss battle templates
+    const bossQuestionsTable = new Table(stack, "BossQuestions", {
+        fields: {
+            question_id: "string",        // PK: UUID
+            boss_template_id: "string",   // GSI1 PK: parent boss template
+            order_key: "string",          // GSI1 SK: zero-padded order (e.g., "000001")
+        },
+        primaryIndex: {
+            partitionKey: "question_id"
+        },
+        globalIndexes: {
+            gsi1: {  // list questions by template in order
+                partitionKey: "boss_template_id",
+                sortKey: "order_key"
+            },
+        },
+    });
+
+    // BossBattleTemplates table - reusable boss battle templates for teachers
+    const bossBattleTemplatesTable = new Table(stack, "BossBattleTemplates", {
+        fields: {
+            boss_template_id: "string",      // PK: UUID
+            owner_teacher_id: "string",      // GSI1 PK: for listing by teacher
+            is_shared_publicly: "string",    // GSI2 PK: "true" or "false" (string for DynamoDB)
+            public_sort: "string",           // GSI2 SK: subject#created_at#id for browsing
+        },
+        primaryIndex: {
+            partitionKey: "boss_template_id"
+        },
+        globalIndexes: {
+            gsi1: {  // list templates by owner teacher
+                partitionKey: "owner_teacher_id"
+            },
+            gsi2: {  // browse public templates by subject and date
+                partitionKey: "is_shared_publicly",
+                sortKey: "public_sort"
+            },
+        },
+    });
+
     return {
         usersTable,
         teacherProfilesTable,
@@ -263,5 +303,7 @@ export function createTables(ctx: StackContext) {
         playerStatesTable,
         guildsTable,
         guildMembershipsTable,
+        bossQuestionsTable,
+        bossBattleTemplatesTable,
     };
 }

@@ -46,7 +46,7 @@ export function updateStudentProfile(student_id: string, input: {
 
 /**
  * Teacher sets a permanent password for a student
- * Requires Authorization header with teacher JWT (to be implemented)
+ * Requires Authorization header with teacher JWT (automatically added by api client)
  */
 export function setStudentPassword(student_id: string, password: string) {
     return api<void>(

@@ -71,13 +71,15 @@ export async function getAuthContext(event: APIGatewayProxyEventV2): Promise<Aut
     }
 
     // Determine role from groups
+    // NOTE: TeachersPending is treated as valid teacher role until approval workflow is implemented.
+    // When approval workflow exists, consider adding granular permissions based on group.
     let role: "student" | "teacher";
-    if (groups.includes("Teachers")) {
+    if (groups.includes("Teachers") || groups.includes("TeachersPending")) {
         role = "teacher";
     } else if (groups.includes("Students")) {
         role = "student";
     } else {
-        throw new AuthError("User not in valid group (Students or Teachers)", 403);
+        throw new AuthError("User not in valid group (Students, Teachers, or TeachersPending)", 403);
     }
 
     return {

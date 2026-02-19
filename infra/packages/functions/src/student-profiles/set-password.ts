@@ -1,5 +1,10 @@
 import { APIGatewayProxyEventV2 } from "aws-lambda";
-import { CognitoIdentityProviderClient, AdminSetUserPasswordCommand } from "@aws-sdk/client-cognito-identity-provider";
+import {
+    CognitoIdentityProviderClient,
+    AdminSetUserPasswordCommand,
+    AdminCreateUserCommand,
+    AdminAddUserToGroupCommand,
+} from "@aws-sdk/client-cognito-identity-provider";
 import { getAuthContext, requireTeacher, getClientIp, AuthError } from "../shared/auth.ts";
 import { getStudentProfile } from "./repo.ts";
 import { getTeacherProfile } from "../teacher-profiles/repo.ts";
@@ -80,15 +85,74 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             };
         }
 
-        // Step 6: Set password in Cognito (Permanent=true)
-        await cognitoClient.send(
-            new AdminSetUserPasswordCommand({
-                UserPoolId: USER_POOL_ID,
-                Username: student_id,  // Cognito username = student_id
-                Password: password,
-                Permanent: true,
-            })
-        );
+        // Step 6: Create user in Cognito if they don't exist, then set password
+        try {
+            // Try to set password first (most common case - user already exists)
+            await cognitoClient.send(
+                new AdminSetUserPasswordCommand({
+                    UserPoolId: USER_POOL_ID,
+                    Username: student_id,  // Cognito username = student_id
+                    Password: password,
+                    Permanent: true,
+                })
+            );
+        } catch (setPasswordError: any) {
+            // If user doesn't exist, create them first
+            if (setPasswordError.name === "UserNotFoundException") {
+                console.log(`Creating Cognito user for student ${student_id}`);
+
+                // Create user with temporary password (will be immediately overwritten)
+                // Students don't have real emails, so use a placeholder
+                const placeholderEmail = `${studentProfile.username}@student.classquest.local`;
+
+                await cognitoClient.send(
+                    new AdminCreateUserCommand({
+                        UserPoolId: USER_POOL_ID,
+                        Username: student_id,
+                        TemporaryPassword: password,
+                        MessageAction: "SUPPRESS", // Don't send email/SMS
+                        UserAttributes: [
+                            {
+                                Name: "email",
+                                Value: placeholderEmail,
+                            },
+                            {
+                                Name: "email_verified",
+                                Value: "true",
+                            },
+                            {
+                                Name: "custom:role",
+                                Value: "STUDENT",
+                            },
+                        ],
+                    })
+                );
+
+                // Add user to Students group
+                await cognitoClient.send(
+                    new AdminAddUserToGroupCommand({
+                        UserPoolId: USER_POOL_ID,
+                        Username: student_id,
+                        GroupName: "Students",
+                    })
+                );
+
+                // Now set permanent password
+                await cognitoClient.send(
+                    new AdminSetUserPasswordCommand({
+                        UserPoolId: USER_POOL_ID,
+                        Username: student_id,
+                        Password: password,
+                        Permanent: true,
+                    })
+                );
+
+                console.log(`Created and set password for student ${student_id}`);
+            } else {
+                // Re-throw other errors
+                throw setPasswordError;
+            }
+        }
 
         // Step 7: Audit logging (structured JSON for CloudWatch)
         const clientIp = getClientIp(event);
