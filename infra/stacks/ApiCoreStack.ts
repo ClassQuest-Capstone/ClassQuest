@@ -32,9 +32,9 @@ export function ApiCoreStack(ctx: StackContext) {
 
     // Export for cross-stack references
     stack.addOutputs({
-        ApiId: httpApi.ref,
-        ApiEndpoint: apiEndpoint,
-        StageName: stage.stageName,
+        //ApiId: httpApi.ref,
+        ApiURL: apiEndpoint,
+        //StageName: stage.stageName,
     });
 
     // Also export as CloudFormation outputs
