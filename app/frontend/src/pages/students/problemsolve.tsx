@@ -11,6 +11,10 @@ import {
   type QuestQuestionResponse,
 } from "../../api/questQuestionResponses";
 
+import { getPlayerState, upsertPlayerState } from "../../api/playerStates";
+import { getStudentEnrollments, type EnrollmentItem } from "../../api/classEnrollments";
+import { getQuestTemplate, type QuestTemplate } from "../../api/questTemplates";
+
 // --------------------
 // Student helper
 // --------------------
@@ -19,6 +23,7 @@ type StudentUser = {
   role: "student";
   displayName?: string;
   email?: string;
+  class_id?: string; // sometimes stored on the student object
 };
 
 function getCurrentStudent(): StudentUser | null {
@@ -61,7 +66,7 @@ type UiOption = { id: string; text: string; isCorrect?: boolean };
 
 type UiQuestion = {
   id: string; // question_id
-  type: string; // question_format/type
+  type: string;
   title: string;
   difficulty: string;
   xpValue: number; // max points
@@ -70,13 +75,13 @@ type UiQuestion = {
   explanation: string;
   hint: string;
   tags: string;
-  timeLimit: number; // seconds
+  timeLimit: number;
   goldReward: number;
 
-  // grading metadata (frontend only)
-  hasGradingKey: boolean; // do we have enough info to safely grade?
-  correctOptionId?: string; // resolved correct option id if possible
-  correctOptionText?: string; // resolved correct option text if possible
+  // grading metadata
+  hasGradingKey: boolean;
+  correctOptionId?: string;
+  correctOptionText?: string;
 };
 
 function normalizeOptions(raw: any): UiOption[] {
@@ -104,12 +109,10 @@ function normalizeOptions(raw: any): UiOption[] {
 }
 
 /**
- * ✅ FIXED: your backend sends:
+ * backend sends:
  *   correct_answer: { choiceId: "1" }
- * so we must read correct_answer.choiceId (and variants).
  */
 function extractCorrectToken(q: any): string {
-  // 0) Primary: correct_answer.choiceId (your actual data)
   const choiceId =
     q?.correct_answer?.choiceId ??
     q?.correct_answer?.choice_id ??
@@ -119,7 +122,6 @@ function extractCorrectToken(q: any): string {
   const choiceIdStr = safeStr(choiceId).trim();
   if (choiceIdStr) return `__ID__:${choiceIdStr}`;
 
-  // 1) Other possible ID fields
   const idCandidates = [
     q?.correct_option_id,
     q?.correctOptionId,
@@ -137,7 +139,6 @@ function extractCorrectToken(q: any): string {
     if (s) return `__ID__:${s}`;
   }
 
-  // 2) Index fields (0- or 1-based)
   const idxRaw =
     q?.correct_option_index ??
     q?.correctOptionIndex ??
@@ -149,7 +150,6 @@ function extractCorrectToken(q: any): string {
   const n = Number(idxRaw);
   if (Number.isFinite(n)) return `__INDEX__:${n}`;
 
-  // 3) Text fields
   const textRaw = q?.correct_answer ?? q?.correctAnswer ?? q?.answer_text ?? q?.answerText ?? q?.solution;
   const txt = safeStr(textRaw).trim();
   if (txt) return `__TEXT__:${txt}`;
@@ -169,7 +169,6 @@ function normalizeQuestion(q: QuestQuestion, index: number): UiQuestion {
 
   const token = extractCorrectToken(anyQ);
 
-  // 1) If any option already has boolean correctness, trust it
   if (opts.some((o) => typeof o.isCorrect === "boolean")) {
     optionsWithCorrect = opts;
     hasGradingKey = true;
@@ -181,24 +180,20 @@ function normalizeQuestion(q: QuestQuestion, index: number): UiQuestion {
     }
   }
 
-  // 2) Otherwise, resolve token
   if (!hasGradingKey && token) {
     if (token.startsWith("__ID__:")) {
       const id = token.slice("__ID__:".length).trim();
-
       const found = opts.find((o) => o.id === id);
+
       if (found) {
         correctOptionId = found.id;
         correctOptionText = found.text;
         hasGradingKey = true;
         optionsWithCorrect = opts.map((o) => ({ ...o, isCorrect: o.id === found.id }));
       } else {
-        // sometimes correct id can be an index-like string; support both 0-based and 1-based
         const asNumber = Number(id);
         if (Number.isFinite(asNumber)) {
-          const foundByIndex0 = opts[asNumber];
-          const foundByIndex1 = opts[asNumber - 1];
-          const pick = foundByIndex0 ?? foundByIndex1;
+          const pick = opts[asNumber] ?? opts[asNumber - 1];
           if (pick) {
             correctOptionId = pick.id;
             correctOptionText = pick.text;
@@ -209,13 +204,7 @@ function normalizeQuestion(q: QuestQuestion, index: number): UiQuestion {
       }
     } else if (token.startsWith("__INDEX__:")) {
       const rawIdx = Number(token.slice("__INDEX__:".length));
-      const idx0 = rawIdx;
-      const idx1 = rawIdx - 1;
-
-      const pick =
-        (idx0 >= 0 && idx0 < opts.length ? opts[idx0] : undefined) ??
-        (idx1 >= 0 && idx1 < opts.length ? opts[idx1] : undefined);
-
+      const pick = opts[rawIdx] ?? opts[rawIdx - 1];
       if (pick) {
         correctOptionId = pick.id;
         correctOptionText = pick.text;
@@ -247,7 +236,6 @@ function normalizeQuestion(q: QuestQuestion, index: number): UiQuestion {
     tags: safeStr(anyQ.tags || ""),
     timeLimit: Number(anyQ.time_limit_seconds ?? 60) || 60,
     goldReward: Number(anyQ.gold_reward ?? 0) || 0,
-
     hasGradingKey,
     correctOptionId,
     correctOptionText,
@@ -294,6 +282,7 @@ const ProblemSolve: React.FC = () => {
   const [instance, setInstance] = useState<QuestInstance | null>(null);
   const [templateId, setTemplateId] = useState<string>(questTemplateIdFromUrl);
   const [questions, setQuestions] = useState<UiQuestion[]>([]);
+  const [questTemplate, setQuestTemplate] = useState<QuestTemplate | null>(null);
 
   // Loading / error
   const [loading, setLoading] = useState(true);
@@ -307,17 +296,38 @@ const ProblemSolve: React.FC = () => {
   const [showHint, setShowHint] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
 
+  // Rewards awarding
+  const [claimingRewards, setClaimingRewards] = useState(false);
+  const [claimedRewards, setClaimedRewards] = useState<null | { xp: number; gold: number }>(null);
+  const [claimRewardsError, setClaimRewardsError] = useState<string | null>(null);
+
+  function rewardsClaimKey(sid: string, qi: string) {
+    return `cq_rewards_claimed::${sid}::${qi}`;
+  }
+  function hasClaimedRewards(sid: string, qi: string) {
+    try {
+      return localStorage.getItem(rewardsClaimKey(sid, qi)) === "1";
+    } catch {
+      return false;
+    }
+  }
+  function markRewardsClaimed(sid: string, qi: string) {
+    try {
+      localStorage.setItem(rewardsClaimKey(sid, qi), "1");
+    } catch {}
+  }
+
   // Feedback
   const [feedback, setFeedback] = useState<{ kind: "ok" | "bad" | "info"; msg: string } | null>(null);
 
-  // XP decreases on wrong attempts (frontend only)
+  // XP decreases on wrong attempts
   const [remainingXp, setRemainingXp] = useState<number[]>([]);
 
-  // Timer per question (counts down)
+  // Timer
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const timerRef = useRef<number | null>(null);
 
-  // Save responses (for prefill + progress)
+  // Responses
   const [responses, setResponses] = useState<QuestQuestionResponse[]>([]);
   const responsesByQuestionId = useMemo(() => {
     const m = new Map<string, QuestQuestionResponse>();
@@ -340,6 +350,120 @@ const ProblemSolve: React.FC = () => {
     setResponses(resp.responses || []);
     return resp.responses || [];
   }
+
+  // ✅ totals now include BASE quest rewards too
+  function computeTotalsFromResponses(latest: QuestQuestionResponse[], qs: UiQuestion[], tpl: QuestTemplate | null) {
+    const questionXp = (latest || []).reduce(
+      (sum, r: any) => sum + (Number(r?.answer_raw?.awarded_xp ?? 0) || 0),
+      0
+    );
+
+    const answeredIds = new Set((latest || []).map((r) => r.question_id));
+    const questionGold = (qs || []).reduce(
+      (sum, q) => sum + (answeredIds.has(q.id) ? (Number(q.goldReward) || 0) : 0),
+      0
+    );
+
+    const baseXp = Number(tpl?.base_xp_reward ?? 0) || 0;
+    const baseGold = Number(tpl?.base_gold_reward ?? 0) || 0;
+
+    return {
+      xp: questionXp + baseXp,
+      gold: questionGold + baseGold,
+      breakdown: { questionXp, baseXp, questionGold, baseGold },
+    };
+  }
+
+  async function awardRewardsIfComplete(latestResponses: QuestQuestionResponse[]) {
+    if (!questInstanceId || !studentId) return;
+
+    if (claimingRewards) return;
+    if (claimedRewards) return;
+
+    if (hasClaimedRewards(studentId, questInstanceId)) {
+      setClaimedRewards({ xp: 0, gold: 0 });
+      return;
+    }
+
+    const totals = computeTotalsFromResponses(latestResponses, questions, questTemplate);
+    const xp = totals.xp;
+    const gold = totals.gold;
+
+    // classId candidates
+    const candidates: string[] = [];
+    const push = (v: any) => {
+      const s = String(v ?? "").trim();
+      if (s && !candidates.includes(s)) candidates.push(s);
+    };
+
+    push((instance as any)?.class_id);
+    push((student as any)?.class_id);
+    push(localStorage.getItem("cq_currentClassId"));
+
+    if (candidates.length === 0) {
+      try {
+        const enr = await getStudentEnrollments(studentId);
+        const active = (enr.items || []).find((e: EnrollmentItem) => e.status === "active");
+        if (active?.class_id) push(active.class_id);
+        if (!active && (enr.items || []).length) push(enr.items[0].class_id);
+      } catch {}
+    }
+
+    if (candidates.length === 0) {
+      setClaimRewardsError("Cannot award rewards: missing classId.");
+      return;
+    }
+
+    setClaimRewardsError(null);
+    setClaimingRewards(true);
+
+    try {
+      let foundClassId: string | null = null;
+      let cur: any = null;
+
+      for (const cid of candidates) {
+        try {
+          cur = await getPlayerState(cid, studentId);
+          foundClassId = cid;
+          break;
+        } catch {}
+      }
+
+      if (!foundClassId || !cur) {
+        throw new Error(`Player state not found (tried classIds=${candidates.join(", ")}, studentId=${studentId})`);
+      }
+
+      await upsertPlayerState(foundClassId, studentId, {
+        current_xp: (cur.current_xp ?? 0) + xp,
+        xp_to_next_level: cur.xp_to_next_level ?? 0,
+        total_xp_earned: (cur.total_xp_earned ?? 0) + xp,
+        hearts: cur.hearts ?? 0,
+        max_hearts: cur.max_hearts ?? 0,
+        gold: (cur.gold ?? 0) + gold,
+        last_weekend_reset_at: cur.last_weekend_reset_at,
+        status: cur.status ?? "ALIVE",
+      });
+
+      markRewardsClaimed(studentId, questInstanceId);
+      setClaimedRewards({ xp, gold });
+    } catch (e: any) {
+      setClaimRewardsError(e?.message || "Failed to award XP/Gold.");
+    } finally {
+      setClaimingRewards(false);
+    }
+  }
+
+  // If quest already complete on refresh, award once
+  useEffect(() => {
+    if (!isFinished) return;
+    if (!questInstanceId || !studentId) return;
+    if (!questions.length) return;
+
+    const latestSet = new Set((responses || []).map((r) => r.question_id));
+    if (latestSet.size !== questions.length) return;
+
+    void awardRewardsIfComplete(responses || []);
+  }, [isFinished, questInstanceId, studentId, questions.length, responses]);
 
   // --------------------
   // LOAD
@@ -370,6 +494,15 @@ const ProblemSolve: React.FC = () => {
         if (!tid) throw new Error("Could not determine quest_template_id.");
         setTemplateId(tid);
 
+        // ✅ fetch quest template for base rewards
+        try {
+          const tpl = await getQuestTemplate(tid);
+          setQuestTemplate(tpl);
+        } catch (e: any) {
+          console.warn("getQuestTemplate failed:", e?.message || e);
+          setQuestTemplate(null);
+        }
+
         const qRes = await listQuestQuestions(tid);
         const ui = (qRes.items || []).map(normalizeQuestion);
 
@@ -381,7 +514,7 @@ const ProblemSolve: React.FC = () => {
         setShowHint(false);
         setIsFinished(false);
 
-        // Prefill saved responses
+        // Prefill
         if (questInstanceId) {
           try {
             const rows = await refreshResponses();
@@ -442,7 +575,6 @@ const ProblemSolve: React.FC = () => {
     if (!q) return;
 
     setFeedback(null);
-
     setSecondsLeft(q.timeLimit || 60);
 
     if (timerRef.current) window.clearInterval(timerRef.current);
@@ -454,7 +586,6 @@ const ProblemSolve: React.FC = () => {
           timerRef.current = null;
 
           if (studentId && questInstanceId) markQuestExpired(studentId, questInstanceId);
-
           alert("Time's up! This quest has expired.");
           navigate("/character", { replace: true });
           return 0;
@@ -483,6 +614,9 @@ const ProblemSolve: React.FC = () => {
     questions.length,
     secondsLeft,
     feedback,
+    claimingRewards,
+    claimedRewards,
+    claimRewardsError,
   ]);
 
   const currentQuestion = questions[currentIndex];
@@ -513,13 +647,9 @@ const ProblemSolve: React.FC = () => {
     if (typeof opt?.isCorrect === "boolean") return { canGrade: true, correct: opt.isCorrect };
 
     if (q.correctOptionText && opt?.text) {
-      return {
-        canGrade: true,
-        correct: opt.text.trim().toLowerCase() === q.correctOptionText.trim().toLowerCase(),
-      };
+      return { canGrade: true, correct: opt.text.trim().toLowerCase() === q.correctOptionText.trim().toLowerCase() };
     }
 
-    // fail open
     return { canGrade: false, correct: true };
   }
 
@@ -551,10 +681,7 @@ const ProblemSolve: React.FC = () => {
       return;
     }
 
-    // Build answer_raw
     let answer_raw: Record<string, any> = { type: currentQuestion.type };
-
-    // set is_auto_graded based on whether we can actually auto-grade
     let is_auto_graded = false;
 
     if (hasChoices) {
@@ -588,12 +715,7 @@ const ProblemSolve: React.FC = () => {
       answer_raw.is_correct = grade.canGrade ? grade.correct : undefined;
 
       setFeedback(
-        grade.canGrade
-          ? { kind: "ok", msg: "Correct! Saved and moving on." }
-          : {
-              kind: "info",
-              msg: "Submitted! (Auto-grading unavailable — saved anyway.)",
-            }
+        grade.canGrade ? { kind: "ok", msg: "Correct! Saved and moving on." } : { kind: "info", msg: "Submitted! Saved." }
       );
     } else {
       const text = (shortAnswers[currentIndex] ?? "").trim();
@@ -604,7 +726,6 @@ const ProblemSolve: React.FC = () => {
       answer_raw.text = text;
       answer_raw.awarded_xp = currentRemainingXp;
       answer_raw.auto_graded = false;
-
       is_auto_graded = false;
 
       setFeedback({ kind: "info", msg: "Answer saved (manual grading)." });
@@ -627,6 +748,9 @@ const ProblemSolve: React.FC = () => {
       if (firstUnanswered === -1) {
         setIsFinished(true);
         window.scrollTo({ top: 0, behavior: "smooth" });
+
+        // awards now include BASE quest rewards too
+        await awardRewardsIfComplete(latest || []);
         return;
       }
 
@@ -653,15 +777,8 @@ const ProblemSolve: React.FC = () => {
     } catch {}
   };
 
-  // --------------------
-  // Render states
-  // --------------------
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        Loading quest…
-      </div>
-    );
+    return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">Loading quest…</div>;
   }
 
   if (error) {
@@ -692,15 +809,9 @@ const ProblemSolve: React.FC = () => {
     );
   }
 
-  // --------------------
-  // Main UI
-  // --------------------
+  // UI
   return (
-    <div
-      className="min-h-screen bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: "url('/assets/background/quest-bg.png')" }}
-    >
-      {/* NAVBAR */}
+    <div className="min-h-screen bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('/assets/background/quest-bg.png')" }}>
       <nav className="bg-blue-700 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
@@ -710,16 +821,9 @@ const ProblemSolve: React.FC = () => {
             </div>
 
             <div className="hidden md:flex items-center space-x-4">
-              <Link to="/character" className="px-3 py-2 rounded-md text-sm bg-primary-800">
-                Character
-              </Link>
-              <Link to="/guilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
-                Guilds
-              </Link>
-              <Link to="/leaderboards" className="px-3 py-2 rounded-md text-sm hover:bg-primary-600">
-                Leaderboard
-              </Link>
-
+              <Link to="/character" className="px-3 py-2 rounded-md text-sm bg-primary-800">Character</Link>
+              <Link to="/guilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Guilds</Link>
+              <Link to="/leaderboards" className="px-3 py-2 rounded-md text-sm hover:bg-primary-600">Leaderboard</Link>
               <div className="relative ml-3">
                 <button className="flex items-center text-sm rounded-full">
                   <img className="h-8 w-8 rounded-full" src="http://static.photos/people/200x200/8" alt="User" />
@@ -737,7 +841,6 @@ const ProblemSolve: React.FC = () => {
         </div>
       </nav>
 
-      {/* MAIN CONTENT */}
       <div className="max-w-4xl mx-auto px-4 py-8">
         {isFinished ? (
           <>
@@ -747,18 +850,29 @@ const ProblemSolve: React.FC = () => {
                 Your answers were saved. ({answeredCount}/{questions.length})
               </p>
 
+              {/* show base reward info for sanity */}
+              {questTemplate && (
+                <p className="text-center text-gray-500 text-sm mb-4">
+                  Completion Reward: +{questTemplate.base_xp_reward} XP, +{questTemplate.base_gold_reward} Gold
+                </p>
+              )}
+
+              <div className="text-center mb-4">
+                {claimingRewards && <p className="text-gray-600">Awarding your rewards...</p>}
+                {claimRewardsError && <p className="text-red-600">{claimRewardsError}</p>}
+                {claimedRewards && (
+                  <div className="flex justify-center gap-3 mt-2">
+                    <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">+{claimedRewards.xp} XP</div>
+                    <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">+{claimedRewards.gold} Gold</div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex flex-col sm:flex-row justify-center sm:space-x-4 space-y-3 sm:space-y-0">
-                <button
-                  type="button"
-                  onClick={handleRetry}
-                  className="px-6 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium"
-                >
+                <button type="button" onClick={handleRetry} className="px-6 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium">
                   Retry (UI only)
                 </button>
-                <Link
-                  to="/character"
-                  className="px-6 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-medium text-center"
-                >
+                <Link to="/character" className="px-6 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-medium text-center">
                   Back to Character
                 </Link>
               </div>
@@ -776,7 +890,6 @@ const ProblemSolve: React.FC = () => {
           </>
         ) : (
           <>
-            {/* Header */}
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h1 className="text-2xl font-bold text-gray-800">{currentQuestion.title}</h1>
@@ -787,14 +900,11 @@ const ProblemSolve: React.FC = () => {
                 <div className="bg-gray-800 text-white px-3 py-1 rounded-full text-sm">⏳ {secondsLeft}s</div>
                 <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">+{currentRemainingXp} XP</div>
                 {currentQuestion.goldReward > 0 && (
-                  <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
-                    +{currentQuestion.goldReward} Gold
-                  </div>
+                  <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">+{currentQuestion.goldReward} Gold</div>
                 )}
               </div>
             </div>
 
-            {/* Feedback */}
             {feedback && (
               <div
                 className={`mb-4 rounded-lg px-4 py-3 border text-sm ${
@@ -809,22 +919,15 @@ const ProblemSolve: React.FC = () => {
               </div>
             )}
 
-            {/* Question Block */}
             <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
               <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
                 <div>
-                  <span className="font-bold">
-                    Question {currentIndex + 1} of {questions.length}
-                  </span>
+                  <span className="font-bold">Question {currentIndex + 1} of {questions.length}</span>
                   <span className="mx-2 text-gray-300">|</span>
                   <span className="text-gray-300">Difficulty: {currentQuestion.difficulty}</span>
                 </div>
 
-                <button
-                  type="button"
-                  className="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full text-sm"
-                  onClick={() => setShowHint((prev) => !prev)}
-                >
+                <button type="button" className="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full text-sm" onClick={() => setShowHint((prev) => !prev)}>
                   <i className="inline mr-1" data-feather="help-circle" />
                   Hint
                 </button>
@@ -835,15 +938,12 @@ const ProblemSolve: React.FC = () => {
                   <p className="text-lg font-medium text-gray-600 mb-4">
                     {currentQuestion.answerOptions.length > 0 ? "Choose the correct answer:" : "Answer the question:"}
                   </p>
-                  <p className="text-gray-700 text-xl font-semibold text-center whitespace-pre-line">
-                    {currentQuestion.questionText}
-                  </p>
+                  <p className="text-gray-700 text-xl font-semibold text-center whitespace-pre-line">{currentQuestion.questionText}</p>
                 </div>
 
                 {showHint && currentQuestion.hint && currentQuestion.hint !== "N/A" && (
                   <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-md text-sm">
-                    <span className="font-semibold">Hint: </span>
-                    {currentQuestion.hint}
+                    <span className="font-semibold">Hint: </span>{currentQuestion.hint}
                   </div>
                 )}
 
@@ -856,14 +956,12 @@ const ProblemSolve: React.FC = () => {
                         <button
                           key={opt.id}
                           type="button"
-                          className={`bg-white border rounded-lg p-4 text-left flex items-start transition
-                            ${isSelected ? "border-indigo-500 bg-indigo-50" : "border-gray-200"}`}
+                          className={`bg-white border rounded-lg p-4 text-left flex items-start transition ${
+                            isSelected ? "border-indigo-500 bg-indigo-50" : "border-gray-200"
+                          }`}
                           onClick={() => handleSelect(opt.id)}
                         >
-                          <span
-                            className={`rounded-full w-8 h-8 flex items-center justify-center mr-4 font-bold
-                              ${isSelected ? "bg-indigo-500 text-white" : "bg-gray-100 text-gray-800"}`}
-                          >
+                          <span className={`rounded-full w-8 h-8 flex items-center justify-center mr-4 font-bold ${isSelected ? "bg-indigo-500 text-white" : "bg-gray-100 text-gray-800"}`}>
                             {letter}
                           </span>
                           <span className="font-medium text-gray-900">{opt.text}</span>
@@ -898,9 +996,7 @@ const ProblemSolve: React.FC = () => {
                     onClick={handlePrevious}
                     disabled={currentIndex === 0 || saving}
                     className={`px-6 py-2 rounded-lg flex items-center ${
-                      currentIndex === 0 || saving
-                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                        : "bg-gray-200 hover:bg-gray-300 text-gray-900"
+                      currentIndex === 0 || saving ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-gray-200 hover:bg-gray-300 text-gray-900"
                     }`}
                   >
                     <i data-feather="arrow-left" className="mr-2" />
@@ -911,9 +1007,7 @@ const ProblemSolve: React.FC = () => {
                     type="button"
                     onClick={handleSubmit}
                     disabled={saving}
-                    className={`bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg flex items-center ${
-                      saving ? "opacity-60 cursor-not-allowed" : ""
-                    }`}
+                    className={`bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg flex items-center ${saving ? "opacity-60 cursor-not-allowed" : ""}`}
                   >
                     {saving ? "Saving..." : currentIndex === questions.length - 1 ? "Finish Quest" : "Submit"}
                   </button>
@@ -922,27 +1016,14 @@ const ProblemSolve: React.FC = () => {
             </div>
 
             <div className="bg-white rounded-xl shadow-lg p-4">
-            <div className="flex justify-between text-sm mb-1 text-gray-900">
-              <span>
-                Quest Progress: {answeredCount}/{questions.length} Answered (Saved)
-              </span>
-              <span>{progress}%</span>
+              <div className="flex justify-between text-sm mb-1 text-gray-900">
+                <span>Quest Progress: {answeredCount}/{questions.length} Answered (Saved)</span>
+                <span>{progress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                <div className="h-2.5 rounded-full transition-all duration-500 bg-green-500" style={{ width: `${progress}%` }} />
+              </div>
             </div>
-
-            {/* Green progress bar */}
-            <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-              <div
-                className={`h-2.5 rounded-full transition-all duration-500
-                  ${progress < 50
-                    ? "bg-green-400"
-                    : progress < 80
-                    ? "bg-green-500"
-                    : "bg-green-600"
-                  }`}
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
           </>
         )}
       </div>
