@@ -3,17 +3,17 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import feather from "feather-icons";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
-import { getQuestInstance, type QuestInstance } from "../../api/questInstances";
-import { listQuestQuestions, type QuestQuestion } from "../../api/questQuestions";
+import { getQuestInstance, type QuestInstance } from "../../api/questInstances.js";
+import { listQuestQuestions, type QuestQuestion } from "../../api/questQuestions.js";
 import {
   getResponsesByInstanceAndStudent,
   upsertResponse,
   type QuestQuestionResponse,
-} from "../../api/questQuestionResponses";
+} from "../../api/questQuestionResponses.js";
 
-import { getPlayerState, upsertPlayerState } from "../../api/playerStates";
-import { getStudentEnrollments, type EnrollmentItem } from "../../api/classEnrollments";
-import { getQuestTemplate, type QuestTemplate } from "../../api/questTemplates";
+import { getPlayerState, upsertPlayerState } from "../../api/playerStates.js";
+import { getStudentEnrollments, type EnrollmentItem } from "../../api/classEnrollments.js";
+import { getQuestTemplate, type QuestTemplate } from "../../api/questTemplates.js";
 
 // --------------------
 // Student helper
@@ -389,28 +389,11 @@ const ProblemSolve: React.FC = () => {
     const xp = totals.xp;
     const gold = totals.gold;
 
-    // classId candidates
-    const candidates: string[] = [];
-    const push = (v: any) => {
-      const s = String(v ?? "").trim();
-      if (s && !candidates.includes(s)) candidates.push(s);
-    };
-
-    push((instance as any)?.class_id);
-    push((student as any)?.class_id);
-    push(localStorage.getItem("cq_currentClassId"));
-
-    if (candidates.length === 0) {
-      try {
-        const enr = await getStudentEnrollments(studentId);
-        const active = (enr.items || []).find((e: EnrollmentItem) => e.status === "active");
-        if (active?.class_id) push(active.class_id);
-        if (!active && (enr.items || []).length) push(enr.items[0].class_id);
-      } catch {}
-    }
-
-    if (candidates.length === 0) {
-      setClaimRewardsError("Cannot award rewards: missing classId.");
+    // Get classId from the quest instance (authoritative source)
+    const classId = (instance as any)?.class_id;
+    
+    if (!classId) {
+      setClaimRewardsError("Cannot award rewards: quest instance missing classId.");
       return;
     }
 
@@ -418,22 +401,41 @@ const ProblemSolve: React.FC = () => {
     setClaimingRewards(true);
 
     try {
-      let foundClassId: string | null = null;
       let cur: any = null;
 
-      for (const cid of candidates) {
-        try {
-          cur = await getPlayerState(cid, studentId);
-          foundClassId = cid;
-          break;
-        } catch {}
+      try {
+        cur = await getPlayerState(classId, studentId);
+      } catch (e: any) {
+        // Check if it's a "player state not found"
+        if (
+          e?.message?.includes("Player state not found") ||
+          e?.status === 404 ||
+          e?.response?.status === 404
+        ) {
+          // Initialize a new player state with default values for this class
+          const initialState = {
+            current_xp: 0,
+            xp_to_next_level: 100,
+            total_xp_earned: 0,
+            hearts: 5,
+            max_hearts: 5,
+            gold: 0,
+            status: "ALIVE" as const,
+          };
+          
+          await upsertPlayerState(classId, studentId, initialState);
+          cur = initialState;
+        } else {
+          // Re-throw if it's a different error
+          throw e;
+        }
       }
 
-      if (!foundClassId || !cur) {
-        throw new Error(`Player state not found (tried classIds=${candidates.join(", ")}, studentId=${studentId})`);
+      if (!cur) {
+        throw new Error(`Failed to get or create player state for classId=${classId}, studentId=${studentId}`);
       }
 
-      await upsertPlayerState(foundClassId, studentId, {
+      await upsertPlayerState(classId, studentId, {
         current_xp: (cur.current_xp ?? 0) + xp,
         xp_to_next_level: cur.xp_to_next_level ?? 0,
         total_xp_earned: (cur.total_xp_earned ?? 0) + xp,

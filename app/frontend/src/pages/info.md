@@ -132,9 +132,21 @@ TODO: Top 3 students should call from backend (DONE)
 
 TODO: Adjust quest cards so that it shows date/ time more clearly and progress bar updates (DONE)
 
-TODO: Boss battle implementation for teachers & students side 
+TODO: Boss battle implementation for teachers & students side (IN PROGRESS)
+
+TODO: Assist alvin with boss battle and correct minor errors in student tutorial, editing quest question 
 
 TODO: recent activity display of 3 latest activities on teachers page
+
+Students join waiting room, each guild should only show active players (only ones with rewards)  
+
+students load on waiting screen awaiting teachers to click start 
+
+each vote on answers
+
+view guilds perfromance at end like kahoot 
+
+
 
 NOTE: Heart timer stacks on it self on logout (tell team)
 

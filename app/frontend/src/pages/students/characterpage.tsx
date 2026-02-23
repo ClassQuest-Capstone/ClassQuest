@@ -236,14 +236,12 @@ const CharacterPage: React.FC = () => {
   const displayName = student.displayName ?? "Student";
   const avatarUrl = student.avatarUrl ?? "http://static.photos/people/200x200/8";
 
-  // Track class_id for player progression hook
-  const [classId, setClassId] = useState<string | null>(
-    student.class_id || localStorage.getItem("cq_currentClassId")
-  );
+  // Track class_id for player progression hook - always fetch from backend to ensure correctness
+  const [classId, setClassId] = useState<string | null>(null);
 
-  // Fetch first active class enrollment to get classId if not already set
+  // Fetch active class enrollment from backend (authoritative source)
   useEffect(() => {
-    if (!studentId || classId) return; // Skip if classId is already set
+    if (!studentId) return;
 
     (async () => {
       try {
@@ -253,13 +251,16 @@ const CharacterPage: React.FC = () => {
         );
         if (activeEnrollment?.class_id) {
           setClassId(activeEnrollment.class_id);
-          localStorage.setItem("cq_currentClassId", activeEnrollment.class_id);
+          localStorage.setItem("cq_currentClassId", activeEnrollment.class_id); // cache only
+        } else {
+          setClassId(null);
         }
       } catch (err) {
         console.error("Failed to fetch enrollments:", err);
+        setClassId(null);
       }
     })();
-  }, [studentId, classId]);
+  }, [studentId]);
 
   // Player progression fetches from player state and student profile
   const {

@@ -276,7 +276,7 @@ const TeacherDashboard = () => {
             <p className="text-2xl font-bold text-yellow-300">Teacher Dashboard</p>
 
             {loading ? (
-              <div className="mt-6 text-center text-gray-500 ">Loading stats...</div>
+              <div className="mt-6 text-center text-white ">Loading stats...</div>
             ) : (
               <div id="Active-tab" className="mt-3 grid grid-cols-1 gap-8 sm:grid-cols-3 text-xl">
                 <StatsCard icon="users" label="Active Students" value={stats.activeStudents} />
@@ -401,14 +401,14 @@ const TeacherDashboard = () => {
                             <div>
                               <p className="text-sm font-medium text-gray-900">Total XP</p>
                               <p className="text-xl font-semibold text-gray-900">
-                                {student.total_xp_earned.toLocaleString()}
+                                {(student.total_xp_earned ?? 0).toLocaleString()}
                               </p>
                             </div>
                             <div>
                               <p className="text-sm font-medium text-gray-900">Gold</p>
                               <p className=" flex items-center text-xl font-semibold text-gray-900">
                                 <CurrencyDollarIcon className="h-6 w-6 text-yellow-500" />{" "}
-                                {student.gold.toLocaleString()}
+                                {(student.gold ?? 0).toLocaleString()}
                               </p>
                             </div>
                           </div>
