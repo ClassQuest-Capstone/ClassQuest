@@ -1,0 +1,345 @@
+End-to-end rewards flow (template → attempts → award → player state → ledger)
+0) Definitions
+
+Reward config lives on the question definition (template-level): base_xp, min_xp, xp_decay_per_wrong, base_gold, min_gold, gold_decay_per_wrong, decay_exempt.
+
+Attempts are the history: one row per submission.
+
+Response summary is the current/final state for (student, question, quest instance).
+
+Player state is the wallet: totals for the student in that class.
+
+Reward transaction is the immutable ledger entry that justifies the wallet change.
+
+1) Teacher creates template + questions (reward rules defined)
+
+Tables
+
+QuestTemplates (existing)
+
+QuestQuestions (updated)
+
+Write
+
+Create template in QuestTemplates.
+
+Create each question in QuestQuestions with reward config:
+
+base_xp, min_xp, xp_decay_per_wrong
+
+base_gold, min_gold, gold_decay_per_wrong
+
+decay_exempt (true for SHORT_ANSWER/ESSAY)
+
+Result
+
+Reward rules are now deterministic for all later student work.
+
+2) Teacher assigns quest (quest instance created)
+
+Tables
+
+QuestInstances (existing)
+
+Write
+
+Create QuestInstances row(s) linking template → class (and optionally per-student assignment).
+
+3) Student attempts a question (attempt row appended)
+
+Tables
+
+QuestAnswerAttempts (new)
+
+QuestQuestionResponses (existing + updated)
+
+On each submission
+A) Append attempt (immutable history)
+
+Create a new QuestAnswerAttempts item:
+
+Keys: quest_attempt_pk, attempt_sk, attempt_no
+
+Attributes: quest_instance_id, student_id, question_id, answer_raw, created_at
+
+Grading fields initially empty: is_correct unset, grader_type unset
+
+B) Update response summary (rolled-up state)
+
+Upsert QuestQuestionResponses for (quest_instance_id, student_id, question_id):
+
+attempt_count += 1
+
+status = SUBMITTED (or IN_PROGRESS if draft saves exist)
+
+Store/overwrite latest answer fields if your response table keeps them
+
+Variables updated
+
+QuestAnswerAttempts.attempt_no increments each submission
+
+QuestQuestionResponses.attempt_count increments each submission
+
+No XP/gold awarded yet.
+
+4) Grade the attempt (auto or teacher)
+
+Tables
+
+QuestAnswerAttempts
+
+QuestQuestionResponses
+
+Auto-gradable question
+
+Update the specific QuestAnswerAttempts item:
+
+is_correct = true/false
+
+grader_type = AUTO
+
+auto_grade_result = ...
+
+graded_at = now
+
+Update QuestQuestionResponses:
+
+If incorrect:
+
+wrong_attempt_count += 1
+
+status = INCORRECT (or keep SUBMITTED depending on UX)
+
+If correct:
+
+status = CORRECT (or GRADED if you standardize on one)
+
+Trigger award computation + application (next section)
+
+Short answer / essay
+
+Teacher grades (later) by updating QuestAnswerAttempts:
+
+is_correct = true/false (or omit and store points/decision)
+
+grader_type = TEACHER
+
+teacher_grade_status = GRADED
+
+graded_at = now
+
+Update QuestQuestionResponses:
+
+status = GRADED
+
+If teacher marks incorrect: wrong_attempt_count += 1 (optional; decay-exempt anyway)
+
+Variables updated
+
+QuestAnswerAttempts.is_correct, grader_type, graded_at
+
+QuestQuestionResponses.wrong_attempt_count when an attempt is wrong
+
+No wallet changes until award application runs.
+
+5) Compute per-question reward (XP/gold earned for this question)
+
+Tables
+
+QuestQuestions (reward config source)
+
+QuestQuestionResponses (wrong attempts + award totals)
+
+QuestAnswerAttempts (attempt that triggered reward)
+
+Inputs
+
+From QuestQuestions:
+
+base_xp, min_xp, xp_decay_per_wrong
+
+base_gold, min_gold, gold_decay_per_wrong
+
+decay_exempt
+
+From QuestQuestionResponses:
+
+wrong_attempt_count (current total wrong attempts before awarding)
+
+From grading event:
+
+“this attempt is correct” (award once on first correct)
+
+Computation
+
+If decay_exempt = true:
+
+xp_award = base_xp (or teacher-defined mapping)
+
+gold_award = base_gold
+
+Else:
+
+xp_award = max(min_xp, base_xp - wrong_attempt_count * xp_decay_per_wrong)
+
+gold_award = max(min_gold, base_gold - wrong_attempt_count * gold_decay_per_wrong)
+
+Award-once rule
+
+Only award if response has not already been awarded:
+
+QuestQuestionResponses.reward_status != APPLIED
+
+and/or QuestQuestionResponses.reward_txn_id is empty
+
+6) Apply reward atomically: write ledger + update player wallet + mark response/attempt
+
+This is the critical transaction step.
+
+Tables
+
+RewardTransactions (new)
+
+PlayerStates (implemented)
+
+QuestQuestionResponses
+
+QuestAnswerAttempts
+
+Deterministic transaction id
+
+transaction_id = QUESTQ#<quest_instance_id>#<student_id>#<question_id>
+
+Single DynamoDB transaction (TransactWrite)
+
+Put RewardTransactions (idempotent)
+
+PK: transaction_id
+
+Attributes:
+
+student_id, class_id
+
+xp_delta = xp_award, gold_delta = gold_award, hearts_delta = 0
+
+source_type = QUEST_QUESTION
+
+quest_instance_id, question_id
+
+created_at = now
+
+created_by = SYSTEM|TEACHER, created_by_role = SYSTEM|TEACHER
+
+Condition: attribute_not_exists(transaction_id)
+
+Update PlayerStates (wallet)
+
+For (class_id, student_id) item:
+
+current_xp += xp_award
+
+gold += gold_award
+
+(hearts unchanged here)
+
+Optional: also update derived level fields if you have them.
+
+Update QuestQuestionResponses (summary + linkage)
+
+Set:
+
+xp_awarded_total = xp_award
+
+gold_awarded_total = gold_award
+
+reward_txn_id = transaction_id
+
+reward_status = APPLIED
+
+status = CORRECT/GRADED (whichever you standardized)
+
+Update QuestAnswerAttempts (attempt-level linkage)
+
+For the attempt that produced the correct grade:
+
+xp_awarded = xp_award
+
+gold_awarded = gold_award
+
+reward_txn_id = transaction_id
+
+Why this works
+
+The conditional put guarantees no double awards on retries.
+
+The ledger entry is the durable “receipt”.
+
+PlayerStates reflects the sum of transactions applied.
+
+Variables updated
+
+RewardTransactions.xp_delta/gold_delta written once
+
+PlayerStates.current_xp, PlayerStates.gold incremented
+
+QuestQuestionResponses.reward_status/reward_txn_id/xp_awarded_total/gold_awarded_total set
+
+QuestAnswerAttempts.xp_awarded/gold_awarded/reward_txn_id set on awarding attempt
+
+7) Optional reversal / adjustment flow
+
+Used if teacher revokes a correct answer or corrects grading.
+
+Tables
+
+RewardTransactions
+
+PlayerStates
+
+QuestQuestionResponses
+
+QuestAnswerAttempts (optional)
+
+Steps
+
+Create a new RewardTransactions entry with negative deltas:
+
+transaction_id = REVERSAL#<original_transaction_id>#<timestamp> (or UUID)
+
+xp_delta = -xp_awarded_total, gold_delta = -gold_awarded_total
+
+source_type = SYSTEM_ADJUSTMENT or QUEST_QUESTION_ADJUSTMENT
+
+metadata links original id
+
+Update PlayerStates subtracting the same amounts
+
+Update QuestQuestionResponses.reward_status = REVERSED (keep original reward_txn_id intact)
+
+Optionally mark the attempt linkage as reversed in metadata (not required)
+
+Minimal state machine (per question per student)
+
+Tables used: QuestQuestionResponses, QuestAnswerAttempts
+
+NOT_STARTED: no attempts
+
+SUBMITTED/IN_PROGRESS: attempts exist, not graded or not finalized
+
+INCORRECT: latest attempt graded incorrect (wrong_attempt_count increased)
+
+NEEDS_REVIEW: teacher grading pending (short/essay)
+
+CORRECT/GRADED: correct/final grading done
+
+APPLIED: reward_status applied (wallet updated + ledger written)
+
+This is fully traceable:
+
+“what happened” → QuestAnswerAttempts
+
+“current snapshot” → QuestQuestionResponses
+
+“why wallet changed” → RewardTransactions
+
+“wallet totals” → PlayerStates

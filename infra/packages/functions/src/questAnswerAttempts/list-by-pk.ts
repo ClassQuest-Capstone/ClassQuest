@@ -1,4 +1,3 @@
-import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 import { queryByPK } from "./repo.js";
 
 /**
@@ -7,7 +6,7 @@ import { queryByPK } from "./repo.js";
  *
  * Authorization: student (self only), teacher, admin
  */
-export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+export const handler = async (event: any) => {
     try {
         const quest_instance_id = event.pathParameters?.quest_instance_id;
         const student_id = event.pathParameters?.student_id;
@@ -21,8 +20,8 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
         }
 
         // Authorization: Students can only view their own attempts
-        const userRole = event.requestContext.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
-        const userId = event.requestContext.authorizer?.jwt?.claims?.sub as string | undefined;
+        const userRole = event.requestContext?.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
+        const userId = event.requestContext?.authorizer?.jwt?.claims?.sub as string | undefined;
 
         if (!userId) {
             return {

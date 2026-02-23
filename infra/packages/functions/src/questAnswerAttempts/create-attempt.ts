@@ -1,4 +1,3 @@
-import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 import { createAttemptWithCounter } from "./repo.js";
 import { validateCreateAttemptData } from "./validation.js";
 
@@ -8,11 +7,11 @@ import { validateCreateAttemptData } from "./validation.js";
  *
  * Authorization: student (self only), system
  */
-export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+export const handler = async (event: any) => {
     try {
         // Extract auth principal from Cognito authorizer
-        const userRole = event.requestContext.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
-        const userId = event.requestContext.authorizer?.jwt?.claims?.sub as string | undefined;
+        const userRole = event.requestContext?.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
+        const userId = event.requestContext?.authorizer?.jwt?.claims?.sub as string | undefined;
 
         if (!userId) {
             return {

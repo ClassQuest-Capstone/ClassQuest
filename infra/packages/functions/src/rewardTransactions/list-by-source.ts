@@ -1,4 +1,3 @@
-import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 import { listBySource } from "./repo.js";
 
 /**
@@ -11,7 +10,7 @@ import { listBySource } from "./repo.js";
  *   - limit: number of items to return (optional)
  *   - cursor: pagination cursor (optional)
  */
-export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+export const handler = async (event: any) => {
     try {
         const source_type = event.pathParameters?.source_type;
         const source_id = event.pathParameters?.source_id;
@@ -24,8 +23,8 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
         }
 
         // Authorization: Only teachers, admins, or system can query by source
-        const userRole = event.requestContext.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
-        const userId = event.requestContext.authorizer?.jwt?.claims?.sub as string | undefined;
+        const userRole = event.requestContext?.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
+        const userId = event.requestContext?.authorizer?.jwt?.claims?.sub as string | undefined;
 
         if (!userId) {
             return {

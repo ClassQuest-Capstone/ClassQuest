@@ -1,4 +1,3 @@
-import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 import { putTransaction } from "./repo.js";
 import { validateTransactionData } from "./validation.js";
 import { RewardTransactionItem, SourceType, CreatedByRole, computeGSIKeys, generateDeterministicTransactionId } from "./types.js";
@@ -10,11 +9,11 @@ import { randomUUID } from "crypto";
  *
  * Authorization: TEACHER, ADMIN, SYSTEM only (students cannot create transactions)
  */
-export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+export const handler = async (event: any) => {
     try {
         // Extract auth principal from Cognito authorizer
-        const userRole = event.requestContext.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
-        const userId = event.requestContext.authorizer?.jwt?.claims?.sub as string | undefined;
+        const userRole = event.requestContext?.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
+        const userId = event.requestContext?.authorizer?.jwt?.claims?.sub as string | undefined;
 
         if (!userId) {
             return {

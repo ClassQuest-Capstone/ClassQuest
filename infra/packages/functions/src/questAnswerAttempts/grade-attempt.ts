@@ -1,4 +1,3 @@
-import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 import { updateAttemptGrade } from "./repo.js";
 import { validateGradeAttemptData } from "./validation.js";
 
@@ -8,7 +7,7 @@ import { validateGradeAttemptData } from "./validation.js";
  *
  * Authorization: teacher, admin, system only (students cannot grade)
  */
-export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+export const handler = async (event: any) => {
     try {
         const quest_instance_id = event.pathParameters?.quest_instance_id;
         const student_id = event.pathParameters?.student_id;
@@ -31,8 +30,8 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
         }
 
         // Authorization: Only teachers, admins, or system can grade
-        const userRole = event.requestContext.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
-        const userId = event.requestContext.authorizer?.jwt?.claims?.sub as string | undefined;
+        const userRole = event.requestContext?.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
+        const userId = event.requestContext?.authorizer?.jwt?.claims?.sub as string | undefined;
 
         if (!userId) {
             return {
