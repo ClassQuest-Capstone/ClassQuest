@@ -64,6 +64,8 @@ export function DataStack(ctx: StackContext) {
             guildMembershipsTable: tables.guildMembershipsTable.tableName,
             bossQuestionsTable: tables.bossQuestionsTable.tableName,
             bossBattleTemplatesTable: tables.bossBattleTemplatesTable.tableName,
+            rewardTransactionsTable: tables.rewardTransactionsTable.tableName,
+            questAnswerAttemptsTable: tables.questAnswerAttemptsTable.tableName,
         },
         tableArns: {
             usersTable: tables.usersTable.tableArn,
@@ -81,6 +83,8 @@ export function DataStack(ctx: StackContext) {
             guildMembershipsTable: tables.guildMembershipsTable.tableArn,
             bossQuestionsTable: tables.bossQuestionsTable.tableArn,
             bossBattleTemplatesTable: tables.bossBattleTemplatesTable.tableArn,
+            rewardTransactionsTable: tables.rewardTransactionsTable.tableArn,
+            questAnswerAttemptsTable: tables.questAnswerAttemptsTable.tableArn,
         },
     };
 }

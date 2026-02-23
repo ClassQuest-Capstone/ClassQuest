@@ -1,4 +1,5 @@
 import { listByInstance } from "./repo.js";
+import { normalizeResponseItem } from "./types.js";
 
 export const handler = async (event: any) => {
     const quest_instance_id = event.pathParameters?.quest_instance_id;
@@ -21,13 +22,16 @@ export const handler = async (event: any) => {
     try {
         const result = await listByInstance(quest_instance_id, limit, cursor);
 
+        // Normalize all responses with defaults for backward compatibility
+        const normalizedItems = result.items.map(item => normalizeResponseItem(item));
+
         return {
             statusCode: 200,
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
                 ok: true,
-                responses: result.items,
-                count: result.items.length,
+                responses: normalizedItems,
+                count: normalizedItems.length,
                 cursor: result.cursor,
             }),
         };

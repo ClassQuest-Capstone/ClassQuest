@@ -3,6 +3,17 @@ import { api } from "./http.js";
 
 export type AutoGradeResult = "CORRECT" | "INCORRECT" | "PARTIAL" | "NOT_APPLICABLE";
 
+export type ResponseStatus =
+  | "NOT_STARTED"
+  | "IN_PROGRESS"
+  | "SUBMITTED"
+  | "NEEDS_REVIEW"
+  | "INCORRECT"
+  | "CORRECT"
+  | "GRADED";
+
+export type RewardStatus = "PENDING" | "APPLIED" | "REVERSED";
+
 export type QuestQuestionResponse = {
   instance_student_pk: string;
   question_id: string;
@@ -22,6 +33,15 @@ export type QuestQuestionResponse = {
   gsi1sk: string;
   gsi2sk: string;
   gsi3sk: string;
+  // Summary counters and status
+  attempt_count: number;
+  wrong_attempt_count: number;
+  status: ResponseStatus;
+  // Reward linkage fields
+  xp_awarded_total: number;
+  gold_awarded_total: number;
+  reward_txn_id?: string;
+  reward_status?: RewardStatus;
 };
 
 export type UpsertResponseRequest = {
@@ -37,6 +57,9 @@ export type GradeResponseRequest = {
   teacher_points_awarded?: number;
   teacher_comment?: string;
   graded_by_teacher_id?: string;
+  status?: ResponseStatus;
+  xp_awarded_total?: number;
+  gold_awarded_total?: number;
 };
 
 export type PaginatedResponseList = {

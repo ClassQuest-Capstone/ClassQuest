@@ -1,4 +1,6 @@
 import { gradeResponse } from "./repo.js";
+import { ResponseStatus, RewardStatus } from "./types.js";
+import { validateSummaryAndRewardFields } from "./validation.js";
 
 export const handler = async (event: any) => {
     const quest_instance_id = event.pathParameters?.quest_instance_id;
@@ -32,10 +34,28 @@ export const handler = async (event: any) => {
         }
     }
 
+    // Validate reward and status fields if provided
+    const rewardValidation = validateSummaryAndRewardFields({
+        xp_awarded_total: body.xp_awarded_total,
+        gold_awarded_total: body.gold_awarded_total,
+        status: body.status,
+    });
+    if (!rewardValidation.valid) {
+        return {
+            statusCode: 400,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ error: rewardValidation.error }),
+        };
+    }
+
     const patch: {
         teacher_points_awarded?: number;
         teacher_comment?: string;
         graded_by_teacher_id?: string;
+        status?: ResponseStatus;
+        xp_awarded_total?: number;
+        gold_awarded_total?: number;
+        reward_status?: RewardStatus;
     } = {};
 
     if (body.teacher_points_awarded !== undefined) {
@@ -48,6 +68,24 @@ export const handler = async (event: any) => {
 
     if (body.graded_by_teacher_id !== undefined) {
         patch.graded_by_teacher_id = body.graded_by_teacher_id;
+    }
+
+    // Set status to GRADED when grading is finalized
+    patch.status = body.status || ResponseStatus.GRADED;
+
+    // Allow teacher to optionally set reward totals
+    if (body.xp_awarded_total !== undefined) {
+        patch.xp_awarded_total = body.xp_awarded_total;
+    }
+
+    if (body.gold_awarded_total !== undefined) {
+        patch.gold_awarded_total = body.gold_awarded_total;
+    }
+
+    // Set reward_status to PENDING if rewards are set and no txn_id yet
+    if ((patch.xp_awarded_total !== undefined && patch.xp_awarded_total > 0) ||
+        (patch.gold_awarded_total !== undefined && patch.gold_awarded_total > 0)) {
+        patch.reward_status = RewardStatus.PENDING;
     }
 
     try {

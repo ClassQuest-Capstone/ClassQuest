@@ -1,4 +1,5 @@
 import { listByTemplate } from "./repo.ts";
+import { applyRewardDefaults } from "./types.ts";
 
 /**
  * GET /quest-templates/{template_id}/questions
@@ -19,9 +20,12 @@ export const handler = async (event: any) => {
 
     const items = await listByTemplate(template_id);
 
+    // Apply reward defaults for backward compatibility
+    const normalizedItems = items.map(item => applyRewardDefaults(item));
+
     return {
         statusCode: 200,
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ items: normalizedItems }),
     };
 };

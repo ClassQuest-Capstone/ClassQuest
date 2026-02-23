@@ -7,7 +7,7 @@ import {
     validateQuestionFormat,
     validateQuestion,
 } from "./validation.ts";
-import { mapFormatToLegacyType } from "./types.ts";
+import { mapFormatToLegacyType, isDecayExempt } from "./types.ts";
 
 /**
  * POST /quest-templates/{template_id}/questions
@@ -48,6 +48,13 @@ export const handler = async (event: any) => {
         hint,
         explanation,
         time_limit_seconds,
+        base_xp,
+        min_xp,
+        xp_decay_per_wrong,
+        base_gold,
+        min_gold,
+        gold_decay_per_wrong,
+        decay_exempt,
     } = body;
 
     // Step 3: Normalize question_format (accept legacy question_type)
@@ -105,6 +112,12 @@ export const handler = async (event: any) => {
         auto_gradable,
         difficulty,
         time_limit_seconds,
+        base_xp,
+        min_xp,
+        xp_decay_per_wrong,
+        base_gold,
+        min_gold,
+        gold_decay_per_wrong,
     });
 
     if (!validation.valid) {
@@ -136,6 +149,11 @@ export const handler = async (event: any) => {
     // Step 8: Create the question item
     const question_id = randomUUID();
 
+    // Apply reward config defaults
+    const finalDecayExempt = decay_exempt !== undefined
+        ? decay_exempt
+        : isDecayExempt(normalizedFormat as QuestionFormat);
+
     const item: QuestQuestionItem = {
         question_id,
         quest_template_id,
@@ -152,6 +170,14 @@ export const handler = async (event: any) => {
         hint,
         explanation,
         time_limit_seconds,
+        // Reward config with defaults
+        base_xp: base_xp ?? 0,
+        min_xp: min_xp ?? 0,
+        xp_decay_per_wrong: xp_decay_per_wrong ?? 0,
+        base_gold: base_gold ?? 0,
+        min_gold: min_gold ?? 0,
+        gold_decay_per_wrong: gold_decay_per_wrong ?? 0,
+        decay_exempt: finalDecayExempt,
     };
 
     // Add legacy question_type for backward compatibility (optional)

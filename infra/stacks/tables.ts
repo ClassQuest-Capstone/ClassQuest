@@ -289,6 +289,62 @@ export function createTables(ctx: StackContext) {
         },
     });
 
+    // RewardTransactions table - immutable ledger for XP/gold/hearts deltas
+    const rewardTransactionsTable = new Table(stack, "RewardTransactions", {
+        fields: {
+            transaction_id: "string",        // PK: deterministic or UUID
+            gsi1_pk: "string",               // GSI1 PK: S#<student_id>
+            gsi1_sk: "string",               // GSI1 SK: T#<created_at>#TX#<transaction_id>
+            gsi2_pk: "string",               // GSI2 PK: C#<class_id>#S#<student_id> (optional)
+            gsi2_sk: "string",               // GSI2 SK: T#<created_at>#TX#<transaction_id>
+            gsi3_pk: "string",               // GSI3 PK: SRC#<source_type>#<source_id>
+            gsi3_sk: "string",               // GSI3 SK: T#<created_at>#S#<student_id>#TX#<transaction_id>
+        },
+        primaryIndex: {
+            partitionKey: "transaction_id"
+        },
+        globalIndexes: {
+            gsi1: {  // student timeline
+                partitionKey: "gsi1_pk",
+                sortKey: "gsi1_sk"
+            },
+            gsi2: {  // student per class timeline
+                partitionKey: "gsi2_pk",
+                sortKey: "gsi2_sk"
+            },
+            gsi3: {  // source lookup (quest, boss battle, etc.)
+                partitionKey: "gsi3_pk",
+                sortKey: "gsi3_sk"
+            },
+        },
+    });
+
+    // QuestAnswerAttempts table - individual submission attempts for quest questions
+    const questAnswerAttemptsTable = new Table(stack, "QuestAnswerAttempts", {
+        fields: {
+            quest_attempt_pk: "string",      // PK: QI#<quest_instance_id>#S#<student_id>#Q#<question_id>
+            attempt_sk: "string",            // SK: A#<attempt_no_padded>#T#<created_at_iso>
+            gsi1_pk: "string",               // GSI1 PK: S#<student_id>#QI#<quest_instance_id>
+            gsi1_sk: "string",               // GSI1 SK: T#<created_at>#Q#<question_id>#A#<attempt_no_padded>
+            gsi2_pk: "string",               // GSI2 PK: QI#<quest_instance_id>#Q#<question_id>
+            gsi2_sk: "string",               // GSI2 SK: T#<created_at>#S#<student_id>#A#<attempt_no_padded>
+        },
+        primaryIndex: {
+            partitionKey: "quest_attempt_pk",
+            sortKey: "attempt_sk"
+        },
+        globalIndexes: {
+            gsi1: {  // student attempts within quest instance
+                partitionKey: "gsi1_pk",
+                sortKey: "gsi1_sk"
+            },
+            gsi2: {  // question analytics within quest instance
+                partitionKey: "gsi2_pk",
+                sortKey: "gsi2_sk"
+            },
+        },
+    });
+
     return {
         usersTable,
         teacherProfilesTable,
@@ -305,5 +361,7 @@ export function createTables(ctx: StackContext) {
         guildMembershipsTable,
         bossQuestionsTable,
         bossBattleTemplatesTable,
+        rewardTransactionsTable,
+        questAnswerAttemptsTable,
     };
 }

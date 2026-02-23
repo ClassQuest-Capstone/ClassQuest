@@ -35,6 +35,14 @@ export type QuestQuestion = {
   hint?: string;
   explanation?: string;
   time_limit_seconds?: number;
+  // Reward configuration fields
+  base_xp: number;
+  min_xp: number;
+  xp_decay_per_wrong: number;
+  base_gold: number;
+  min_gold: number;
+  gold_decay_per_wrong: number;
+  decay_exempt: boolean;
 };
 
 export function createQuestQuestion(template_id: string, data: Omit<QuestQuestion, "question_id">) {
