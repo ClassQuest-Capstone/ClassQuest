@@ -66,6 +66,12 @@ export function DataStack(ctx: StackContext) {
             bossBattleTemplatesTable: tables.bossBattleTemplatesTable.tableName,
             rewardTransactionsTable: tables.rewardTransactionsTable.tableName,
             questAnswerAttemptsTable: tables.questAnswerAttemptsTable.tableName,
+            bossBattleInstancesTable: tables.bossBattleInstancesTable.tableName,
+            bossBattleParticipantsTable: tables.bossBattleParticipantsTable.tableName,
+            bossAnswerAttemptsTable: tables.bossAnswerAttemptsTable.tableName,
+            bossResultsTable: tables.bossResultsTable.tableName,
+            bossBattleSnapshotsTable: tables.bossBattleSnapshotsTable.tableName,
+            bossBattleQuestionPlansTable: tables.bossBattleQuestionPlansTable.tableName,
         },
         tableArns: {
             usersTable: tables.usersTable.tableArn,
@@ -85,6 +91,12 @@ export function DataStack(ctx: StackContext) {
             bossBattleTemplatesTable: tables.bossBattleTemplatesTable.tableArn,
             rewardTransactionsTable: tables.rewardTransactionsTable.tableArn,
             questAnswerAttemptsTable: tables.questAnswerAttemptsTable.tableArn,
+            bossBattleInstancesTable: tables.bossBattleInstancesTable.tableArn,
+            bossBattleParticipantsTable: tables.bossBattleParticipantsTable.tableArn,
+            bossAnswerAttemptsTable: tables.bossAnswerAttemptsTable.tableArn,
+            bossResultsTable: tables.bossResultsTable.tableArn,
+            bossBattleSnapshotsTable: tables.bossBattleSnapshotsTable.tableArn,
+            bossBattleQuestionPlansTable: tables.bossBattleQuestionPlansTable.tableArn,
         },
     };
 }

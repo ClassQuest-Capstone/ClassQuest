@@ -345,6 +345,149 @@ export function createTables(ctx: StackContext) {
         },
     });
 
+    // BossBattleInstances table - live boss battle state machine
+    const bossBattleInstancesTable = new Table(stack, "BossBattleInstances", {
+        fields: {
+            boss_instance_id: "string",      // PK: UUID
+            class_id: "string",              // GSI1 PK: for listing battles by class
+            created_at: "string",            // GSI1 SK & GSI2 SK: ISO timestamp for sorting
+            boss_template_id: "string",      // GSI2 PK: for listing battles by template
+        },
+        primaryIndex: {
+            partitionKey: "boss_instance_id"
+        },
+        globalIndexes: {
+            gsi1: {  // list by class
+                partitionKey: "class_id",
+                sortKey: "created_at"
+            },
+            gsi2: {  // list by template
+                partitionKey: "boss_template_id",
+                sortKey: "created_at"
+            },
+        },
+    });
+
+    // BossBattleParticipants table - tracks who joined specific boss battles
+    const bossBattleParticipantsTable = new Table(stack, "BossBattleParticipants", {
+        fields: {
+            boss_instance_id: "string",      // PK: boss battle instance
+            student_id: "string",            // SK: student ID
+            class_id: "string",              // GSI1 PK & GSI2 PK: for teacher queries by class
+            joined_at: "string",             // GSI1 SK: ISO timestamp for ordering
+            gsi2_sk: "string",               // GSI2 SK: boss_instance_id#student_id
+        },
+        primaryIndex: {
+            partitionKey: "boss_instance_id",
+            sortKey: "student_id"
+        },
+        globalIndexes: {
+            gsi1: {  // list participants by instance (optional convenience)
+                partitionKey: "boss_instance_id",
+                sortKey: "joined_at"
+            },
+            gsi2: {  // list participants by class for teacher views
+                partitionKey: "class_id",
+                sortKey: "gsi2_sk"
+            },
+        },
+    });
+
+    // BossAnswerAttempts table - immutable combat log of boss battle submissions
+    const bossAnswerAttemptsTable = new Table(stack, "BossAnswerAttempts", {
+        fields: {
+            boss_attempt_pk: "string",       // PK: BI#<boss_instance_id>#Q#<question_id>
+            attempt_sk: "string",            // SK: T#<answered_at>#S#<student_id>#A#<uuid>
+            boss_instance_id: "string",      // GSI1 PK: for listing all attempts in battle
+            answered_at: "string",           // GSI1 SK & GSI2 SK: ISO timestamp
+            student_id: "string",            // GSI2 PK & GSI3 PK component
+            gsi2_sk: "string",               // GSI2 SK: answered_at#boss_instance_id#question_id
+            gsi3_pk: "string",               // GSI3 PK: boss_instance_id#student_id
+            gsi3_sk: "string",               // GSI3 SK: answered_at#question_id
+        },
+        primaryIndex: {
+            partitionKey: "boss_attempt_pk",
+            sortKey: "attempt_sk"
+        },
+        globalIndexes: {
+            gsi1: {  // list all attempts by battle
+                partitionKey: "boss_instance_id",
+                sortKey: "answered_at"
+            },
+            gsi2: {  // list all attempts by student
+                partitionKey: "student_id",
+                sortKey: "gsi2_sk"
+            },
+            gsi3: {  // list attempts by battle+student (teacher drilldown)
+                partitionKey: "gsi3_pk",
+                sortKey: "gsi3_sk"
+            },
+        },
+    });
+
+    // BossResults table - immutable post-battle aggregated summaries
+    const bossResultsTable = new Table(stack, "BossResults", {
+        fields: {
+            boss_result_pk: "string",        // PK: BI#<boss_instance_id>
+            boss_result_sk: "string",        // SK: STU#<student_id> | GUILD#<guild_id> | META
+            student_id: "string",            // GSI1 PK: for student history (student rows only)
+            gsi1_sk: "string",               // GSI1 SK: completed_at#boss_instance_id
+            class_id: "string",              // GSI2 PK: for class history
+            gsi2_sk: "string",               // GSI2 SK: completed_at#boss_instance_id
+            completed_at: "string",          // ISO timestamp
+        },
+        primaryIndex: {
+            partitionKey: "boss_result_pk",
+            sortKey: "boss_result_sk"
+        },
+        globalIndexes: {
+            gsi1: {  // student battle history
+                partitionKey: "student_id",
+                sortKey: "gsi1_sk"
+            },
+            gsi2: {  // class battle history
+                partitionKey: "class_id",
+                sortKey: "gsi2_sk"
+            },
+        },
+    });
+
+    // BossBattleSnapshots table - immutable participation snapshots
+    const bossBattleSnapshotsTable = new Table(stack, "BossBattleSnapshots", {
+        fields: {
+            snapshot_id: "string",           // PK: ULID/UUID
+            boss_instance_id: "string",      // GSI1 PK: for listing snapshots by battle
+            created_at: "string",            // GSI1 SK: ISO timestamp
+        },
+        primaryIndex: {
+            partitionKey: "snapshot_id"
+        },
+        globalIndexes: {
+            gsi1: {  // list snapshots by battle (debugging)
+                partitionKey: "boss_instance_id",
+                sortKey: "created_at"
+            },
+        },
+    });
+
+    // BossBattleQuestionPlans table - deterministic question sequences
+    const bossBattleQuestionPlansTable = new Table(stack, "BossBattleQuestionPlans", {
+        fields: {
+            plan_id: "string",               // PK: ULID/UUID
+            boss_instance_id: "string",      // GSI1 PK: for listing plans by battle
+            created_at: "string",            // GSI1 SK: ISO timestamp
+        },
+        primaryIndex: {
+            partitionKey: "plan_id"
+        },
+        globalIndexes: {
+            gsi1: {  // list plans by battle (debugging)
+                partitionKey: "boss_instance_id",
+                sortKey: "created_at"
+            },
+        },
+    });
+
     return {
         usersTable,
         teacherProfilesTable,
@@ -363,5 +506,11 @@ export function createTables(ctx: StackContext) {
         bossBattleTemplatesTable,
         rewardTransactionsTable,
         questAnswerAttemptsTable,
+        bossBattleInstancesTable,
+        bossBattleParticipantsTable,
+        bossAnswerAttemptsTable,
+        bossResultsTable,
+        bossBattleSnapshotsTable,
+        bossBattleQuestionPlansTable,
     };
 }

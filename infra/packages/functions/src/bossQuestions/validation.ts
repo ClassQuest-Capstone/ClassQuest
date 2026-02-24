@@ -14,6 +14,19 @@ export type ValidationResult =
     | { valid: false; error: string };
 
 /**
+ * Validate time_limit_seconds
+ */
+export function validateTimeLimit(time_limit_seconds: number): ValidationResult {
+    if (!Number.isInteger(time_limit_seconds) || time_limit_seconds <= 0) {
+        return {
+            valid: false,
+            error: "time_limit_seconds must be a positive integer",
+        };
+    }
+    return { valid: true };
+}
+
+/**
  * Validate boss question creation/update input
  */
 export function validateQuestion(input: {
@@ -25,6 +38,7 @@ export function validateQuestion(input: {
     auto_gradable?: boolean;
     correct_answer?: any;
     max_points?: number;
+    time_limit_seconds?: number;
 }): ValidationResult {
     // Validate order_index
     if (input.order_index !== undefined) {
@@ -97,6 +111,14 @@ export function validateQuestion(input: {
             valid: false,
             error: "correct_answer must be provided when auto_gradable is true",
         };
+    }
+
+    // Validate time_limit_seconds if provided
+    if (input.time_limit_seconds !== undefined) {
+        const timeLimitValidation = validateTimeLimit(input.time_limit_seconds);
+        if (!timeLimitValidation.valid) {
+            return timeLimitValidation;
+        }
     }
 
     return { valid: true };

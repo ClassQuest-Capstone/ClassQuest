@@ -23,6 +23,7 @@ export type BossQuestion = {
     damage_to_guild_on_incorrect: number;
     max_points?: number;
     auto_gradable: boolean;
+    time_limit_seconds?: number;
     created_at: string;
     updated_at: string;
 };
@@ -37,6 +38,7 @@ export type CreateBossQuestionInput = {
     damage_to_guild_on_incorrect: number;
     max_points?: number;
     auto_gradable: boolean;
+    time_limit_seconds?: number;
 };
 
 export type UpdateBossQuestionInput = Partial<CreateBossQuestionInput>;
