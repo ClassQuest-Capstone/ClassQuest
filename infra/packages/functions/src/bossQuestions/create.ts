@@ -39,6 +39,7 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             damage_to_guild_on_incorrect,
             max_points,
             auto_gradable,
+            time_limit_seconds,
         } = body;
 
         // Step 3: Validate required fields
@@ -77,6 +78,7 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             auto_gradable,
             correct_answer,
             max_points,
+            time_limit_seconds,
         });
 
         if (!validation.valid) {
@@ -120,6 +122,7 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             damage_to_guild_on_incorrect,
             max_points,
             auto_gradable,
+            ...(time_limit_seconds !== undefined && { time_limit_seconds }),
             created_at: now,
             updated_at: now,
         };

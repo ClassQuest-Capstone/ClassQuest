@@ -88,6 +88,13 @@ export async function updateQuestion(
         hint?: string;
         explanation?: string;
         time_limit_seconds?: number;
+        base_xp?: number;
+        min_xp?: number;
+        xp_decay_per_wrong?: number;
+        base_gold?: number;
+        min_gold?: number;
+        gold_decay_per_wrong?: number;
+        decay_exempt?: boolean;
     }
 ): Promise<void> {
     const updateExpressions: string[] = [];
@@ -177,6 +184,48 @@ export async function updateQuestion(
         updateExpressions.push("#time_limit_seconds = :time_limit_seconds");
         expressionAttributeNames["#time_limit_seconds"] = "time_limit_seconds";
         expressionAttributeValues[":time_limit_seconds"] = updates.time_limit_seconds;
+    }
+
+    if (updates.base_xp !== undefined) {
+        updateExpressions.push("#base_xp = :base_xp");
+        expressionAttributeNames["#base_xp"] = "base_xp";
+        expressionAttributeValues[":base_xp"] = updates.base_xp;
+    }
+
+    if (updates.min_xp !== undefined) {
+        updateExpressions.push("#min_xp = :min_xp");
+        expressionAttributeNames["#min_xp"] = "min_xp";
+        expressionAttributeValues[":min_xp"] = updates.min_xp;
+    }
+
+    if (updates.xp_decay_per_wrong !== undefined) {
+        updateExpressions.push("#xp_decay_per_wrong = :xp_decay_per_wrong");
+        expressionAttributeNames["#xp_decay_per_wrong"] = "xp_decay_per_wrong";
+        expressionAttributeValues[":xp_decay_per_wrong"] = updates.xp_decay_per_wrong;
+    }
+
+    if (updates.base_gold !== undefined) {
+        updateExpressions.push("#base_gold = :base_gold");
+        expressionAttributeNames["#base_gold"] = "base_gold";
+        expressionAttributeValues[":base_gold"] = updates.base_gold;
+    }
+
+    if (updates.min_gold !== undefined) {
+        updateExpressions.push("#min_gold = :min_gold");
+        expressionAttributeNames["#min_gold"] = "min_gold";
+        expressionAttributeValues[":min_gold"] = updates.min_gold;
+    }
+
+    if (updates.gold_decay_per_wrong !== undefined) {
+        updateExpressions.push("#gold_decay_per_wrong = :gold_decay_per_wrong");
+        expressionAttributeNames["#gold_decay_per_wrong"] = "gold_decay_per_wrong";
+        expressionAttributeValues[":gold_decay_per_wrong"] = updates.gold_decay_per_wrong;
+    }
+
+    if (updates.decay_exempt !== undefined) {
+        updateExpressions.push("#decay_exempt = :decay_exempt");
+        expressionAttributeNames["#decay_exempt"] = "decay_exempt";
+        expressionAttributeValues[":decay_exempt"] = updates.decay_exempt;
     }
 
     if (updateExpressions.length === 0) {

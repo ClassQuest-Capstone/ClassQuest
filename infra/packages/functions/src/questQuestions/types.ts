@@ -84,6 +84,15 @@ export type QuestQuestionItem = {
     hint?: string;                 // Optional hint for students
     explanation?: string;          // Explanation shown after answering
     time_limit_seconds?: number;   // Optional time limit for this question
+
+    // Reward configuration fields
+    base_xp: number;               // Base XP reward (required, default: 0)
+    min_xp: number;                // Minimum XP after decay (default: 0)
+    xp_decay_per_wrong: number;    // XP decay per wrong attempt (default: 0)
+    base_gold: number;             // Base gold reward (default: 0)
+    min_gold: number;              // Minimum gold after decay (default: 0)
+    gold_decay_per_wrong: number;  // Gold decay per wrong attempt (default: 0)
+    decay_exempt: boolean;         // True for SHORT_ANSWER/ESSAY (default: derived from format)
 };
 
 export type CreateQuestionInput = Omit<QuestQuestionItem, "question_id" | "order_key">;
@@ -105,6 +114,13 @@ export type UpdateQuestionInput = Partial<
         | "hint"
         | "explanation"
         | "time_limit_seconds"
+        | "base_xp"
+        | "min_xp"
+        | "xp_decay_per_wrong"
+        | "base_gold"
+        | "min_gold"
+        | "gold_decay_per_wrong"
+        | "decay_exempt"
     >
 >;
 
@@ -134,4 +150,33 @@ export function mapFormatToLegacyType(question_format: QuestionFormat): Question
         "OTHER": "OTHER",
     };
     return mapping[question_format] ?? null;
+}
+
+/**
+ * Determine if a question format is decay-exempt
+ * SHORT_ANSWER and ESSAY questions do not have reward decay
+ */
+export function isDecayExempt(question_format: QuestionFormat): boolean {
+    return question_format === "SHORT_ANSWER" || question_format === "ESSAY";
+}
+
+/**
+ * Apply default reward values to a question item
+ * Used for read-time normalization of old records
+ */
+export function applyRewardDefaults(
+    item: Partial<QuestQuestionItem>
+): QuestQuestionItem {
+    const question_format = item.question_format ?? "OTHER" as QuestionFormat;
+
+    return {
+        ...item,
+        base_xp: item.base_xp ?? 0,
+        min_xp: item.min_xp ?? 0,
+        xp_decay_per_wrong: item.xp_decay_per_wrong ?? 0,
+        base_gold: item.base_gold ?? 0,
+        min_gold: item.min_gold ?? 0,
+        gold_decay_per_wrong: item.gold_decay_per_wrong ?? 0,
+        decay_exempt: item.decay_exempt ?? isDecayExempt(question_format),
+    } as QuestQuestionItem;
 }

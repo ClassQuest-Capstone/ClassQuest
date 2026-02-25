@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
 import { upsertResponse } from "./repo.js";
-import { AutoGradeResult, QuestQuestionResponseItem } from "./types.js";
+import { AutoGradeResult, QuestQuestionResponseItem, ResponseStatus } from "./types.js";
 import { makeInstanceStudentPk, makeGsi1Sk, makeGsi2Sk, makeGsi3Sk } from "./keys.js";
+import { validateSummaryAndRewardFields } from "./validation.js";
 
 export const handler = async (event: any) => {
     const quest_instance_id = event.pathParameters?.quest_instance_id;
@@ -82,6 +83,22 @@ export const handler = async (event: any) => {
     const gsi2sk = makeGsi2Sk(submitted_at, quest_instance_id, question_id);
     const gsi3sk = makeGsi3Sk(submitted_at, student_id, quest_instance_id);
 
+    // Validate status if provided (but don't allow reward fields from students)
+    if (body.status !== undefined) {
+        const statusValidation = validateSummaryAndRewardFields({ status: body.status });
+        if (!statusValidation.valid) {
+            return {
+                statusCode: 400,
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ error: statusValidation.error }),
+            };
+        }
+    }
+
+    // Determine status: default to SUBMITTED (student is submitting)
+    // Can be overridden if explicitly provided (e.g., IN_PROGRESS for draft saves)
+    const status = body.status || ResponseStatus.SUBMITTED;
+
     const item: QuestQuestionResponseItem = {
         instance_student_pk,
         question_id,
@@ -97,6 +114,14 @@ export const handler = async (event: any) => {
         gsi1sk,
         gsi2sk,
         gsi3sk,
+        // Summary counters (default to 0 for new responses)
+        attempt_count: body.attempt_count ?? 0,
+        wrong_attempt_count: body.wrong_attempt_count ?? 0,
+        status,
+        // Reward fields (default to 0, students cannot set these)
+        xp_awarded_total: 0,
+        gold_awarded_total: 0,
+        // reward_txn_id and reward_status are undefined (not set by students)
     };
 
     try {

@@ -25,6 +25,7 @@ export type BossQuestionItem = {
     damage_to_guild_on_incorrect: number;   // Damage guild takes on incorrect answer
     max_points?: number;                    // Optional: max points for grading
     auto_gradable: boolean;                 // Whether system can auto-grade
+    time_limit_seconds?: number;            // Optional: time limit for this question (overrides battle default)
     created_at: string;                     // ISO timestamp
     updated_at: string;                     // ISO timestamp
 };
@@ -46,5 +47,6 @@ export type UpdateBossQuestionInput = Partial<
         | "damage_to_guild_on_incorrect"
         | "max_points"
         | "auto_gradable"
+        | "time_limit_seconds"
     >
 >;

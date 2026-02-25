@@ -358,6 +358,104 @@ export function validateCorrectAnswer(
 }
 
 /**
+ * Validate reward configuration fields
+ */
+export function validateRewardConfig(data: {
+    base_xp?: number;
+    min_xp?: number;
+    xp_decay_per_wrong?: number;
+    base_gold?: number;
+    min_gold?: number;
+    gold_decay_per_wrong?: number;
+}): { valid: boolean; error?: string } {
+    // Validate base_xp
+    if (data.base_xp !== undefined) {
+        if (typeof data.base_xp !== "number" || data.base_xp < 0) {
+            return {
+                valid: false,
+                error: "base_xp must be a non-negative number",
+            };
+        }
+    }
+
+    // Validate min_xp
+    if (data.min_xp !== undefined) {
+        if (typeof data.min_xp !== "number" || data.min_xp < 0) {
+            return {
+                valid: false,
+                error: "min_xp must be a non-negative number",
+            };
+        }
+    }
+
+    // Validate min_xp <= base_xp
+    if (
+        data.base_xp !== undefined &&
+        data.min_xp !== undefined &&
+        data.min_xp > data.base_xp
+    ) {
+        return {
+            valid: false,
+            error: "min_xp cannot be greater than base_xp",
+        };
+    }
+
+    // Validate xp_decay_per_wrong
+    if (data.xp_decay_per_wrong !== undefined) {
+        if (typeof data.xp_decay_per_wrong !== "number" || data.xp_decay_per_wrong < 0) {
+            return {
+                valid: false,
+                error: "xp_decay_per_wrong must be a non-negative number",
+            };
+        }
+    }
+
+    // Validate base_gold
+    if (data.base_gold !== undefined) {
+        if (typeof data.base_gold !== "number" || data.base_gold < 0) {
+            return {
+                valid: false,
+                error: "base_gold must be a non-negative number",
+            };
+        }
+    }
+
+    // Validate min_gold
+    if (data.min_gold !== undefined) {
+        if (typeof data.min_gold !== "number" || data.min_gold < 0) {
+            return {
+                valid: false,
+                error: "min_gold must be a non-negative number",
+            };
+        }
+    }
+
+    // Validate min_gold <= base_gold
+    if (
+        data.base_gold !== undefined &&
+        data.min_gold !== undefined &&
+        data.min_gold > data.base_gold
+    ) {
+        return {
+            valid: false,
+            error: "min_gold cannot be greater than base_gold",
+        };
+    }
+
+    // Validate gold_decay_per_wrong
+    if (data.gold_decay_per_wrong !== undefined) {
+        if (typeof data.gold_decay_per_wrong !== "number" || data.gold_decay_per_wrong < 0) {
+            return {
+                valid: false,
+                error: "gold_decay_per_wrong must be a non-negative number",
+            };
+        }
+    }
+
+    return { valid: true };
+}
+
+/**
  * Validate complete question data
  */
 export function validateQuestion(data: {
@@ -369,6 +467,12 @@ export function validateQuestion(data: {
     auto_gradable?: boolean;
     difficulty?: string;
     time_limit_seconds?: number;
+    base_xp?: number;
+    min_xp?: number;
+    xp_decay_per_wrong?: number;
+    base_gold?: number;
+    min_gold?: number;
+    gold_decay_per_wrong?: number;
 }): { valid: boolean; error?: string } {
     // Validate prompt
     if (!data.prompt || typeof data.prompt !== "string" || data.prompt.trim() === "") {
@@ -397,6 +501,12 @@ export function validateQuestion(data: {
         if (!timeLimitValidation.valid) {
             return timeLimitValidation;
         }
+    }
+
+    // Validate reward configuration if provided
+    const rewardValidation = validateRewardConfig(data);
+    if (!rewardValidation.valid) {
+        return rewardValidation;
     }
 
     // Format-specific validation

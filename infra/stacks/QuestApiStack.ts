@@ -20,6 +20,14 @@ type QuestApiStackProps = {
         guildMembershipsTable: string;
         bossQuestionsTable: string;
         bossBattleTemplatesTable: string;
+        rewardTransactionsTable: string;
+        questAnswerAttemptsTable: string;
+        bossBattleInstancesTable: string;
+        bossBattleParticipantsTable: string;
+        bossAnswerAttemptsTable: string;
+        bossResultsTable: string;
+        bossBattleSnapshotsTable: string;
+        bossBattleQuestionPlansTable: string;
     };
     tableArns: {
         usersTable: string;
@@ -37,6 +45,14 @@ type QuestApiStackProps = {
         guildMembershipsTable: string;
         bossQuestionsTable: string;
         bossBattleTemplatesTable: string;
+        rewardTransactionsTable: string;
+        questAnswerAttemptsTable: string;
+        bossBattleInstancesTable: string;
+        bossBattleParticipantsTable: string;
+        bossAnswerAttemptsTable: string;
+        bossResultsTable: string;
+        bossBattleSnapshotsTable: string;
+        bossBattleQuestionPlansTable: string;
     };
     userPoolId: string;
     userPoolArn: string;
@@ -95,6 +111,54 @@ export function QuestApiStack(ctx: StackContext, props: QuestApiStackProps) {
         "GET /boss-battle-templates/{boss_template_id}": { method: "GET", path: "/boss-battle-templates/{boss_template_id}", handler: "packages/functions/src/bossBattleTemplates/get.handler" },
         "GET /teachers/{teacher_id}/boss-battle-templates": { method: "GET", path: "/teachers/{teacher_id}/boss-battle-templates", handler: "packages/functions/src/bossBattleTemplates/list-by-owner.handler" },
         "GET /boss-battle-templates/public": { method: "GET", path: "/boss-battle-templates/public", handler: "packages/functions/src/bossBattleTemplates/list-public.handler" },
+
+        // RewardTransactions
+        "POST /reward-transactions": { method: "POST", path: "/reward-transactions", handler: "packages/functions/src/rewardTransactions/create-transaction.handler" },
+        "GET /reward-transactions/{transaction_id}": { method: "GET", path: "/reward-transactions/{transaction_id}", handler: "packages/functions/src/rewardTransactions/get-transaction.handler" },
+        "GET /reward-transactions/by-student/{student_id}": { method: "GET", path: "/reward-transactions/by-student/{student_id}", handler: "packages/functions/src/rewardTransactions/list-by-student.handler" },
+        "GET /reward-transactions/by-student/{student_id}/class/{class_id}": { method: "GET", path: "/reward-transactions/by-student/{student_id}/class/{class_id}", handler: "packages/functions/src/rewardTransactions/list-by-student-and-class.handler" },
+        "GET /reward-transactions/by-source/{source_type}/{source_id}": { method: "GET", path: "/reward-transactions/by-source/{source_type}/{source_id}", handler: "packages/functions/src/rewardTransactions/list-by-source.handler" },
+
+        // Internal routes for reward pipeline
+        "PATCH /quest-instances/{quest_instance_id}/questions/{question_id}/responses/{student_id}/mark-reward-applied": { method: "PATCH", path: "/quest-instances/{quest_instance_id}/questions/{question_id}/responses/{student_id}/mark-reward-applied", handler: "packages/functions/src/questQuestionResponses/mark-reward-applied.handler" },
+        "PATCH /quest-instances/{quest_instance_id}/questions/{question_id}/responses/{student_id}/mark-reward-reversed": { method: "PATCH", path: "/quest-instances/{quest_instance_id}/questions/{question_id}/responses/{student_id}/mark-reward-reversed", handler: "packages/functions/src/questQuestionResponses/mark-reward-reversed.handler" },
+
+        // QuestAnswerAttempts
+        "POST /quest-answer-attempts": { method: "POST", path: "/quest-answer-attempts", handler: "packages/functions/src/questAnswerAttempts/create-attempt.handler" },
+        "GET /quest-instances/{quest_instance_id}/students/{student_id}/questions/{question_id}/attempts": { method: "GET", path: "/quest-instances/{quest_instance_id}/students/{student_id}/questions/{question_id}/attempts", handler: "packages/functions/src/questAnswerAttempts/list-by-pk.handler" },
+        "GET /quest-instances/{quest_instance_id}/students/{student_id}/attempts": { method: "GET", path: "/quest-instances/{quest_instance_id}/students/{student_id}/attempts", handler: "packages/functions/src/questAnswerAttempts/list-by-gsi1.handler" },
+        "GET /quest-instances/{quest_instance_id}/questions/{question_id}/attempts": { method: "GET", path: "/quest-instances/{quest_instance_id}/questions/{question_id}/attempts", handler: "packages/functions/src/questAnswerAttempts/list-by-gsi2.handler" },
+        "PATCH /quest-instances/{quest_instance_id}/students/{student_id}/questions/{question_id}/attempts/{attempt_no}/grade": { method: "PATCH", path: "/quest-instances/{quest_instance_id}/students/{student_id}/questions/{question_id}/attempts/{attempt_no}/grade", handler: "packages/functions/src/questAnswerAttempts/grade-attempt.handler" },
+
+        // BossBattleInstances
+        "POST /boss-battle-instances": { method: "POST", path: "/boss-battle-instances", handler: "packages/functions/src/bossBattleInstances/create.handler" },
+        "GET /boss-battle-instances/{boss_instance_id}": { method: "GET", path: "/boss-battle-instances/{boss_instance_id}", handler: "packages/functions/src/bossBattleInstances/get.handler" },
+        "GET /classes/{class_id}/boss-battle-instances": { method: "GET", path: "/classes/{class_id}/boss-battle-instances", handler: "packages/functions/src/bossBattleInstances/list-by-class.handler" },
+        "GET /boss-battle-templates/{boss_template_id}/boss-battle-instances": { method: "GET", path: "/boss-battle-templates/{boss_template_id}/boss-battle-instances", handler: "packages/functions/src/bossBattleInstances/list-by-template.handler" },
+        "PATCH /boss-battle-instances/{boss_instance_id}": { method: "PATCH", path: "/boss-battle-instances/{boss_instance_id}", handler: "packages/functions/src/bossBattleInstances/update.handler" },
+
+        // BossBattleParticipants
+        "POST /boss-battle-instances/{boss_instance_id}/participants/join": { method: "POST", path: "/boss-battle-instances/{boss_instance_id}/participants/join", handler: "packages/functions/src/bossBattleParticipants/join.handler" },
+        "POST /boss-battle-instances/{boss_instance_id}/participants/spectate": { method: "POST", path: "/boss-battle-instances/{boss_instance_id}/participants/spectate", handler: "packages/functions/src/bossBattleParticipants/spectate.handler" },
+        "POST /boss-battle-instances/{boss_instance_id}/participants/leave": { method: "POST", path: "/boss-battle-instances/{boss_instance_id}/participants/leave", handler: "packages/functions/src/bossBattleParticipants/leave.handler" },
+        "GET /boss-battle-instances/{boss_instance_id}/participants": { method: "GET", path: "/boss-battle-instances/{boss_instance_id}/participants", handler: "packages/functions/src/bossBattleParticipants/list.handler" },
+        "POST /boss-battle-instances/{boss_instance_id}/participants/{student_id}/kick": { method: "POST", path: "/boss-battle-instances/{boss_instance_id}/participants/{student_id}/kick", handler: "packages/functions/src/bossBattleParticipants/kick.handler" },
+
+        // BossAnswerAttempts
+        "GET /boss-battle-instances/{boss_instance_id}/attempts": { method: "GET", path: "/boss-battle-instances/{boss_instance_id}/attempts", handler: "packages/functions/src/bossAnswerAttempts/list-by-battle.handler" },
+        "GET /students/{student_id}/bossAttempts": { method: "GET", path: "/students/{student_id}/bossAttempts", handler: "packages/functions/src/bossAnswerAttempts/list-by-student.handler" },
+
+        // BossResults
+        "GET /boss-battle-instances/{boss_instance_id}/results": { method: "GET", path: "/boss-battle-instances/{boss_instance_id}/results", handler: "packages/functions/src/bossResults/get-results.handler" },
+        "GET /students/{student_id}/bossResults": { method: "GET", path: "/students/{student_id}/bossResults", handler: "packages/functions/src/bossResults/list-by-student.handler" },
+        "POST /boss-battle-instances/{boss_instance_id}/results/compute": { method: "POST", path: "/boss-battle-instances/{boss_instance_id}/results/compute", handler: "packages/functions/src/bossResults/compute.handler" },
+
+        // BossBattleSnapshots
+        "POST /boss-battle-instances/{boss_instance_id}/snapshots/participants": { method: "POST", path: "/boss-battle-instances/{boss_instance_id}/snapshots/participants", handler: "packages/functions/src/bossBattleSnapshots/create-snapshot.handler" },
+        "GET /boss-battle-snapshots/{snapshot_id}": { method: "GET", path: "/boss-battle-snapshots/{snapshot_id}", handler: "packages/functions/src/bossBattleSnapshots/get-snapshot.handler" },
+
+        // BossBattleQuestionPlans
+        "GET /boss-battle-question-plans/{plan_id}": { method: "GET", path: "/boss-battle-question-plans/{plan_id}", handler: "packages/functions/src/bossBattleQuestionPlans/get-plan.handler" },
     };
 
     // Create Lambda functions and wire routes
@@ -123,6 +187,14 @@ export function QuestApiStack(ctx: StackContext, props: QuestApiStackProps) {
                 GUILD_MEMBERSHIPS_TABLE_NAME: tableNames.guildMembershipsTable,
                 BOSS_QUESTIONS_TABLE_NAME: tableNames.bossQuestionsTable,
                 BOSS_BATTLE_TEMPLATES_TABLE_NAME: tableNames.bossBattleTemplatesTable,
+                REWARD_TRANSACTIONS_TABLE_NAME: tableNames.rewardTransactionsTable,
+                QUEST_ANSWER_ATTEMPTS_TABLE_NAME: tableNames.questAnswerAttemptsTable,
+                BOSS_BATTLE_INSTANCES_TABLE_NAME: tableNames.bossBattleInstancesTable,
+                BOSS_BATTLE_PARTICIPANTS_TABLE_NAME: tableNames.bossBattleParticipantsTable,
+                BOSS_ANSWER_ATTEMPTS_TABLE_NAME: tableNames.bossAnswerAttemptsTable,
+                BOSS_RESULTS_TABLE_NAME: tableNames.bossResultsTable,
+                BOSS_BATTLE_SNAPSHOTS_TABLE_NAME: tableNames.bossBattleSnapshotsTable,
+                BOSS_BATTLE_QUESTION_PLANS_TABLE_NAME: tableNames.bossBattleQuestionPlansTable,
                 USER_POOL_ID: userPoolId,
             },
         });

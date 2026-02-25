@@ -102,6 +102,7 @@ export async function updateQuestion(
         damage_to_guild_on_incorrect?: number;
         max_points?: number;
         auto_gradable?: boolean;
+        time_limit_seconds?: number;
         updated_at?: string;
     }
 ): Promise<void> {
@@ -168,6 +169,12 @@ export async function updateQuestion(
         updateExpressions.push("#auto_gradable = :auto_gradable");
         expressionAttributeNames["#auto_gradable"] = "auto_gradable";
         expressionAttributeValues[":auto_gradable"] = updates.auto_gradable;
+    }
+
+    if (updates.time_limit_seconds !== undefined) {
+        updateExpressions.push("#time_limit_seconds = :time_limit_seconds");
+        expressionAttributeNames["#time_limit_seconds"] = "time_limit_seconds";
+        expressionAttributeValues[":time_limit_seconds"] = updates.time_limit_seconds;
     }
 
     if (updates.updated_at !== undefined) {

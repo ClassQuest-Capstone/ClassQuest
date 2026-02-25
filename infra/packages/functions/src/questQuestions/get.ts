@@ -1,4 +1,5 @@
 import { getQuestion } from "./repo.ts";
+import { applyRewardDefaults } from "./types.ts";
 
 /**
  * GET /quest-questions/{question_id}
@@ -19,9 +20,20 @@ export const handler = async (event: any) => {
 
     const item = await getQuestion(question_id);
 
+    if (!item) {
+        return {
+            statusCode: 404,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ error: "QUESTION_NOT_FOUND" }),
+        };
+    }
+
+    // Apply reward defaults for backward compatibility
+    const normalizedItem = applyRewardDefaults(item);
+
     return {
-        statusCode: item ? 200 : 404,
+        statusCode: 200,
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(item ?? { error: "QUESTION_NOT_FOUND" }),
+        body: JSON.stringify(normalizedItem),
     };
 };

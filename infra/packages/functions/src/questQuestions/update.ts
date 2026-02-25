@@ -6,7 +6,7 @@ import {
     validateQuestionFormat,
     validateQuestion,
 } from "./validation.ts";
-import { mapFormatToLegacyType } from "./types.ts";
+import { mapFormatToLegacyType, isDecayExempt } from "./types.ts";
 
 /**
  * PATCH /quest-questions/{question_id}
@@ -46,6 +46,13 @@ export const handler = async (event: any) => {
         hint,
         explanation,
         time_limit_seconds,
+        base_xp,
+        min_xp,
+        xp_decay_per_wrong,
+        base_gold,
+        min_gold,
+        gold_decay_per_wrong,
+        decay_exempt,
     } = body;
 
     // Step 2: Fetch existing question to get current values for validation
@@ -94,6 +101,12 @@ export const handler = async (event: any) => {
         auto_gradable: auto_gradable !== undefined ? auto_gradable : existingQuestion.auto_gradable,
         difficulty: difficulty !== undefined ? difficulty : existingQuestion.difficulty,
         time_limit_seconds: time_limit_seconds !== undefined ? time_limit_seconds : existingQuestion.time_limit_seconds,
+        base_xp: base_xp !== undefined ? base_xp : (existingQuestion.base_xp ?? 0),
+        min_xp: min_xp !== undefined ? min_xp : (existingQuestion.min_xp ?? 0),
+        xp_decay_per_wrong: xp_decay_per_wrong !== undefined ? xp_decay_per_wrong : (existingQuestion.xp_decay_per_wrong ?? 0),
+        base_gold: base_gold !== undefined ? base_gold : (existingQuestion.base_gold ?? 0),
+        min_gold: min_gold !== undefined ? min_gold : (existingQuestion.min_gold ?? 0),
+        gold_decay_per_wrong: gold_decay_per_wrong !== undefined ? gold_decay_per_wrong : (existingQuestion.gold_decay_per_wrong ?? 0),
     };
 
     // Step 5: Validate merged data
@@ -135,6 +148,11 @@ export const handler = async (event: any) => {
         if (legacyType) {
             updates.question_type = legacyType;
         }
+
+        // Re-derive decay_exempt if not explicitly provided and format changed
+        if (decay_exempt === undefined) {
+            updates.decay_exempt = isDecayExempt(finalFormat);
+        }
     }
 
     if (prompt !== undefined) updates.prompt = prompt.trim();
@@ -147,6 +165,15 @@ export const handler = async (event: any) => {
     if (hint !== undefined) updates.hint = hint;
     if (explanation !== undefined) updates.explanation = explanation;
     if (time_limit_seconds !== undefined) updates.time_limit_seconds = time_limit_seconds;
+
+    // Reward config updates
+    if (base_xp !== undefined) updates.base_xp = base_xp;
+    if (min_xp !== undefined) updates.min_xp = min_xp;
+    if (xp_decay_per_wrong !== undefined) updates.xp_decay_per_wrong = xp_decay_per_wrong;
+    if (base_gold !== undefined) updates.base_gold = base_gold;
+    if (min_gold !== undefined) updates.min_gold = min_gold;
+    if (gold_decay_per_wrong !== undefined) updates.gold_decay_per_wrong = gold_decay_per_wrong;
+    if (decay_exempt !== undefined) updates.decay_exempt = decay_exempt;
 
     // Step 7: Perform update
     try {

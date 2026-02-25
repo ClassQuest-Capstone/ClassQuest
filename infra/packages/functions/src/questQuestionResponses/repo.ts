@@ -6,7 +6,7 @@ import {
     QueryCommand,
     UpdateCommand
 } from "@aws-sdk/lib-dynamodb";
-import { QuestQuestionResponseItem } from "./types.js";
+import { QuestQuestionResponseItem, ResponseStatus, RewardStatus } from "./types.js";
 import { makeInstanceStudentPk } from "./keys.js";
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
@@ -135,7 +135,7 @@ export async function listByQuestion(
 }
 
 /**
- * Grade a response (teacher fields only)
+ * Grade a response (teacher fields + reward fields)
  */
 export async function gradeResponse(
     quest_instance_id: string,
@@ -145,6 +145,10 @@ export async function gradeResponse(
         teacher_points_awarded?: number;
         teacher_comment?: string;
         graded_by_teacher_id?: string;
+        status?: ResponseStatus;
+        xp_awarded_total?: number;
+        gold_awarded_total?: number;
+        reward_status?: RewardStatus;
     }
 ): Promise<void> {
     const instance_student_pk = makeInstanceStudentPk(quest_instance_id, student_id);
@@ -170,12 +174,38 @@ export async function gradeResponse(
         expressionAttributeValues[":teacher_id"] = patch.graded_by_teacher_id;
     }
 
+    if (patch.status !== undefined) {
+        updateExpressions.push("#status = :status");
+        expressionAttributeValues[":status"] = patch.status;
+    }
+
+    if (patch.xp_awarded_total !== undefined) {
+        updateExpressions.push("xp_awarded_total = :xp");
+        expressionAttributeValues[":xp"] = patch.xp_awarded_total;
+    }
+
+    if (patch.gold_awarded_total !== undefined) {
+        updateExpressions.push("gold_awarded_total = :gold");
+        expressionAttributeValues[":gold"] = patch.gold_awarded_total;
+    }
+
+    if (patch.reward_status !== undefined) {
+        updateExpressions.push("reward_status = :reward_status");
+        expressionAttributeValues[":reward_status"] = patch.reward_status;
+    }
+
+    const expressionAttributeNames: Record<string, string> = {};
+    if (patch.status !== undefined) {
+        expressionAttributeNames["#status"] = "status";
+    }
+
     await ddb.send(
         new UpdateCommand({
             TableName: TABLE,
             Key: { instance_student_pk, question_id },
             UpdateExpression: `SET ${updateExpressions.join(", ")}`,
             ExpressionAttributeValues: expressionAttributeValues,
+            ...(Object.keys(expressionAttributeNames).length > 0 && { ExpressionAttributeNames: expressionAttributeNames }),
             ConditionExpression: "attribute_exists(instance_student_pk)",
         })
     );
@@ -209,4 +239,62 @@ export async function listByInstanceAndStudent(
             ? Buffer.from(JSON.stringify(res.LastEvaluatedKey)).toString("base64")
             : undefined,
     };
+}
+
+/**
+ * Mark a response reward as applied
+ * Internal route for reward pipeline - sets reward_txn_id and reward_status
+ */
+export async function markRewardApplied(
+    quest_instance_id: string,
+    student_id: string,
+    question_id: string,
+    reward_txn_id: string,
+    xp_awarded_total: number,
+    gold_awarded_total: number
+): Promise<void> {
+    const instance_student_pk = makeInstanceStudentPk(quest_instance_id, student_id);
+
+    await ddb.send(
+        new UpdateCommand({
+            TableName: TABLE,
+            Key: { instance_student_pk, question_id },
+            UpdateExpression: "SET reward_txn_id = :txn_id, reward_status = :status, xp_awarded_total = :xp, gold_awarded_total = :gold",
+            ExpressionAttributeValues: {
+                ":txn_id": reward_txn_id,
+                ":status": RewardStatus.APPLIED,
+                ":xp": xp_awarded_total,
+                ":gold": gold_awarded_total,
+            },
+            // Only update if not already applied with same txn_id (idempotency)
+            ConditionExpression: "attribute_exists(instance_student_pk) AND (attribute_not_exists(reward_txn_id) OR reward_txn_id <> :txn_id)",
+        })
+    );
+}
+
+/**
+ * Mark a response reward as reversed
+ * Internal route for reward pipeline - updates reward_status to REVERSED
+ */
+export async function markRewardReversed(
+    quest_instance_id: string,
+    student_id: string,
+    question_id: string,
+    reward_txn_id: string
+): Promise<void> {
+    const instance_student_pk = makeInstanceStudentPk(quest_instance_id, student_id);
+
+    await ddb.send(
+        new UpdateCommand({
+            TableName: TABLE,
+            Key: { instance_student_pk, question_id },
+            UpdateExpression: "SET reward_status = :status",
+            ExpressionAttributeValues: {
+                ":status": RewardStatus.REVERSED,
+                ":txn_id": reward_txn_id,
+            },
+            // Only update if reward_txn_id matches
+            ConditionExpression: "attribute_exists(instance_student_pk) AND reward_txn_id = :txn_id",
+        })
+    );
 }
