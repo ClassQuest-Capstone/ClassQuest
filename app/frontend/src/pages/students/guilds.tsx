@@ -379,7 +379,7 @@ const GuildPage: React.FC = () => {
                 to="/guilds"
                 className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900"
               >
-                Guild
+                Guilds
               </Link>
 
               <Link

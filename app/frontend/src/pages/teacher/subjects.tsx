@@ -425,6 +425,21 @@ const Subjects = () => {
     try {
       const templateId = (assigningTemplate as any).quest_template_id;
       
+      // Determine initial status: DRAFT if start_date is in future, ACTIVE if no date or date is past
+      let initialStatus: "DRAFT" | "ACTIVE" = "DRAFT";
+      if (assignStartDate) {
+        const startTime = new Date(assignStartDate).getTime();
+        const now = Date.now();
+        // If start date is in the past or very close to now, set to ACTIVE
+        if (startTime <= now) {
+          initialStatus = "ACTIVE";
+        }
+        // Otherwise keep as DRAFT - it will become ACTIVE on the start date
+      } else {
+        // No start date provided - create as ACTIVE immediately
+        initialStatus = "ACTIVE";
+      }
+      
       const request: CreateQuestInstanceRequest = {
         quest_template_id: templateId || null,
         title_override: assignTitleOverride.trim() || undefined,
@@ -432,7 +447,7 @@ const Subjects = () => {
         start_date: assignStartDate || undefined,
         due_date: assignDueDate || undefined,
         requires_manual_approval: assignManualApproval,
-        status: "ACTIVE", // Assigning to a class makes the quest live for students
+        status: initialStatus,
       };
 
       await createQuestInstance(assignClassId, request);
@@ -545,6 +560,31 @@ const Subjects = () => {
     } catch (e: any) {
       console.error("Failed to remove assignment:", e);
       alert("Failed to remove assignment");
+    }
+  };
+
+  // Activate a DRAFT quest instance
+  const activateQuestInstance = async (instance: QuestInstance) => {
+    if (instance.status !== "DRAFT") return;
+
+    try {
+      await updateQuestInstanceStatus(instance.quest_instance_id, "ACTIVE");
+
+      // Update local state
+      setQuestInstances((prev) => {
+        const newMap = new Map(prev);
+        const instances = newMap.get(instance.quest_template_id!) || [];
+        const updated = instances.map((i) =>
+          i.quest_instance_id === instance.quest_instance_id
+            ? { ...i, status: "ACTIVE" }
+            : i
+        );
+        newMap.set(instance.quest_template_id!, updated);
+        return newMap;
+      });
+    } catch (e: any) {
+      console.error("Failed to activate quest:", e);
+      alert("Failed to activate quest");
     }
   };
 
@@ -825,7 +865,16 @@ const Subjects = () => {
                                           ) : null}
                                           
                                           {/* Action buttons for this instance */}
-                                          <div className="flex gap-1 mt-2 pt-2 border-t border-blue-100">
+                                          <div className="flex gap-1 mt-2 pt-2 border-t border-blue-100 flex-wrap">
+                                            {instance.status === "DRAFT" && (
+                                              <button
+                                                className="flex-1 bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
+                                                onClick={() => activateQuestInstance(instance)}
+                                                title="Activate this draft quest now"
+                                              >
+                                                <i data-feather="play" className="w-3 h-3"></i> Activate
+                                              </button>
+                                            )}
                                             <button
                                               className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
                                               onClick={() => openExtensionModal(instance)}

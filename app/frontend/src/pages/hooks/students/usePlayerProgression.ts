@@ -33,7 +33,7 @@ const BASE_XP_FOR_LEVEL_2 = 500; // XP needed to reach level 2
 const XP_INCREASE_PER_LEVEL = 100; // Each level requires +100 more XP
 const MAX_LEVEL = 30;
 
-// Reward milestones
+// Reward milestones for equipments
 export const REWARD_MILESTONES: Reward[] = [
   {
     level: 5,

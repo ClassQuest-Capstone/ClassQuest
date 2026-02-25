@@ -138,7 +138,11 @@ TODO: Assist alvin with boss battle and correct minor errors in student tutorial
 
 TODO: recent activity display of 3 latest activities on teachers page
 
-Students join waiting room, each guild should only show active players (only ones with rewards)  
+TODO: recent activity tracks rewards transactiions (table ready)
+
+TODO: check date so that quest only shows up on the date its assigned if it date is not reached it stays as draft until the start date is reached (DONE)
+
+TODO: Students join waiting room, each guild should only show active players (only ones with rewards)  
 
 students load on waiting screen awaiting teachers to click start 
 

@@ -127,9 +127,14 @@ export const AssignQuestModal: React.FC<AssignQuestModalProps> = ({
               </div>
             </div>
 
-            <p className="text-sm text-red-500">
-              Assigning this quest to a class will make it live for students in that class.
-            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+              <p className="text-sm font-semibold text-blue-700">How it works:</p>
+              <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
+                <li>If you set a <strong>future start date</strong>, the quest will be <strong>DRAFT</strong> until that date arrives</li>
+                <li>If you don't set a start date or the date is in the past, the quest becomes <strong>ACTIVE</strong> immediately</li>
+                <li>You can manually activate a DRAFT quest anytime from the Quest management page</li>
+              </ul>
+            </div>
 
             <div className="flex items-center gap-2">
               <input
