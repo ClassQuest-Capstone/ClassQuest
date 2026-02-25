@@ -1,4 +1,4 @@
-// Subjects.tsx
+// subjects.tsx (fixed)
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import feather from "feather-icons";
@@ -21,7 +21,6 @@ import {
 import { listClassesByTeacher, type ClassItem } from "../../api/classes.js";
 import {
   createQuestInstance,
-  listQuestInstancesByClass,
   listQuestInstancesByTemplate,
   updateQuestInstanceStatus,
   updateQuestInstanceDates,
@@ -30,6 +29,21 @@ import {
   type QuestInstanceStatus,
 } from "../../api/questInstances.js";
 import { type QuestQuestion } from "../../api/questQuestions.js";
+
+// Boss battle templates (existing client)
+import {
+  createBossBattleTemplate,
+  listBossBattleTemplatesByOwner,
+  listPublicBossBattleTemplates,
+} from "../../api/bossBattleTemplates/client.js";
+import type { BossBattleTemplateItem as BossBattleTemplate } from "../../api/bossBattleTemplates/types.js";
+
+// --------------------
+// If your backend paths differ, change these two constants.
+// These are only used for assign/delete boss templates.
+// --------------------
+const BOSS_TEMPLATES_API_PATH = "/bossBattleTemplates";
+const BOSS_INSTANCES_API_PATH = "/bossBattleInstances";
 
 type TeacherUser = {
   id: string;
@@ -64,7 +78,6 @@ function normalizeDifficulty(v: string) {
   if (x === "easy") return "EASY";
   if (x === "medium") return "MEDIUM";
   if (x === "hard") return "HARD";
-  // already enum?
   if (v === "EASY" || v === "MEDIUM" || v === "HARD") return v;
   return "EASY";
 }
@@ -74,7 +87,6 @@ function normalizeType(v: string) {
   if (x === "quest") return "QUEST";
   if (x === "daily quest" || x === "daily_quest") return "DAILY_QUEST";
   if (x === "boss fight" || x === "boss_fight") return "BOSS_FIGHT";
-  // already enum?
   if (v === "QUEST" || v === "DAILY_QUEST" || v === "BOSS_FIGHT") return v;
   return "QUEST";
 }
@@ -89,6 +101,14 @@ const inputBox =
   "w-full mt-1 border border-gray-300 rounded-lg px-3 py-2 text-black bg-white " +
   "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500";
 
+async function safeJson(res: Response) {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 const Subjects = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const location = useLocation();
@@ -101,7 +121,12 @@ const Subjects = () => {
   const [error, setError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<QuestTemplate[]>([]);
 
-  // Edit modal state
+  // Boss battle templates
+  const [bossTemplates, setBossTemplates] = useState<BossBattleTemplate[]>([]);
+  const [bossLoading, setBossLoading] = useState(false);
+  const [bossError, setBossError] = useState<string | null>(null);
+
+  // Edit modal state (quests)
   const [editOpen, setEditOpen] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
@@ -119,12 +144,12 @@ const Subjects = () => {
   const [eGold, setEGold] = useState<number>(0);
   const [ePublic, setEPublic] = useState<boolean>(false);
 
-  // QuestInstance assignment modal state
+  // Quest assignment modal state
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [assigningTemplate, setAssigningTemplate] = useState<QuestTemplate | null>(null);
   const [assignLoading, setAssignLoading] = useState(false);
   const [assignError, setAssignError] = useState<string | null>(null);
-  
+
   // Assignment form fields
   const [assignClassId, setAssignClassId] = useState<string>("");
   const [assignStartDate, setAssignStartDate] = useState<string>("");
@@ -138,12 +163,25 @@ const Subjects = () => {
 
   // Extension date editor modal state
   const [extensionModalOpen, setExtensionModalOpen] = useState(false);
-  const [selectedInstanceForExtension, setSelectedInstanceForExtension] = useState<QuestInstance | null>(null);
+  const [selectedInstanceForExtension, setSelectedInstanceForExtension] =
+    useState<QuestInstance | null>(null);
   const [extensionDueDate, setExtensionDueDate] = useState<string>("");
   const [extensionError, setExtensionError] = useState<string | null>(null);
   const [extensionSaving, setExtensionSaving] = useState(false);
 
-  // Use Questions Hook
+  // Boss assignment modal state
+  const [bossAssignOpen, setBossAssignOpen] = useState(false);
+  const [bossAssigning, setBossAssigning] = useState<BossBattleTemplate | null>(null);
+  const [bossAssignLoading, setBossAssignLoading] = useState(false);
+  const [bossAssignError, setBossAssignError] = useState<string | null>(null);
+  const [bossAssignClassId, setBossAssignClassId] = useState<string>("");
+  const [bossAssignStartDate, setBossAssignStartDate] = useState<string>("");
+  const [bossAssignDueDate, setBossAssignDueDate] = useState<string>("");
+  const [bossAssignManualApproval, setBossAssignManualApproval] = useState<boolean>(false);
+  const [bossAssignTitleOverride, setBossAssignTitleOverride] = useState<string>("");
+  const [bossAssignDescriptionOverride, setBossAssignDescriptionOverride] = useState<string>("");
+
+  // Use Questions Hook (quests)
   const {
     questionsModalOpen,
     questionEditModalOpen,
@@ -159,8 +197,6 @@ const Subjects = () => {
     saveQuestionEdit,
     deleteQuestion,
     setEditFormField,
-    addOption,
-    removeOption,
   } = useQuestions();
 
   useEffect(() => {
@@ -178,8 +214,11 @@ const Subjects = () => {
     const currentUserJson = localStorage.getItem("cq_currentUser");
     if (!currentUserJson) return;
     try {
-      const teacherData = JSON.parse(currentUserJson) as TeacherUser;
-      setTeacher(teacherData);
+      const parsed = JSON.parse(currentUserJson) as any;
+      // normalize id (works even if your stored object uses teacher_id / sub)
+      const teacherId = parsed?.id ?? parsed?.teacher_id ?? parsed?.userId ?? parsed?.sub ?? null;
+      if (!teacherId) return;
+      setTeacher({ ...(parsed as any), id: teacherId });
     } catch (e) {
       console.error("Failed to parse teacher data from localStorage:", e);
     }
@@ -201,7 +240,19 @@ const Subjects = () => {
 
   useEffect(() => {
     feather.replace();
-  }, [isModalOpen, templates, loading, error, editOpen, assignModalOpen, questInstances]);
+  }, [
+    isModalOpen,
+    templates,
+    loading,
+    error,
+    editOpen,
+    assignModalOpen,
+    questInstances,
+    bossTemplates,
+    bossLoading,
+    bossError,
+    bossAssignOpen,
+  ]);
 
   const loadTemplates = useCallback(async () => {
     if (!teacher?.id) return;
@@ -223,8 +274,7 @@ const Subjects = () => {
       const unique = new Map<string, QuestTemplate>();
       for (const t of merged) unique.set((t as any).quest_template_id, t);
 
-      let list = [...unique.values()]
-        // Filter out soft-deleted templates
+      const list = [...unique.values()]
         .filter((t) => !(t as any).is_deleted)
         .sort((a, b) => {
           const da = new Date((a as any).created_at).getTime();
@@ -246,6 +296,52 @@ const Subjects = () => {
     if (teacher?.id) loadTemplates();
   }, [teacher?.id, loadTemplates]);
 
+  const loadBossTemplates = useCallback(async () => {
+    if (!teacher?.id) return;
+
+    setBossLoading(true);
+    setBossError(null);
+
+    try {
+      const [ownedRes, publicRes] = await Promise.all([
+        listBossBattleTemplatesByOwner(teacher.id),
+        listPublicBossBattleTemplates({ limit: 100 } as any),
+      ]);
+
+      const merged: BossBattleTemplate[] = [
+        ...(((ownedRes as any)?.items as BossBattleTemplate[]) ?? []),
+        ...(((publicRes as any)?.items as BossBattleTemplate[]) ?? []),
+      ];
+
+      const unique = new Map<string, BossBattleTemplate>();
+      for (const t of merged) {
+        const id = safeStr((t as any).boss_template_id).trim();
+        if (!id) continue;
+        unique.set(id, t);
+      }
+
+      const list = [...unique.values()]
+        .filter((t) => !(t as any).is_deleted)
+        .sort((a, b) => {
+          const da = new Date((a as any).created_at).getTime();
+          const db = new Date((b as any).created_at).getTime();
+          if (!Number.isNaN(da) && !Number.isNaN(db)) return db - da;
+          return safeStr((a as any).title).localeCompare(safeStr((b as any).title));
+        });
+
+      setBossTemplates(list);
+    } catch (e: any) {
+      setBossError(e?.message || "Failed to load boss battle templates");
+      setBossTemplates([]);
+    } finally {
+      setBossLoading(false);
+    }
+  }, [teacher?.id]);
+
+  useEffect(() => {
+    if (teacher?.id) loadBossTemplates();
+  }, [teacher?.id, loadBossTemplates]);
+
   // Load quest instances for all templates
   const loadQuestInstances = useCallback(async () => {
     if (!teacher?.id || templates.length === 0) return;
@@ -253,7 +349,6 @@ const Subjects = () => {
     const instancesMap = new Map<string, QuestInstance[]>();
 
     try {
-      // Load instances for each template
       await Promise.all(
         templates.map(async (template) => {
           const templateId = (template as any).quest_template_id;
@@ -301,30 +396,94 @@ const Subjects = () => {
       .sort((a, b) => a.subject.localeCompare(b.subject));
   }, [templates]);
 
-  const handleCreateQuest = (event: React.FormEvent<HTMLFormElement>) => {
+  const bossTemplatesBySubject = useMemo(() => {
+    const map = new Map<string, BossBattleTemplate[]>();
+
+    for (const t of bossTemplates) {
+      const key = safeStr((t as any).subject || "Unassigned").trim() || "Unassigned";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(t);
+    }
+
+    for (const [k, arr] of map.entries()) {
+      arr.sort((a, b) => safeStr((a as any).title).localeCompare(safeStr((b as any).title)));
+      map.set(k, arr);
+    }
+
+    return [...map.entries()]
+      .map(([subject, items]) => ({ subject, items }))
+      .sort((a, b) => a.subject.localeCompare(b.subject));
+  }, [bossTemplates]);
+
+  const handleCreateQuest = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setError(null);
+
     const formData = new FormData(event.currentTarget);
 
     const xp = toInt(formData.get("base_xp_reward"), 0);
     const gold = toInt(formData.get("base_gold_reward"), 0);
 
+    const questName = safeStr(formData.get("questName"));
+    const type = safeStr(formData.get("type"));
+    const subject = safeStr(formData.get("subject"));
+    const grade = safeStr(formData.get("grade"));
+    const description = safeStr(formData.get("description"));
+    const difficulty = safeStr(formData.get("difficulty"));
+
+    // Boss Fight -> create boss template then go to bossQuestions
+    if (type === "Boss Fight") {
+      try {
+        if (!teacher?.id) throw new Error("Missing teacher id");
+
+        const created: any = await createBossBattleTemplate({
+          owner_teacher_id: teacher.id,
+          title: questName,
+          description,
+          subject,
+          max_hp: 100,
+          base_xp_reward: xp,
+          base_gold_reward: gold,
+          is_shared_publicly: false,
+        } as any);
+
+        const newId =
+          safeStr(created?.boss_template_id) ||
+          safeStr(created?.item?.boss_template_id) ||
+          safeStr(created?.data?.boss_template_id);
+
+        setIsModalOpen(false);
+        await loadBossTemplates();
+
+        if (newId) {
+          navigate(`/teacher/bossQuestions?boss_template_id=${encodeURIComponent(newId)}`, {
+            state: { boss_template_id: newId },
+          });
+        }
+
+        return;
+      } catch (e: any) {
+        setError(e?.message || "Failed to create boss battle template");
+        return;
+      }
+    }
+
+    // Normal quest flow
     const questData = {
-      name: safeStr(formData.get("questName")),
-      type: safeStr(formData.get("type")),
-      subject: safeStr(formData.get("subject")),
-      grade: safeStr(formData.get("grade")),
-      description: safeStr(formData.get("description")),
-      difficulty: safeStr(formData.get("difficulty")),
+      name: questName,
+      type,
+      subject,
+      grade,
+      description,
+      difficulty,
       base_xp_reward: xp,
       base_gold_reward: gold,
-      //class_id: location.state?.class_id || safeStr(formData.get("class_id")),
     };
 
     setIsModalOpen(false);
-    navigate("/quests", { state: { questData, class_id: location.state?.class_id } });
+    navigate("/quests", { state: { questData, class_id: (location as any).state?.class_id } });
   };
 
-  // Open edit modal with current values
   const openEdit = (t: QuestTemplate) => {
     setEditError(null);
     setEditing(t);
@@ -344,7 +503,6 @@ const Subjects = () => {
     setEditOpen(true);
   };
 
-  // Save edits (PATCH)
   const saveEdit = async () => {
     if (!editing) return;
 
@@ -367,7 +525,6 @@ const Subjects = () => {
 
       await updateQuestTemplate((editing as any).quest_template_id, patch as any);
 
-      // Update local state immediately (no refresh needed)
       setTemplates((prev) =>
         prev.map((x) =>
           (x as any).quest_template_id === (editing as any).quest_template_id
@@ -385,7 +542,6 @@ const Subjects = () => {
     }
   };
 
-  // Delete
   const deleteTemplate = async (t: QuestTemplate) => {
     const id = (t as any).quest_template_id;
     if (!window.confirm(`Delete "${safeStr((t as any).title)}"?`)) return;
@@ -397,9 +553,180 @@ const Subjects = () => {
       console.error("Failed to delete template:", e);
       alert("Failed to delete template: " + (e?.message || "Unknown error"));
     }
-  }
+  };
 
-  // Open assignment modal
+  // Boss: open assign
+  const openBossAssignModal = (t: BossBattleTemplate) => {
+    setBossAssigning(t);
+    setBossAssignClassId("");
+    setBossAssignStartDate("");
+    setBossAssignDueDate("");
+    setBossAssignManualApproval(false);
+    setBossAssignTitleOverride("");
+    setBossAssignDescriptionOverride("");
+    setBossAssignError(null);
+    setBossAssignOpen(true);
+  };
+
+  // Boss: create instance (best-effort; depends on your backend routes)
+  const handleAssignBoss = async () => {
+    if (!bossAssigning || !bossAssignClassId) {
+      setBossAssignError("Please select a class");
+      return;
+    }
+
+    setBossAssignLoading(true);
+    setBossAssignError(null);
+
+    const bossTemplateId = safeStr((bossAssigning as any).boss_template_id);
+
+    try {
+      const payload: any = {
+        boss_template_id: bossTemplateId,
+        title_override: bossAssignTitleOverride.trim() || undefined,
+        description_override: bossAssignDescriptionOverride.trim() || undefined,
+        start_date: bossAssignStartDate || undefined,
+        due_date: bossAssignDueDate || undefined,
+        requires_manual_approval: bossAssignManualApproval,
+        status: "ACTIVE",
+        class_id: bossAssignClassId,
+      };
+
+      // try: POST /bossBattleInstances
+      let res = await fetch(BOSS_INSTANCES_API_PATH, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        // fallback: POST /classes/:id/bossBattleInstances
+        res = await fetch(`${"/classes"}/${encodeURIComponent(bossAssignClassId)}${BOSS_INSTANCES_API_PATH}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          credentials: "include",
+        });
+      }
+
+      if (!res.ok) {
+        const data = await safeJson(res);
+        throw new Error(data?.message || data?.error || `Failed to assign boss (HTTP ${res.status})`);
+      }
+
+      setBossAssignOpen(false);
+      setBossAssigning(null);
+    } catch (e: any) {
+      setBossAssignError(e?.message || "Failed to assign boss to class");
+    } finally {
+      setBossAssignLoading(false);
+    }
+  };
+
+  // Boss: delete template (hard delete first, then soft delete fallbacks)
+const deleteBossTemplate = async (t: BossBattleTemplate) => {
+  const id = safeStr((t as any).boss_template_id);
+  const title = safeStr((t as any).title);
+  if (!id) return;
+  if (!window.confirm(`Delete "${title}"?`)) return;
+
+  const readBody = async (res: Response) => {
+    const text = await res.text().catch(() => "");
+    if (!text) return null;
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { message: text };
+    }
+  };
+
+  const attempt = async (url: string, init: RequestInit) => {
+    const res = await fetch(url, init);
+    const data = res.ok ? null : await readBody(res);
+    return { ok: res.ok, res, data };
+  };
+
+  try {
+    // 1) HARD DELETE patterns
+    const hardAttempts = [
+      () =>
+        attempt(`${BOSS_TEMPLATES_API_PATH}/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          credentials: "include",
+        }),
+      // common alt route
+      () =>
+        attempt(`${BOSS_TEMPLATES_API_PATH}/${encodeURIComponent(id)}/delete`, {
+          method: "POST",
+          credentials: "include",
+        }),
+    ];
+
+    for (const fn of hardAttempts) {
+      const r = await fn();
+      if (r.ok) {
+        setBossTemplates((prev) => prev.filter((x) => safeStr((x as any).boss_template_id) !== id));
+        return;
+      }
+    }
+
+    // 2) SOFT DELETE patterns (quests-style fallback)
+    const softPayloads: any[] = [
+      { is_deleted: true, deleted_by: teacher?.id || undefined },
+      { is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: teacher?.id || undefined },
+      { deleted: true, deleted_by: teacher?.id || undefined },
+      { status: "DELETED", deleted_by: teacher?.id || undefined },
+      { archived: true, archived_by: teacher?.id || undefined },
+    ];
+
+    const softAttemptFns: Array<() => Promise<{ ok: boolean; res: Response; data: any }>> = [];
+    for (const body of softPayloads) {
+      softAttemptFns.push(() =>
+        attempt(`${BOSS_TEMPLATES_API_PATH}/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          credentials: "include",
+        })
+      );
+      // common alt soft-delete route
+      softAttemptFns.push(() =>
+        attempt(`${BOSS_TEMPLATES_API_PATH}/${encodeURIComponent(id)}/soft-delete`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          credentials: "include",
+        })
+      );
+    }
+
+    for (const fn of softAttemptFns) {
+      const r = await fn();
+      if (r.ok) {
+        setBossTemplates((prev) => prev.filter((x) => safeStr((x as any).boss_template_id) !== id));
+        return;
+      }
+    }
+
+    // 3) If we got here, everything failed — show the most useful error we can.
+    const lastTry = await attempt(`${BOSS_TEMPLATES_API_PATH}/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+
+    const msg =
+      lastTry.data?.message ||
+      lastTry.data?.error ||
+      `Backend rejected delete. HTTP ${lastTry.res.status}`;
+
+    alert(`Failed to delete boss template: ${msg}`);
+  } catch (e: any) {
+    alert("Failed to delete boss template: " + (e?.message || "Unknown error"));
+  }
+};
+
+
   const openAssignModal = (template: QuestTemplate) => {
     setAssigningTemplate(template);
     setAssignClassId("");
@@ -412,7 +739,6 @@ const Subjects = () => {
     setAssignModalOpen(true);
   };
 
-  // Create quest instance (assign quest to class)
   const handleAssignQuest = async () => {
     if (!assigningTemplate || !assignClassId) {
       setAssignError("Please select a class");
@@ -424,7 +750,7 @@ const Subjects = () => {
 
     try {
       const templateId = (assigningTemplate as any).quest_template_id;
-      
+
       const request: CreateQuestInstanceRequest = {
         quest_template_id: templateId || null,
         title_override: assignTitleOverride.trim() || undefined,
@@ -432,15 +758,12 @@ const Subjects = () => {
         start_date: assignStartDate || undefined,
         due_date: assignDueDate || undefined,
         requires_manual_approval: assignManualApproval,
-        status: "ACTIVE", // Assigning to a class makes the quest live for students
+        status: "ACTIVE",
       };
 
       await createQuestInstance(assignClassId, request);
-
-      // Refresh quest instances
       await loadQuestInstances();
 
-      // Close modal
       setAssignModalOpen(false);
       setAssigningTemplate(null);
     } catch (e: any) {
@@ -451,18 +774,16 @@ const Subjects = () => {
     }
   };
 
-  // Get quest instances for a template
+  // Hide archived instances so "Remove" stays removed even after refresh
   const getInstancesForTemplate = (templateId: string): QuestInstance[] => {
-    return questInstances.get(templateId) || [];
+    return (questInstances.get(templateId) || []).filter((i) => i.status !== "ARCHIVED");
   };
 
-  // Get class name by ID
   const getClassNameById = (classId: string): string => {
     const cls = classes.find((c) => (c as any).class_id === classId);
     return cls ? (cls as any).name : classId;
   };
 
-  // Open extension date editor modal
   const openExtensionModal = (instance: QuestInstance) => {
     setSelectedInstanceForExtension(instance);
     setExtensionDueDate(instance.due_date || "");
@@ -470,7 +791,6 @@ const Subjects = () => {
     setExtensionModalOpen(true);
   };
 
-  // Save extension date for an instance
   const saveExtensionDate = async () => {
     if (!selectedInstanceForExtension) return;
 
@@ -482,7 +802,6 @@ const Subjects = () => {
         due_date: extensionDueDate || null,
       });
 
-      // Update local state
       setQuestInstances((prev) => {
         const newMap = new Map(prev);
         const instances = newMap.get(selectedInstanceForExtension.quest_template_id!) || [];
@@ -504,19 +823,19 @@ const Subjects = () => {
     }
   };
 
-  // Archive a quest instance
   const archiveQuestInstance = async (instance: QuestInstance) => {
     if (!window.confirm("Archive this quest instance?")) return;
 
     try {
       await updateQuestInstanceStatus(instance.quest_instance_id, "ARCHIVED");
 
-      // Update local state
       setQuestInstances((prev) => {
         const newMap = new Map(prev);
         const instances = newMap.get(instance.quest_template_id!) || [];
         const updated: QuestInstance[] = instances.map((i) =>
-          i.quest_instance_id === instance.quest_instance_id ? { ...i, status: "ARCHIVED" as QuestInstanceStatus } : i
+          i.quest_instance_id === instance.quest_instance_id
+            ? { ...i, status: "ARCHIVED" as QuestInstanceStatus }
+            : i
         );
         newMap.set(instance.quest_template_id!, updated);
         return newMap;
@@ -527,18 +846,21 @@ const Subjects = () => {
     }
   };
 
-  // Remove assigned class (unassign quest from class by archiving the instance)
   const removeAssignedClass = async (instance: QuestInstance) => {
     if (!window.confirm("Remove this quest from the class?")) return;
 
     try {
       await updateQuestInstanceStatus(instance.quest_instance_id, "ARCHIVED");
 
-      // Update local state
+      // hide locally right away
       setQuestInstances((prev) => {
         const newMap = new Map(prev);
         const instances = newMap.get(instance.quest_template_id!) || [];
-        const updated = instances.filter((i) => i.quest_instance_id !== instance.quest_instance_id);
+        const updated = instances.map((i) =>
+          i.quest_instance_id === instance.quest_instance_id
+            ? { ...i, status: "ARCHIVED" as QuestInstanceStatus }
+            : i
+        );
         newMap.set(instance.quest_template_id!, updated);
         return newMap;
       });
@@ -548,9 +870,7 @@ const Subjects = () => {
     }
   };
 
-
-
-  // Check and auto-archive quests that are past their due date
+  // auto-archive expired quests
   useEffect(() => {
     const checkAndArchiveExpiredQuests = async () => {
       const now = new Date().getTime();
@@ -567,7 +887,6 @@ const Subjects = () => {
         });
       });
 
-      // Archive expired quests
       for (const instanceId of instancesToArchive) {
         try {
           await updateQuestInstanceStatus(instanceId, "ARCHIVED");
@@ -576,7 +895,6 @@ const Subjects = () => {
         }
       }
 
-      // Reload if any were archived
       if (instancesToArchive.length > 0) {
         await loadQuestInstances();
       }
@@ -585,6 +903,7 @@ const Subjects = () => {
     if (questInstances.size > 0) {
       checkAndArchiveExpiredQuests();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questInstances]);
 
   return (
@@ -605,19 +924,49 @@ const Subjects = () => {
             </div>
 
             <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
-              <Link to="/teacherDashboard" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Dashboard</Link>
-              <Link to="/Classes" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Classes</Link>
-              <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900">Quests</Link>
-              <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Activity</Link>
-              <Link to="/teacherGuilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Guilds</Link>
-              <Link to="/profile" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Profile</Link>
+              <Link
+                to="/teacherDashboard"
+                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
+              >
+                Dashboard
+              </Link>
+              <Link
+                to="/Classes"
+                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
+              >
+                Classes
+              </Link>
+              <Link
+                to="/Subjects"
+                className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900"
+              >
+                Quests
+              </Link>
+              <Link
+                to="/Activity"
+                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
+              >
+                Activity
+              </Link>
+              <Link
+                to="/teacherGuilds"
+                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
+              >
+                Guilds
+              </Link>
+              <Link
+                to="/profile"
+                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
+              >
+                Profile
+              </Link>
               <DropDownProfile
-                                    username={teacher?.displayName || "user"}
-                                    onLogout={() => {
-                                      localStorage.removeItem("cq_currentUser");
-                                      navigate("/TeacherLogin");
-                                    }}
-                                  />
+                username={teacher?.displayName || "user"}
+                onLogout={() => {
+                  localStorage.removeItem("cq_currentUser");
+                  navigate("/TeacherLogin");
+                }}
+              />
             </div>
 
             <div className="-mr-2 flex items-center md:hidden">
@@ -629,7 +978,6 @@ const Subjects = () => {
         </div>
       </nav>
 
-      {/* Back button */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <Link
           to="/teacher/dashboard"
@@ -691,11 +1039,7 @@ const Subjects = () => {
                   {items.map((t) => {
                     const type = safeStr((t as any).type);
                     const icon =
-                      type === "BOSS_FIGHT"
-                        ? "shield"
-                        : type === "DAILY_QUEST"
-                        ? "calendar"
-                        : "activity";
+                      type === "BOSS_FIGHT" ? "shield" : type === "DAILY_QUEST" ? "calendar" : "activity";
 
                     const xp = toInt((t as any).base_xp_reward, 0);
                     const gold = toInt((t as any).base_gold_reward, 0);
@@ -745,10 +1089,8 @@ const Subjects = () => {
                           {(() => {
                             const templateId = (t as any).quest_template_id;
                             const instances = getInstancesForTemplate(templateId);
-                            const activeInstances = instances.filter((i) => i.status === "ACTIVE");
-                            
+
                             if (instances.length === 0) {
-                              // No assignments - show DRAFT badge
                               return (
                                 <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
                                   <span className="inline-block px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-semibold">
@@ -757,107 +1099,99 @@ const Subjects = () => {
                                 </div>
                               );
                             }
-                            
-                            if (instances.length > 0) {
-                              return (
-                                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                  <p className="text-xs font-semibold text-blue-700 mb-2">
-                                    Classes Assigned to:
-                                  </p>
-                                  <div className="space-y-3">
-                                    {instances.map((instance: QuestInstance) => {
-                                      const title = instance.title_override?.trim() || (t as any).title;
-                                      
-                                      // Format date-time as yyyy-mm-dd HH:MM
-                                      const formatDateTime = (dateString: string | null | undefined) => {
-                                        if (!dateString) return "Not set";
-                                        const date = new Date(dateString);
-                                        const year = date.getFullYear();
-                                        const month = String(date.getMonth() + 1).padStart(2, "0");
-                                        const day = String(date.getDate()).padStart(2, "0");
-                                        const hours = String(date.getHours()).padStart(2, "0");
-                                        const minutes = String(date.getMinutes()).padStart(2, "0");
-                                        return `${year}-${month}-${day} ${hours}:${minutes}`;
-                                      };
-                                      
-                                      return (
-                                        <div
-                                          key={instance.quest_instance_id}
-                                          className="text-xs border-b border-blue-100 pb-2 last:border-0 last:pb-0 bg-white rounded p-2"
-                                        >
-                                          <div className="flex items-center justify-between flex-wrap gap-1 mb-1">
-                                            <span className="font-semibold text-gray-800">
-                                              {getClassNameById(instance.class_id)}
-                                            </span>
-                                            <span
-                                              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                instance.status === "ACTIVE"
-                                                  ? "bg-green-100 text-green-800"
-                                                  : instance.status === "DRAFT"
-                                                  ? "bg-yellow-100 text-yellow-800"
-                                                  : "bg-gray-100 text-gray-800"
-                                              }`}
-                                            >
-                                              {instance.status}
+
+                            const formatDateTime = (dateString: string | null | undefined) => {
+                              if (!dateString) return "Not set";
+                              const date = new Date(dateString);
+                              const year = date.getFullYear();
+                              const month = String(date.getMonth() + 1).padStart(2, "0");
+                              const day = String(date.getDate()).padStart(2, "0");
+                              const hours = String(date.getHours()).padStart(2, "0");
+                              const minutes = String(date.getMinutes()).padStart(2, "0");
+                              return `${year}-${month}-${day} ${hours}:${minutes}`;
+                            };
+
+                            return (
+                              <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p className="text-xs font-semibold text-blue-700 mb-2">Classes Assigned to:</p>
+                                <div className="space-y-3">
+                                  {instances.map((instance: QuestInstance) => {
+                                    const title = instance.title_override?.trim() || (t as any).title;
+
+                                    return (
+                                      <div
+                                        key={instance.quest_instance_id}
+                                        className="text-xs border-b border-blue-100 pb-2 last:border-0 last:pb-0 bg-white rounded p-2"
+                                      >
+                                        <div className="flex items-center justify-between flex-wrap gap-1 mb-1">
+                                          <span className="font-semibold text-gray-800">
+                                            {getClassNameById(instance.class_id)}
+                                          </span>
+                                          <span
+                                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                              instance.status === "ACTIVE"
+                                                ? "bg-green-100 text-green-800"
+                                                : instance.status === "DRAFT"
+                                                ? "bg-yellow-100 text-yellow-800"
+                                                : "bg-gray-100 text-gray-800"
+                                            }`}
+                                          >
+                                            {instance.status}
+                                          </span>
+                                        </div>
+
+                                        <div className="space-y-1 text-gray-600 mt-2">
+                                          <div className="flex justify-between items-start">
+                                            <span className="font-medium">Start:</span>
+                                            <span className="text-right text-gray-700">
+                                              {formatDateTime(instance.start_date)}
                                             </span>
                                           </div>
-                                          
-                                          {/* Start Date and Due Date Display */}
-                                          <div className="space-y-1 text-gray-600 mt-2">
-                                            <div className="flex justify-between items-start">
-                                              <span className="font-medium">Start:</span>
-                                              <span className="text-right text-gray-700">
-                                                {formatDateTime(instance.start_date)}
-                                              </span>
-                                            </div>
-                                            <div className="flex justify-between items-start">
-                                              <span className="font-medium">Due:</span>
-                                              <span className="text-right text-gray-700">
-                                                {formatDateTime(instance.due_date)}
-                                              </span>
-                                            </div>
-                                          </div>
-                                          
-                                          {instance.title_override?.trim() ? (
-                                            <p className="text-gray-600 mt-1 pt-1 border-t border-blue-100">
-                                              Title Override: {title}
-                                            </p>
-                                          ) : null}
-                                          
-                                          {/* Action buttons for this instance */}
-                                          <div className="flex gap-1 mt-2 pt-2 border-t border-blue-100">
-                                            <button
-                                              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
-                                              onClick={() => openExtensionModal(instance)}
-                                              title="Edit due date for extension"
-                                            >
-                                              <i data-feather="calendar" className="w-3 h-3"></i> Extend
-                                            </button>
-                                            {instance.status === "ACTIVE" && (
-                                              <button
-                                                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
-                                                onClick={() => archiveQuestInstance(instance)}
-                                                title="Archive this quest"
-                                              >
-                                                <i data-feather="archive" className="w-3 h-3"></i> Archive
-                                              </button>
-                                            )}
-                                            <button
-                                              className="flex-1 bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
-                                              onClick={() => removeAssignedClass(instance)}
-                                              title="Remove from class"
-                                            >
-                                              <i data-feather="trash-2" className="w-3 h-3"></i> Remove
-                                            </button>
+                                          <div className="flex justify-between items-start">
+                                            <span className="font-medium">Due:</span>
+                                            <span className="text-right text-gray-700">
+                                              {formatDateTime(instance.due_date)}
+                                            </span>
                                           </div>
                                         </div>
-                                      );
-                                    })}
-                                  </div>
+
+                                        {instance.title_override?.trim() ? (
+                                          <p className="text-gray-600 mt-1 pt-1 border-t border-blue-100">
+                                            Title Override: {title}
+                                          </p>
+                                        ) : null}
+
+                                        <div className="flex gap-1 mt-2 pt-2 border-t border-blue-100">
+                                          <button
+                                            className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
+                                            onClick={() => openExtensionModal(instance)}
+                                            title="Edit due date for extension"
+                                          >
+                                            <i data-feather="calendar" className="w-3 h-3"></i> Extend
+                                          </button>
+                                          {instance.status === "ACTIVE" && (
+                                            <button
+                                              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
+                                              onClick={() => archiveQuestInstance(instance)}
+                                              title="Archive this quest"
+                                            >
+                                              <i data-feather="archive" className="w-3 h-3"></i> Archive
+                                            </button>
+                                          )}
+                                          <button
+                                            className="flex-1 bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
+                                            onClick={() => removeAssignedClass(instance)}
+                                            title="Remove from class"
+                                          >
+                                            <i data-feather="trash-2" className="w-3 h-3"></i> Remove
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
-                              );
-                            }
-                            return null;
+                              </div>
+                            );
                           })()}
 
                           <div className="grid grid-cols-3 gap-2">
@@ -896,17 +1230,140 @@ const Subjects = () => {
                 </div>
               </div>
             ))}
+
+            {/* Boss Battles */}
+            <div>
+              <div className="flex flex-wrap gap-4 justify-between items-center mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-yellow-300">Boss Battles</h2>
+                  <p className="text-white/80 text-sm">{bossTemplates.length} template(s)</p>
+                </div>
+
+                <button
+                  className="bg-white/15 hover:bg-white/20 text-white px-6 py-2 rounded-lg flex items-center border border-white/20"
+                  onClick={loadBossTemplates}
+                  disabled={!teacher?.id || bossLoading}
+                >
+                  <i data-feather="refresh-cw" className="mr-2"></i>
+                  {bossLoading ? "Loading…" : "Refresh Boss Battles"}
+                </button>
+              </div>
+
+              {bossError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl shadow-md p-5 text-red-700 mb-4">
+                  {bossError}
+                </div>
+              )}
+
+              {bossTemplates.length === 0 ? (
+                <div className="bg-white rounded-xl shadow-md p-5 text-gray-700">
+                  No boss battle templates yet. Create one with Type = "Boss Fight".
+                </div>
+              ) : (
+                <div className="space-y-10">
+                  {bossTemplatesBySubject.map(({ subject, items }) => (
+                    <div key={subject}>
+                      <div className="flex items-end justify-between mb-4">
+                        <div>
+                          <h3 className="text-xl font-bold text-white">{subject}</h3>
+                          <p className="text-white/80 text-sm">{items.length} template(s)</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {items.map((t) => {
+                          const id = safeStr((t as any).boss_template_id);
+                          const title = safeStr((t as any).title);
+                          const desc = safeStr((t as any).description);
+                          const hp = toInt((t as any).max_hp, 0);
+                          const xp = toInt((t as any).base_xp_reward, 0);
+                          const gold = toInt((t as any).base_gold_reward, 0);
+                          const isPublic = Boolean((t as any).is_shared_publicly);
+
+                          return (
+                            <div
+                              key={id}
+                              className="bg-white rounded-xl shadow-md overflow-hidden transition duration-300"
+                            >
+                              <div className="bg-linear-to-r from-red-500 to-purple-600 p-6 text-white text-center">
+                                <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4">
+                                  <i data-feather="shield" className="w-10 h-10 text-gray-800"></i>
+                                </div>
+                                <h3 className="text-xl font-bold">{title}</h3>
+                                <p className="text-white">{safeStr((t as any).subject)}</p>
+                              </div>
+
+                              <div className="p-5 space-y-4">
+                                <p className="text-gray-700 text-sm">{desc}</p>
+
+                                <div className="flex items-center justify-between text-sm text-gray-600">
+                                  <span className="font-semibold text-gray-900">HP: {hp}</span>
+                                  <span className="font-semibold text-gray-900">
+                                    +{xp} XP / {gold} Gold
+                                  </span>
+                                </div>
+
+                                <div className="flex justify-between items-center">
+                                  <span className="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700 text-xs">
+                                    {isPublic ? "Public" : "Private"}
+                                  </span>
+
+                                  <span className="px-2 py-1 rounded-full bg-red-100 border border-red-200 text-red-700 text-xs font-semibold">
+                                    BOSS
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-2">
+                                  <button
+                                    className="bg-green-600 hover:bg-green-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
+                                    onClick={() => openBossAssignModal(t)}
+                                  >
+                                    <i data-feather="users" className="mr-1 w-4 h-4"></i> Assign
+                                  </button>
+
+                                  <button
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-2 rounded-lg text-sm flex items-center justify-center"
+                                    onClick={() =>
+                                      navigate(
+                                        `/teacher/bossQuestions?boss_template_id=${encodeURIComponent(id)}`,
+                                        { state: { boss_template_id: id } }
+                                      )
+                                    }
+                                  >
+                                    <i data-feather="help-circle" className="mr-1 w-4 h-4"></i> Questions
+                                  </button>
+
+                                  <button
+                                    className="bg-gray-100 hover:bg-gray-200 text-red-600 border border-red-600 px-2 py-2 rounded-lg text-sm flex items-center justify-center"
+                                    onClick={() => deleteBossTemplate(t)}
+                                  >
+                                    <i data-feather="trash-2" className="mr-1 w-4 h-4"></i> Delete
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
 
-     {/* Create Modal */}
+      {/* Create Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-white/300 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center text-gray-900">
           <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">Create New Quest</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-blue-500 hover:text-blue-700">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-blue-500 hover:text-blue-700"
+              >
                 <i data-feather="x-circle"></i>
               </button>
             </div>
@@ -914,12 +1371,22 @@ const Subjects = () => {
             <form className="space-y-4" onSubmit={handleCreateQuest}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Quest Name</label>
-                <input type="text" name="questName" className="w-full border border-gray-300 rounded-lg px-4 py-2" required />
+                <input
+                  type="text"
+                  name="questName"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                  required
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <select name="type" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="Quest">
+                <select
+                  name="type"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                  required
+                  defaultValue="Quest"
+                >
                   <option value="Quest">Quest</option>
                   <option value="Side Quest">Side Quest</option>
                   <option value="Boss Fight">Boss Fight</option>
@@ -928,7 +1395,12 @@ const Subjects = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                <select name="subject" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="Mathematics">
+                <select
+                  name="subject"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                  required
+                  defaultValue="Mathematics"
+                >
                   <option value="Mathematics">Mathematics</option>
                   <option value="Science">Science</option>
                   <option value="Social Studies">Social Studies</option>
@@ -938,7 +1410,12 @@ const Subjects = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
-                <select name="grade" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="Grade 5">
+                <select
+                  name="grade"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                  required
+                  defaultValue="Grade 5"
+                >
                   <option value="Grade 5">Grade 5</option>
                   <option value="Grade 6">Grade 6</option>
                   <option value="Grade 7">Grade 7</option>
@@ -946,16 +1423,25 @@ const Subjects = () => {
                 </select>
               </div>
 
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea name="description" className="w-full border border-gray-300 rounded-lg px-4 py-2" rows={3} required />
+                <textarea
+                  name="description"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                  rows={3}
+                  required
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
-                  <select name="difficulty" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="Easy">
+                  <select
+                    name="difficulty"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                    required
+                    defaultValue="Easy"
+                  >
                     <option value="Easy">Easy</option>
                     <option value="Medium">Medium</option>
                     <option value="Hard">Hard</option>
@@ -964,7 +1450,12 @@ const Subjects = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">XP</label>
-                  <select name="base_xp_reward" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="">
+                  <select
+                    name="base_xp_reward"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                    required
+                    defaultValue=""
+                  >
                     <option value="">Select XP</option>
                     <option value="100">100 XP</option>
                     <option value="200">200 XP</option>
@@ -977,7 +1468,12 @@ const Subjects = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Reward</label>
-                  <select name="base_gold_reward" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="">
+                  <select
+                    name="base_gold_reward"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                    required
+                    defaultValue=""
+                  >
                     <option value="">Select Gold</option>
                     <option value="30">30 Gold</option>
                     <option value="100">100 Gold</option>
@@ -993,7 +1489,10 @@ const Subjects = () => {
                 >
                   Cancel
                 </button>
-                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
+                <button
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
+                >
                   Create Quest
                 </button>
               </div>
@@ -1002,7 +1501,131 @@ const Subjects = () => {
         </div>
       )}
 
-      {/* Edit Template Modal */}
+      {/* Boss Assign Modal (inline) */}
+      {bossAssignOpen && (
+        <div className="fixed inset-0 bg-white/300 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center text-gray-900">
+          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Assign Boss Battle</h3>
+              <button
+                onClick={() => {
+                  setBossAssignOpen(false);
+                  setBossAssigning(null);
+                }}
+                className="text-blue-500 hover:text-blue-700"
+              >
+                <i data-feather="x-circle"></i>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="text-sm text-gray-700">
+                <div className="font-semibold">Template:</div>
+                <div>{safeStr((bossAssigning as any)?.title)}</div>
+              </div>
+
+              {bossAssignError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700">
+                  {bossAssignError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
+                <select
+                  className={inputBox}
+                  value={bossAssignClassId}
+                  onChange={(e) => setBossAssignClassId(e.target.value)}
+                >
+                  <option value="">Select a class</option>
+                  {classes.map((c) => (
+                    <option key={(c as any).class_id} value={(c as any).class_id}>
+                      {(c as any).name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                  <input
+                    type="datetime-local"
+                    className={inputBox}
+                    value={bossAssignStartDate}
+                    onChange={(e) => setBossAssignStartDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                  <input
+                    type="datetime-local"
+                    className={inputBox}
+                    value={bossAssignDueDate}
+                    onChange={(e) => setBossAssignDueDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="inline-flex items-center gap-2 text-sm text-gray-800">
+                  <input
+                    type="checkbox"
+                    checked={bossAssignManualApproval}
+                    onChange={(e) => setBossAssignManualApproval(e.target.checked)}
+                  />
+                  Requires manual approval
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title Override</label>
+                <input
+                  className={inputBox}
+                  value={bossAssignTitleOverride}
+                  onChange={(e) => setBossAssignTitleOverride(e.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description Override</label>
+                <textarea
+                  className={inputBox}
+                  value={bossAssignDescriptionOverride}
+                  onChange={(e) => setBossAssignDescriptionOverride(e.target.value)}
+                  rows={3}
+                  placeholder="Optional"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBossAssignOpen(false);
+                    setBossAssigning(null);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-500"
+                  disabled={bossAssignLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAssignBoss}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
+                  disabled={bossAssignLoading}
+                >
+                  {bossAssignLoading ? "Assigning…" : "Assign"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quest Modals (same props style as your working version) */}
       <EditQuestModal
         isOpen={editOpen}
         editing={editing}
@@ -1031,7 +1654,10 @@ const Subjects = () => {
         onXPChange={setEXP}
         onGoldChange={setEGold}
         onPublicChange={setEPublic}
-        onClose={() => { setEditOpen(false); setEditing(null); }}
+        onClose={() => {
+          setEditOpen(false);
+          setEditing(null);
+        }}
         onSave={saveEdit}
         onExtensionClick={openExtensionModal}
         onRemoveAssignment={removeAssignedClass}
@@ -1039,7 +1665,6 @@ const Subjects = () => {
         getClassNameById={getClassNameById}
       />
 
-      {/* Assign Quest to Class Modal */}
       <AssignQuestModal
         isOpen={assignModalOpen}
         assigningTemplate={assigningTemplate}
@@ -1059,12 +1684,14 @@ const Subjects = () => {
         onManualApprovalChange={setAssignManualApproval}
         onTitleOverrideChange={setAssignTitleOverride}
         onDescriptionOverrideChange={setAssignDescriptionOverride}
-        onClose={() => { setAssignModalOpen(false); setAssigningTemplate(null); }}
+        onClose={() => {
+          setAssignModalOpen(false);
+          setAssigningTemplate(null);
+        }}
         onAssign={handleAssignQuest}
         safeStr={safeStr}
       />
 
-      {/* Extension Date Editor Modal */}
       <ExtensionDateModal
         isOpen={extensionModalOpen}
         selectedInstance={selectedInstanceForExtension}
@@ -1073,12 +1700,14 @@ const Subjects = () => {
         extensionSaving={extensionSaving}
         inputBox={inputBox}
         onDueDateChange={setExtensionDueDate}
-        onClose={() => { setExtensionModalOpen(false); setSelectedInstanceForExtension(null); }}
+        onClose={() => {
+          setExtensionModalOpen(false);
+          setSelectedInstanceForExtension(null);
+        }}
         onSave={saveExtensionDate}
         getClassNameById={getClassNameById}
       />
 
-      {/* Questions Viewer Modal */}
       <QuestionsListModal
         isOpen={questionsModalOpen}
         questionsList={questionsList}
@@ -1088,7 +1717,6 @@ const Subjects = () => {
         onDeleteClick={deleteQuestion}
       />
 
-      {/* Question Edit Modal */}
       <QuestionEditModal
         isOpen={questionEditModalOpen}
         editingQuestion={editingQuestion}
