@@ -14,6 +14,7 @@ import {
 import { getPlayerState, upsertPlayerState } from "../../api/playerStates.js";
 import { getStudentEnrollments, type EnrollmentItem } from "../../api/classEnrollments.js";
 import { getQuestTemplate, type QuestTemplate } from "../../api/questTemplates.js";
+import { createTransaction } from "../../api/rewardTransactions.js";
 
 // --------------------
 // Student helper
@@ -445,6 +446,26 @@ const ProblemSolve: React.FC = () => {
         last_weekend_reset_at: cur.last_weekend_reset_at,
         status: cur.status ?? "ALIVE",
       });
+
+      // Log a reward transaction so the teacher activity feed picks it up
+      try {
+        await createTransaction({
+          student_id: studentId,
+          class_id: classId,
+          xp_delta: xp,
+          gold_delta: gold,
+          hearts_delta: 0,
+          source_type: "QUEST_COMPLETION",
+          source_id: questInstanceId,
+          quest_instance_id: questInstanceId,
+          reason: questTemplate?.title
+            ? `Completed quest: ${questTemplate.title}`
+            : "Quest completed",
+        });
+      } catch (Err) {
+        //  if rewards were already applied to player state
+        console.warn("Failed to log reward transaction for quest completion:", Err);
+      }
 
       markRewardsClaimed(studentId, questInstanceId);
       setClaimedRewards({ xp, gold });

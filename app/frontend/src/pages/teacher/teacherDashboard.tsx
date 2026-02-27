@@ -9,6 +9,8 @@ import { TutorialProvider } from "../components/tutorial/context.js";
 import { TutorialIntroModal } from "../components/tutorial/IntroModal.js";
 import { TutorialOverlay } from "../components/tutorial/overlay.js";
 import { ensureClassExists } from "../../utils/classStore.js";
+import ActivityCard from "../features/teacher/ActivityCard.js";
+import { useTeacherActivity } from "../hooks/teacher/useTeacherActivity.js";
 
 type TeacherUser = {
   id: string;
@@ -286,81 +288,7 @@ const TeacherDashboard = () => {
             )}
 
             {/* Recent Activity */}
-            <div id="recent-activity">
-              <p className="text-2xl font-bold text-yellow-300 mt-6"> Recent Activity</p>
-              <div className="mt-4 p-4 bg-white/300 rounded-lg shadow-md">
-                <div className=" bg-white shadow overflow-hidden sm:rounded-md">
-                  <ul className="divide-y divide-gray-200">
-                    <li>
-                      <a href="#" className="block hover:bg-gray-300">
-                        <div className="px-4 py-4 sm:px-6">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium text-primary-600 truncate text-gray-900">
-                              Michael completed Algebra Quiz
-                            </p>
-                            <div className="ml-2 flex-shrink-0 flex">
-                              <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                +150 XP
-                              </p>
-                            </div>
-                          </div>
-                          <div className="mt-2 sm:flex sm:justify-between">
-                            <div className="sm:flex">
-                              <p className="flex items-center text-sm text-gray-500">
-                                <i data-feather="user" className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400"></i>
-                                Michael Johnson
-                              </p>
-                              <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
-                                <i data-feather="calendar" className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400"></i>
-                                <span>November 24, 2025</span>
-                              </p>
-                            </div>
-                            <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                              <i data-feather="clock" className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400"></i>
-                              <span>2h ago</span>
-                            </div>
-                          </div>
-                        </div>
-                      </a>
-                    </li>
-
-                    <li>
-                      <a href="#" className="block hover:bg-gray-300">
-                        <div className="px-4 py-4 sm:px-6">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium text-primary-600 truncate text-gray-900">
-                              You added a new shield
-                            </p>
-                            <div className="ml-2 flex-shrink-0 flex">
-                              <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                New Reward
-                              </p>
-                            </div>
-                          </div>
-                          <div className="mt-2 sm:flex sm:justify-between">
-                            <div className="sm:flex">
-                              <p className="flex items-center text-sm text-gray-500">
-                                <i data-feather="shield" className="flex-shrink-0 mr-1.5 h-5 w-5 text-yellow-500"></i>
-                                Gold shield
-                              </p>
-                              <p className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
-                                <i data-feather="calendar" className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400"></i>
-                                <span>November 24, 2025</span>
-                              </p>
-                            </div>
-                            <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                              <i data-feather="clock" className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400"></i>
-                              <span>5m ago</span>
-                            </div>
-                          </div>
-                        </div>
-                      </a>
-                    </li>
-
-                  </ul>
-                </div>
-              </div>
-            </div>
+            <RecentActivitySection teacherId={teacher.id} />
 
             {/* Top Students */}
             <div className="mt-5">
@@ -423,6 +351,39 @@ const TeacherDashboard = () => {
           </main>
         </div>
       </TutorialProvider>
+    </div>
+  );
+};
+
+// Recent Activity section component displays top 5 most recent
+const RecentActivitySection: React.FC<{ teacherId: string }> = ({ teacherId }) => {
+  const { activities, loading: actLoading, error } = useTeacherActivity(teacherId);
+  const top5 = activities.slice(0, 5);
+
+  useEffect(() => {
+    feather.replace();
+  });
+
+  return (
+    <div id="recent-activity">
+      <p className="text-2xl font-bold text-yellow-300 mt-6">Recent Activity</p>
+      <div className="mt-4 p-4 bg-white/300 rounded-lg shadow-md">
+        {actLoading ? (
+          <p className="text-white text-sm">Loading activity...</p>
+        ) : error ? (
+          <p className="text-red-300 text-sm">Failed to load activity</p>
+        ) : top5.length === 0 ? (
+          <p className="text-white text-sm">No recent activity yet.</p>
+        ) : (
+          <div className="bg-white shadow overflow-hidden sm:rounded-md">
+            <ul className="divide-y divide-gray-200">
+              {top5.map((item) => (
+                <ActivityCard key={item.id} item={item} />
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

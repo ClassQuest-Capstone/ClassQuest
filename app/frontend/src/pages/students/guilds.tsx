@@ -27,6 +27,12 @@ import { getStudentProfile } from "../../api/studentProfiles.js";
 // ✅ your shared http client (so we can fetch class by id safely)
 import { api } from "../../api/http.js";
 
+// Boss battle imports
+import { listBossBattleInstancesByClass } from "../../api/bossBattleInstances/client.js";
+import { getBossBattleTemplate } from "../../api/bossBattleTemplates/client.js";
+import type { BossBattleTemplate } from "../../api/bossBattleTemplates/types.js";
+import type { BossBattleInstance } from "../../api/bossBattleInstances/types.js";
+
 // --------------------
 // Student helper
 // --------------------
@@ -48,6 +54,36 @@ function getCurrentStudent(): StudentUser | null {
     // ignore
   }
   return null;
+}
+
+// --------------------
+// Gradient by subject
+// --------------------
+function getGradientBySubject(subject?: string): string {
+  if (!subject) return "from-yellow-400 to-yellow-600";
+  
+  const normalized = subject.toLowerCase().trim();
+  
+  if (normalized === "math") {
+    return "from-blue-500 to-purple-500";
+  } else if (normalized === "science") {
+    return "from-emerald-400 to-cyan-500";
+  } else if (normalized === "social studies") {
+    return "from-orange-400 to-red-500";
+  } else {
+    return "from-yellow-400 to-yellow-600";
+  }
+}
+
+function getStatusColor(status?: string): string {
+  const stat = status?.toLowerCase() ?? "";
+  
+  if (stat === "completed") return "bg-green-500";
+  if (stat === "lobby" || stat === "countdown") return "bg-blue-500";
+  if (stat === "question_active" || stat === "resolving") return "bg-purple-500";
+  if (stat === "aborted") return "bg-red-500";
+  
+  return "bg-yellow-500"; // draft, intermission, etc
 }
 
 const GuildPage: React.FC = () => {
@@ -211,6 +247,13 @@ const GuildPage: React.FC = () => {
   const [rosterLoading, setRosterLoading] = useState(false);
   const [rosterError, setRosterError] = useState<string | null>(null);
 
+  // --------------------
+  // Boss Battles state
+  // --------------------
+  const [bossBattles, setBossBattles] = useState<(BossBattleInstance & { template?: BossBattleTemplate })[]>([]);
+  const [bossBattlesLoading, setBossBattlesLoading] = useState(false);
+  const [bossBattlesError, setBossBattlesError] = useState<string | null>(null);
+
   // ✅ Name cache
   const [nameByStudentId, setNameByStudentId] = useState<Record<string, string>>(
     {}
@@ -318,6 +361,41 @@ const GuildPage: React.FC = () => {
     }
   }
 
+  async function refreshBossBattles(classIdParam: string) {
+    try {
+      setBossBattlesLoading(true);
+      setBossBattlesError(null);
+
+      const res = await listBossBattleInstancesByClass(classIdParam, { limit: 20 });
+      const instances = res.items ?? [];
+
+      // Fetch templates for each instance and merge data
+      const withTemplates = await Promise.all(
+        instances.map(async (instance) => {
+          try {
+            const template = await getBossBattleTemplate(instance.boss_template_id);
+            return { ...instance, template };
+          } catch {
+            // If template fetch fails, just return instance without template
+            return instance;
+          }
+        })
+      );
+
+      // Sort by most recent and filter to active/upcoming battles
+      withTemplates.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      setBossBattles(withTemplates);
+    } catch (e: any) {
+      setBossBattlesError(e?.message ?? "Failed to load boss battles.");
+      setBossBattles([]);
+    } finally {
+      setBossBattlesLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (classLoading) return;
     refreshMembership();
@@ -334,12 +412,17 @@ const GuildPage: React.FC = () => {
       setRoster([]);
       setRosterError(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myGuildId]);
+
+  // Fetch boss battles when classId changes
+  useEffect(() => {
+    if (!classId || classLoading) return;
+    refreshBossBattles(classId);
+  }, [classId, classLoading]);
 
   useEffect(() => {
     feather.replace();
-  }, [myGuild, roster, membershipLoading, rosterLoading]);
+  }, [myGuild, roster, membershipLoading, rosterLoading, bossBattles]);
 
   // Placeholder guild stats (not implemented yet)
   const guildPower = "—";
@@ -623,6 +706,153 @@ const GuildPage: React.FC = () => {
                 )}
               </div>
             </>
+          )}
+        </div>
+
+        {/*Boss Battles Section */}
+        <div className="mt-12">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-100">Boss Battles</h2>
+            <button
+              onClick={() => {
+                if (classId) {
+                  refreshBossBattles(classId);
+                }
+              }}
+              className="bg-white/10 hover:bg-white/20 text-white font-semibold py-2 px-4 border border-white/30 rounded-lg transition-colors"
+            >
+              Refresh
+            </button>
+          </div>
+
+          {bossBattlesError && (
+            <div className="bg-red-500/20 border border-red-500/40 text-red-100 rounded-xl p-4 mb-6">
+              <div className="flex items-center gap-2">
+                <i data-feather="alert-triangle" className="w-5 h-5" />
+                <span className="font-semibold">Error:</span>
+                <span>{bossBattlesError}</span>
+              </div>
+            </div>
+          )}
+
+          {bossBattlesLoading && (
+            <div className="bg-white/90 rounded-xl shadow-lg p-6">
+              <p className="text-gray-700">Loading boss battles…</p>
+            </div>
+          )}
+
+          {!bossBattlesLoading && bossBattles.length === 0 && (
+            <div className="bg-white/90 rounded-xl shadow-lg p-6">
+              <p className="text-gray-700">
+                <span className="font-semibold">No boss battles found.</span>
+              </p>
+              <p className="text-sm text-gray-600 mt-1">
+                Your teacher hasn't created any boss battles for this class yet.
+              </p>
+            </div>
+          )}
+
+          {!bossBattlesLoading && bossBattles.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {bossBattles.map((battle) => {
+                const template = battle.template;
+                const subject = template?.subject || "Other";
+                const gradient = getGradientBySubject(template?.subject);
+                const statusBg = getStatusColor(battle.status);
+                
+                // Calculate progress (TODO: backend only)
+                const hpPercent = battle.initial_boss_hp > 0 
+                  ? Math.max(0, (battle.current_boss_hp / battle.initial_boss_hp) * 100)
+                  : 0;
+
+                return (
+                  <div
+                    key={battle.boss_instance_id}
+                    className={`bg-gradient-to-r ${gradient} text-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow`}
+                  >
+                    <div className="p-6">
+                      {/* Header */}
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex-1">
+                          <h3 className="text-2xl font-bold mb-1">
+                            {template?.title || "Unnamed Boss"}
+                          </h3>
+                          <p className="text-sm opacity-90">
+                            {template?.description || "No description provided."}
+                          </p>
+                        </div>
+                        <div className={`${statusBg} text-white px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap ml-3`}>
+                          {battle.status?.replace(/_/g, " ") || "DRAFT"}
+                        </div>
+                      </div>
+
+                      {/* Subject Badge */}
+                      <div className="mb-4 flex flex-wrap gap-2">
+                        <span className="bg-white/20 backdrop-blur text-white px-3 py-1 rounded-full text-xs font-semibold">
+                           {subject}
+                        </span>
+                        {template?.is_shared_publicly && (
+                          <span className="bg-yellow-300/30 text-yellow-100 px-3 py-1 rounded-full text-xs font-semibold">
+                            Shared Publicly
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Boss Health Progress */}
+                      <div className="mb-5">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-semibold">Boss Health</span>
+                          <span className="text-sm font-semibold">
+                            {battle.current_boss_hp.toLocaleString()} / {battle.initial_boss_hp.toLocaleString()} HP
+                          </span>
+                        </div>
+                        <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
+                          <div
+                            className="bg-white h-full transition-all duration-300"
+                            style={{ width: `${hpPercent}%` }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* Stats Grid */}
+                      <div className="grid grid-cols-2 gap-4 mb-5 bg-white/10 backdrop-blur p-4 rounded-lg">
+                        <div>
+                          <p className="text-xs opacity-75 mb-1">Max HP</p>
+                          <p className="text-lg font-bold">
+                            {template?.max_hp?.toLocaleString() || "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs opacity-75 mb-1">Base XP Reward</p>
+                          <p className="text-lg font-bold">
+                            +{template?.base_xp_reward?.toLocaleString() || "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs opacity-75 mb-1">Base Gold Reward</p>
+                          <p className="text-lg font-bold">
+                            +{template?.base_gold_reward?.toLocaleString() || "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs opacity-75 mb-1">Created</p>
+                          <p className="text-xs font-semibold">
+                            {template?.created_at
+                              ? new Date(template.created_at).toLocaleDateString()
+                              : "—"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <button className="w-full bg-white text-gray-800 font-bold py-3 rounded-lg hover:bg-gray-100 transition-colors shadow-lg">
+                        Join Battle
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

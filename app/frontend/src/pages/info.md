@@ -142,7 +142,7 @@ TODO: recent activity tracks rewards transactiions (table ready)
 
 TODO: check date so that quest only shows up on the date its assigned if it date is not reached it stays as draft until the start date is reached (DONE)
 
-TODO: Students join waiting room, each guild should only show active players (only ones with rewards)  
+TODO: Students join waiting room, each guild should only show active players (only ones with rewards) this should happen when the click join fighr on guilds page using modal then on modal when teacher clicks start battle it auto directs to bossfight page.
 
 students load on waiting screen awaiting teachers to click start 
 

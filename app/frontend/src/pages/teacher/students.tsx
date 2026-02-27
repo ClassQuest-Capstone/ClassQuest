@@ -7,6 +7,7 @@ import { validateJoinCode } from "../../api/classes.js";
 import { getClassEnrollments, unenrollStudent } from "../../api/classEnrollments.js";
 import { getStudentProfile, updateStudentProfile, setStudentPassword } from "../../api/studentProfiles.js";
 import { getPlayerState, upsertPlayerState } from "../../api/playerStates.js";
+import { createTransaction } from "../../api/rewardTransactions.js";
 import xpIcon from "../../../dist/assets/icons/XP.png";
 
 
@@ -326,6 +327,38 @@ const Students = () => {
 
       // Execute all updates in parallel
       await Promise.all([...profileUpdates, ...passwordUpdate, ...playerStateUpdates]);
+
+      // Log reward transactions for teacher XP/Gold adjustments
+      const statChangedStudents = updates.filter(
+        (s) => s.xp !== s.originalXp || s.gold !== s.originalGold
+      );
+
+      if (statChangedStudents.length > 0 && classId && teacher) {
+        await Promise.all(
+          statChangedStudents.map(async (s) => {
+            const xpDelta = s.xp - s.originalXp;
+            const goldDelta = s.gold - s.originalGold;
+
+            const parts: string[] = [];
+            if (xpDelta !== 0) parts.push(`${xpDelta > 0 ? "+" : ""}${xpDelta} XP`);
+            if (goldDelta !== 0) parts.push(`${goldDelta > 0 ? "+" : ""}${goldDelta} Gold`);
+
+            try {
+              await createTransaction({
+                student_id: s.id,
+                class_id: classId,
+                xp_delta: xpDelta,
+                gold_delta: goldDelta,
+                hearts_delta: 0,
+                source_type: "MANUAL_ADJUSTMENT",
+                reason: `Teacher adjustment: ${parts.join(", ")}`,
+              });
+            } catch (Err) {
+              console.warn(`Failed to log reward transaction for student ${s.id}:`, Err);
+            }
+          })
+        );
+      }
 
       // Update original values to mark as saved
       setRows((prevRows) =>
