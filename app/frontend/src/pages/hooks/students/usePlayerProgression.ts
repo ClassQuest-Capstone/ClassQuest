@@ -33,53 +33,54 @@ const BASE_XP_FOR_LEVEL_2 = 500; // XP needed to reach level 2
 const XP_INCREASE_PER_LEVEL = 100; // Each level requires +100 more XP
 const MAX_LEVEL = 30;
 
-// Reward milestones for equipments
+// Reward milestones for equipments (TODO: class rewards)
 export const REWARD_MILESTONES: Reward[] = [
   {
     level: 5,
-    title: "Music Time",
-    description: "Pick a class playlist (5 min)",
-    cost: 50,
+    title: "Rare helmet",
+    description: "Unlock a rare helmet for your avatar",
+    cost: 350,
     unlocked: false,
     purchased: false,
   },
   {
     level: 10,
-    title: "Phone Time",
-    description: "Phone break (5 min)",
-    cost: 75,
+    title: "Rare armor set",
+    description: "Unlock a rare armor set for your avatar",
+    cost: 750,
     unlocked: false,
     purchased: false,
   },
   {
     level: 15,
-    title: "Seat Choice",
-    description: "Choose your seat for the day",
-    cost: 100,
+    title: "Epic background",
+    description: "Unlock an epic background for your avatar",
+    cost: 900,
     unlocked: false,
     purchased: false,
   },
   {
     level: 20,
-    title: "Partner Pick",
-    description: "Choose your partner once",
-    cost: 125,
+    title: "Legendary helmet",
+    description: "Unlock a legendary helmet for your avatar",
+    cost: 1250,
     unlocked: false,
     purchased: false,
   },
+
   {
     level: 25,
-    title: "Snack Pass",
-    description: "Snack during independent work",
-    cost: 150,
+    title: "Legendary armor set",
+    description: "Unlock a legendary armor set for your avatar",
+    cost: 2500,
     unlocked: false,
     purchased: false,
   },
   {
     level: 30,
-    title: "Game Time",
-    description: "Quick classroom game (10 min)",
-    cost: 200,
+    title: "Mythic Pet",
+    description: "Unlock a mythic companion",
+    cost: 5000,
     unlocked: false,
     purchased: false,
   },

@@ -436,11 +436,27 @@ const ProblemSolve: React.FC = () => {
         throw new Error(`Failed to get or create player state for classId=${classId}, studentId=${studentId}`);
       }
 
+      // Calculate score percentage from responses
+      const correctCount = (latestResponses || []).filter((r: any) => {
+        const isCorrect = r?.answer_raw?.is_correct;
+        return typeof isCorrect === 'boolean' && isCorrect === true;
+      }).length;
+
+      const totalQuestions = questions.length || 1;
+      const scorePercentage = (correctCount / totalQuestions) * 100;
+
+      // Deduct 1 heart if score < 50%
+      let hearts = cur.hearts ?? 0;
+      if (scorePercentage < 50) {
+        hearts = Math.max(0, hearts - 1);
+        console.log(`[Quest Complete] Score ${scorePercentage.toFixed(2)}% < 50%, deducting 1 heart. Hearts remaining: ${hearts}`);
+      }
+
       await upsertPlayerState(classId, studentId, {
         current_xp: (cur.current_xp ?? 0) + xp,
         xp_to_next_level: cur.xp_to_next_level ?? 0,
         total_xp_earned: (cur.total_xp_earned ?? 0) + xp,
-        hearts: cur.hearts ?? 0,
+        hearts: hearts,
         max_hearts: cur.max_hearts ?? 0,
         gold: (cur.gold ?? 0) + gold,
         last_weekend_reset_at: cur.last_weekend_reset_at,
@@ -449,12 +465,13 @@ const ProblemSolve: React.FC = () => {
 
       // Log a reward transaction so the teacher activity feed picks it up
       try {
+        const heartsDelta = scorePercentage < 50 ? -1 : 0;
         await createTransaction({
           student_id: studentId,
           class_id: classId,
           xp_delta: xp,
           gold_delta: gold,
-          hearts_delta: 0,
+          hearts_delta: heartsDelta,
           source_type: "QUEST_COMPLETION",
           source_id: questInstanceId,
           quest_instance_id: questInstanceId,

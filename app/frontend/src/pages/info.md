@@ -83,9 +83,12 @@ Current TODO:
 3. Quest creation implementation (DONE)
 4. adding quests to students side (DONE)
 5. adding quests to teachers side (DONE)
-6. adding students to classes alongside their xp, gold and level to make this editable(Almost DONE)
+6. adding students to classes alongside their xp, gold and level to make this editable(DONE)
 7. adding rewards to classes & creating custom rewards for classes
-8. 
+8. Boss Battle students side 
+9. Leaderboards teachers side
+10. Leader boards students side
+11. Student's shop
 
 
 Dynamic (TODO:)
@@ -136,9 +139,15 @@ TODO: Boss battle implementation for teachers & students side (IN PROGRESS)
 
 TODO: Assist alvin with boss battle and correct minor errors in student tutorial, editing quest question 
 
-TODO: recent activity display of 3 latest activities on teachers page
+TODO: recent activity display of 5 latest activities on teachers page (DONE)
 
-TODO: recent activity tracks rewards transactiions (table ready)
+TODO: recent activity tracks rewards transactiions (Almost DONE)
+
+TODO: stats should be leader boards for all classes
+
+TODO: reshape rewards creation so that theachers can issue class rewards like phone time etc.
+
+TODO: 
 
 TODO: check date so that quest only shows up on the date its assigned if it date is not reached it stays as draft until the start date is reached (DONE)
 
