@@ -34,10 +34,10 @@ export interface TopStudent {
   class_id: string;
 }
 
-const calculateLevel = (totalXp: number): number => {
+/*const calculateLevel = (totalXp: number): number => {
   // Simple level calculation: every 1000 XP = 1 level, minimum level 1
   return Math.max(1, Math.floor(totalXp / 1000) + 1);
-};
+};*/
 
 export const fetchTeacherStats = async (teacherId: string): Promise<TeacherStats> => {
   try {

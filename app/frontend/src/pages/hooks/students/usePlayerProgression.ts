@@ -394,7 +394,7 @@ export const usePlayerProgression = (
       
       setProfile(updatedProfile);
 
-      // Persist the heart reset to backend - use calculateTotalXPForLevel for proper calculation
+      // Persist the heart reset to backend - calculateTotalXPForLevel for proper calculation
       const xpToNextLevel = calculateTotalXPForLevel(updatedProfile.level + 1) - updatedProfile.totalXP;
       try {
         await upsertPlayerState(classId, studentId, {

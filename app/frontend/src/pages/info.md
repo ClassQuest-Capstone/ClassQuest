@@ -143,11 +143,11 @@ TODO: recent activity display of 5 latest activities on teachers page (DONE)
 
 TODO: recent activity tracks rewards transactiions (Almost DONE)
 
-TODO: stats should be leader boards for all classes
+TODO: stats should be leader boards for all classes (DONE)
 
-TODO: reshape rewards creation so that theachers can issue class rewards like phone time etc.
+TODO: reshape rewards creation so that theachers can issue class rewards like phone time etc. (DONE)
 
-TODO: 
+TODO: fix students quests so that it allows saves only 1 attempt per question (DONE)
 
 TODO: check date so that quest only shows up on the date its assigned if it date is not reached it stays as draft until the start date is reached (DONE)
 
