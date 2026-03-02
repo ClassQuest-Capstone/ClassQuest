@@ -324,6 +324,10 @@ const ProblemSolve: React.FC = () => {
   // XP decreases on wrong attempts
   const [remainingXp, setRemainingXp] = useState<number[]>([]);
 
+  // Track whether a question has EVER been answered wrong (for scoring)
+  // (This is ONLY for scoring/analytics, not for XP penalty.)
+  const [hadWrongAttempt, setHadWrongAttempt] = useState<boolean[]>([]);
+
   // Timer
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const timerRef = useRef<number | null>(null);
@@ -344,6 +348,41 @@ const ProblemSolve: React.FC = () => {
   }, [questions, responsesByQuestionId]);
 
   const progress = questions.length > 0 ? Math.round((answeredCount / questions.length) * 100) : 0;
+
+  // “Final score” idea: a question counts as wrong if they EVER missed it at least once,
+  // even if they later retry until correct.
+  //
+  // IMPORTANT: compute this from SAVED responses too (so refresh/reload still works),
+  // and fall back to local state for the current session.
+  const wrongOnceCount = useMemo(() => {
+    if (!questions.length) return 0;
+
+    let count = 0;
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      const r: any = responsesByQuestionId.get(q.id);
+      const raw: any = r?.answer_raw;
+
+      const persistedEverWrong =
+        raw?.had_wrong_before === true ||
+        (Array.isArray(raw?.attempts) && raw.attempts.some((a: any) => a?.is_correct === false));
+
+      const localEverWrong = hadWrongAttempt[i] === true;
+
+      if (persistedEverWrong || localEverWrong) count++;
+    }
+    return count;
+  }, [questions, responsesByQuestionId, hadWrongAttempt]);
+
+  const firstTryCorrectCount = useMemo(() => {
+    if (!questions.length) return 0;
+    return Math.max(0, questions.length - wrongOnceCount);
+  }, [questions.length, wrongOnceCount]);
+
+  const firstTryPercent = useMemo(() => {
+    if (!questions.length) return 0;
+    return Math.round((firstTryCorrectCount / questions.length) * 100);
+  }, [firstTryCorrectCount, questions.length]);
 
   async function refreshResponses() {
     if (!questInstanceId || !studentId) return;
@@ -550,6 +589,7 @@ const ProblemSolve: React.FC = () => {
         setSelectedOptions(ui.map(() => null));
         setShortAnswers(ui.map(() => ""));
         setRemainingXp(ui.map((q) => q.xpValue));
+        setHadWrongAttempt(ui.map(() => false));
         setCurrentIndex(0);
         setShowHint(false);
         setIsFinished(false);
@@ -579,6 +619,31 @@ const ProblemSolve: React.FC = () => {
                 if (text) copy[idx] = text;
               });
               return copy;
+            });
+
+            // Rehydrate: if student ever got a question wrong, remember that.
+            // This lets you compute a final score like “correct on first try”.
+            setHadWrongAttempt(() => {
+              return ui.map((q) => {
+                const saved: any = byQuestion.get(q.id);
+                const ar: any = saved?.answer_raw;
+                if (!ar) return false;
+                if (ar.had_wrong_before === true) return true;
+                const attempts = Array.isArray(ar.attempts) ? ar.attempts : [];
+                return attempts.some((a: any) => a?.is_correct === false);
+              });
+            });
+
+            // If they had a wrong attempt before, only apply the XP reduction ONCE.
+            setRemainingXp(() => {
+              return ui.map((q) => {
+                const saved: any = byQuestion.get(q.id);
+                const ar: any = saved?.answer_raw;
+                const hadWrong =
+                  ar?.had_wrong_before === true ||
+                  (Array.isArray(ar?.attempts) ? ar.attempts.some((a: any) => a?.is_correct === false) : false);
+                return Math.max(0, (Number(q.xpValue) || 0) - (hadWrong ? 1 : 0));
+              });
             });
 
             const firstUnansweredIdx = ui.findIndex((q) => !byQuestion.has(q.id));
@@ -724,6 +789,11 @@ const ProblemSolve: React.FC = () => {
     let answer_raw: Record<string, any> = { type: currentQuestion.type };
     let is_auto_graded = false;
 
+    // Pull previous attempts (because upsert overwrites the row)
+    const existing: any = responsesByQuestionId.get(currentQuestion.id);
+    const existingRaw: any = existing?.answer_raw;
+    const prevAttempts: any[] = Array.isArray(existingRaw?.attempts) ? existingRaw.attempts : [];
+
     if (hasChoices) {
       const selectedId = selectedOptions[currentIndex];
       if (!selectedId) {
@@ -733,26 +803,80 @@ const ProblemSolve: React.FC = () => {
 
       const grade = isCorrectChoice(currentQuestion, selectedId);
 
-      if (grade.canGrade && !grade.correct) {
-        setRemainingXp((prev) => {
-          const copy = [...prev];
-          const cur = copy[currentIndex] ?? currentQuestion.xpValue ?? 0;
-          copy[currentIndex] = Math.max(0, cur - 1);
-          return copy;
-        });
+      const opt = currentQuestion.answerOptions.find((o) => o.id === selectedId);
+      const attempt = {
+        ts: new Date().toISOString(),
+        selected_option_id: selectedId,
+        selected_option_text: opt?.text ?? "",
+        is_correct: grade.canGrade ? grade.correct : undefined,
+      };
 
-        setFeedback({ kind: "bad", msg: "Incorrect — try again! (XP reward reduced by 1)" });
+      // If wrong: save the attempt, but DO NOT advance.
+      // Also: only apply the XP penalty ONCE per question (first time they get it wrong).
+      if (grade.canGrade && !grade.correct) {
+        const alreadyWrong = hadWrongAttempt[currentIndex] === true;
+
+        if (!alreadyWrong) {
+          setHadWrongAttempt((prev) => {
+            const copy = [...prev];
+            copy[currentIndex] = true;
+            return copy;
+          });
+
+          setRemainingXp((prev) => {
+            const copy = [...prev];
+            const cur = copy[currentIndex] ?? currentQuestion.xpValue ?? 0;
+            copy[currentIndex] = Math.max(0, cur - 1);
+            return copy;
+          });
+        }
+
+        answer_raw.selected_option_id = selectedId;
+        answer_raw.selected_option_text = opt?.text ?? "";
+        answer_raw.auto_graded = true;
+        answer_raw.is_correct = false;
+        answer_raw.awarded_xp = 0; // no XP for wrong attempts
+
+        // Keep attempt history so teachers can see retries.
+        answer_raw.attempts = [...prevAttempts, attempt];
+        answer_raw.had_wrong_before = true;
+
+        try {
+          setSaving(true);
+          await upsertResponse(questInstanceId, currentQuestion.id, studentId, {
+            class_id: classId,
+            answer_raw,
+            is_auto_graded: true,
+            submitted_at: new Date().toISOString(),
+          });
+          await refreshResponses();
+        } catch (e: any) {
+          setFeedback({ kind: "bad", msg: e?.message || "Failed to save attempt (backend error)." });
+        } finally {
+          setSaving(false);
+        }
+
+        setFeedback({
+          kind: "bad",
+          msg: "Incorrect — try again! (-1 XP)",
+        });
         return;
       }
 
       is_auto_graded = grade.canGrade;
-
-      const opt = currentQuestion.answerOptions.find((o) => o.id === selectedId);
       answer_raw.selected_option_id = selectedId;
       answer_raw.selected_option_text = opt?.text ?? "";
       answer_raw.awarded_xp = currentRemainingXp;
       answer_raw.auto_graded = grade.canGrade;
       answer_raw.is_correct = grade.canGrade ? grade.correct : undefined;
+
+      // Persist attempt history + whether they were ever wrong on this question
+      const persistedEverWrong =
+        existingRaw?.had_wrong_before === true || prevAttempts.some((a: any) => a?.is_correct === false);
+      const everWrong = persistedEverWrong || hadWrongAttempt[currentIndex] === true;
+
+      answer_raw.attempts = [...prevAttempts, attempt];
+      answer_raw.had_wrong_before = everWrong;
 
       setFeedback(
         grade.canGrade ? { kind: "ok", msg: "Correct! Saved and moving on." } : { kind: "info", msg: "Submitted! Saved." }
@@ -889,6 +1013,26 @@ const ProblemSolve: React.FC = () => {
               <p className="text-center text-gray-600 mb-6">
                 Your answers were saved. ({answeredCount}/{questions.length})
               </p>
+
+              <div className="max-w-md mx-auto mb-6">
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="text-xs text-green-700">First-try correct</div>
+                    <div className="text-xl font-bold text-green-800">{firstTryCorrectCount}</div>
+                  </div>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <div className="text-xs text-red-700">Wrong (at least once)</div>
+                    <div className="text-xl font-bold text-red-800">{wrongOnceCount}</div>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="text-xs text-blue-700">Score</div>
+                    <div className="text-xl font-bold text-blue-800">{firstTryPercent}%</div>
+                  </div>
+                </div>
+                <p className="text-center text-gray-500 text-xs mt-2">
+                  Score counts a question as wrong if you missed it at least once (retries don’t stack).
+                </p>
+              </div>
 
               {/* show base reward info for sanity */}
               {questTemplate && (
