@@ -16,6 +16,9 @@ const rewards = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loading, setIsLoading] = useState(false); // Loading state
     const [teacher, setTeacher] = useState<TeacherUser | null>(null);
+    const [rewardType, setRewardType] = useState("");
+    const [price, setPrice] = useState("");
+    const [rewardLevel, setRewardLevel] = useState("");
 
     useEffect(() => {
         feather.replace();
@@ -35,8 +38,19 @@ const rewards = () => {
     const handleCreateQuest = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const formData = new FormData(event.currentTarget);
+        // TODO: Send reward data to API
+        console.log({
+            rewardType,
+            price,
+            rewardLevel
+        });
+        // Reset form
+        setRewardType("");
+        setPrice("");
+        setRewardLevel("");
         setIsModalOpen(false);
     }
+    
 
     return (
         <div className="font-poppins bg-[url(/assets/background-teacher-dash.png)] bg-cover bg-center bg-no-repeat min-h-screen">
@@ -89,7 +103,7 @@ const rewards = () => {
               <main className="max-w-7xl mx-auto px-4 py-8">
                     <div className="flex flex-wrap gap-4 justify-between items-center mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-yellow-300">Shop & Reward</h1>
+                        <h1 className="text-3xl font-bold text-yellow-300">Class Rewards</h1>
                         <p className="text-white">Add and manage items available for students to purchase</p>
                     </div>
                     <button
@@ -101,30 +115,18 @@ const rewards = () => {
                     </div>
                     {/** Categories*/}
                     <div className="mb-8">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-white">
-                          <div className="bg-gradient-to-r from-pink-300 to-pink-500 rounded-lg shadow-sm p-4 text-center">
-                              <div className="bg-pink-50 text-pink-700 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
-                                  <i data-feather="user" className="w-6 h-6"></i>
+                      <div className="grid grid-cols-1 gap-4 text-white">
+                          
+                          <div className="bg-gradient-to-r from-green-300 to-green-500 rounded-lg shadow-lg p-8 text-center hover:shadow-xl transition-shadow">
+                              <div className="flex items-center justify-center gap-6">
+                                <div className="bg-green-50 text-green-700 rounded-full w-24 h-24 flex items-center justify-center">
+                                  <i data-feather="gift" className="w-12 h-12"></i>
                               </div>
-                              <a href="#" className="font-medium hover:text-gray-300">Avatar Items</a>
-                          </div>
-                          <div className="bg-gradient-to-r from-blue-300 to-indigo-500 rounded-lg shadow-sm p-4 text-center">
-                              <div className="bg-blue-50 text-blue-800 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
-                                  <i data-feather="map" className="w-6 h-6"></i>
+                              <div className="text-left">
+                                <h3 className="text-2xl font-bold text-green-900">Rewards</h3>
+                                <p className="text-green-800">Create exciting in class rewards fot your students</p>
                               </div>
-                              <a href="#" className="font-medium hover:text-gray-300">Quest Items</a>
-                          </div>
-                          <div className="bg-gradient-to-r from-yellow-300 to-orange-400 rounded-lg shadow-sm p-4 text-center">
-                              <div className="bg-yellow-50 text-yellow-700 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
-                                  <i data-feather="zap" className="w-6 h-6"></i>
                               </div>
-                              <a href="#" className="font-medium hover:text-gray-300">Power-ups</a>
-                          </div>
-                          <div className="bg-gradient-to-r from-green-300 to-green-500 rounded-lg shadow-sm p-4 text-center">
-                              <div className="bg-green-50 text-green-700 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
-                                  <i data-feather="gift" className="w-6 h-6"></i>
-                              </div>
-                              <a href="#" className="font-medium hover:text-gray-300">Special offers</a>
                           </div>
                       </div>
                     </div>
@@ -132,30 +134,146 @@ const rewards = () => {
                     <div className="bg-white rounded-xl shadow-lg p-6 text-gray-900">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold">All Shop Items</h2>
-                <div className="relative">
+                {/*<div className="relative">
                     <input type="text" placeholder="Search items..." className="border border-gray-300 rounded-full px-4 py-2 pl-10 focus:outline-none focus:ring-1 focus:ring-primary-500" />
                     <i data-feather="search" className="absolute left-3 top-2.5 text-gray-400"></i>
-                </div>
+                </div>*/}
             </div>
 
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rarity</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Level</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reward</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200"></tbody>
                 </table>
              </div>
-           </div>
+             {/* Save changes button with warning */}
+          {/*<div className="mt-6 flex flex-wrap gap-4 items-center">
+            <button
+              disabled={!unsavedChanges || saving}
+              onClick={handleSaveChanges}
+              className={`px-6 py-2 rounded-md text-white font-medium transition-colors ${
+                unsavedChanges
+                  ? "bg-green-600 hover:bg-green-700 cursor-pointer"
+                  : "bg-gray-400 cursor-not-allowed"
+              }`}
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+            {unsavedChanges && (
+              <span className="text-sm text-orange-600 font-medium">
+                You have unsaved changes
+              </span>
+            )}
+           </div>*/}
+            </div>
           </main>
-        </div>
+          {/* Modal */}
+          {isModalOpen && (
+            <div className="fixed inset-0 bg-white/300 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center text-gray-900">
+              <div className="relative top-20 mx-auto p-5 border w-full max-w-xl shadow-lg rounded-md bg-white">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Create Reward </h2>
+                
+                <form onSubmit={handleCreateQuest} className="space-y-5">
+                  {/* Reward Type Dropdown */}
+                  <div>
+                    <label htmlFor="rewardType" className="block text-sm font-medium text-gray-700 mb-2">
+                      Reward Type
+                    </label>
+                    <select
+                      id="rewardType"
+                      value={rewardType}
+                      onChange={(e) => setRewardType(e.target.value)}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select a reward type...</option>
+                      <option value="Music Time">Music Time</option>
+                      <option value="Phone Break">Phone Break (5mins)</option>
+                      <option value="Seat Choice">Seat Choice</option>
+                      <option value="Pick your partner">Pick your partner</option>
+                      <option value="Snack Pass">Snack Pass</option>
+                      <option value="Quick classroom game (10 min)">Quick classroom game (10 min)</option>
+                    </select>
+                  </div>
+
+                  {/* Price Dropdown */}
+                  <div>
+                    <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-2">
+                      Price (Gold)
+                    </label>
+                    <select
+                      id="price"
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select a price...</option>
+                      <option value="100">100</option>
+                      <option value="250">250</option>
+                      <option value="500">500</option>
+                      <option value="750">750</option>
+                      <option value="1000">1000</option>
+                      <option value="1500">1500</option>
+                      <option value="2000">2000</option>
+                    </select>
+                  </div>
+
+                  {/* Reward Level Dropdown */}
+                  <div>
+                    <label htmlFor="rewardLevel" className="block text-sm font-medium text-gray-700 mb-2">
+                       Level
+                    </label>
+                    <select
+                      id="rewardLevel"
+                      value={rewardLevel}
+                      onChange={(e) => setRewardLevel(e.target.value)}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select a level...</option>
+                      <option value="5">Level 5</option>
+                      <option value="10">Level 10</option>
+                      <option value="15">Level 15</option>
+                      <option value="20">Level 20</option>
+                      <option value="25">Level 25</option>
+                      <option value="30">Level 30</option>
+                    </select>
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition-colors disabled:bg-gray-400"
+                    >
+                      {loading ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        setRewardType("");
+                        setPrice("");
+                        setRewardLevel("");
+                      }}
+                      className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-900 font-medium py-2 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}        </div>
     );
 }
 

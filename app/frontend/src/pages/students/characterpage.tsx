@@ -667,11 +667,28 @@ const CharacterPage: React.FC = () => {
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-3xl font-bold glow-text">My Character</h1>
             <div id="guilds" className="flex items-center space-x-4">
-              <div className="flex items-center bg-gradient-to-r from-yellow-600 to-yellow-500 px-4 py-2 rounded-full shadow-lg">
-                <i data-feather="coins" className="mr-2 text-yellow-200" />
+              <div className="relative inline-block mr-2">
+              <i data-feather="help-circle" className="mr-2 text-white-200 cursor-help peer"/>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap opacity-0 peer-hover:opacity-100 transition-opacity pointer-events-none shadow-lg border border-gray-700">
+                Experience Points - Earn from quests to level up
+              </div>
+            </div>
+
+               <div className="flex items-center bg-gradient-to-r from-green-600 to-green-500 px-4 py-2 rounded-full shadow-lg relative group cursor-help">
+                <span className="font-bold text-white">
+                  {profile.totalXP.toLocaleString()} XP
+                </span>
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg border border-gray-700">
+                  Experience Points - Earn from quests to level up
+                </div>
+              </div>
+              <div className="flex items-center bg-gradient-to-r from-yellow-600 to-yellow-500 px-4 py-2 rounded-full shadow-lg relative group cursor-help">
                 <span className="font-bold text-white">
                   {profile.gold.toLocaleString()} Gold
                 </span>
+                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg border border-gray-700">
+                  Gold - For purchasing rewards unlocked and rewards in the shop
+                </div>
               </div>
 
               {/* Guild name*/}

@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.js";
 import QuizStats from "../features/teacher/quizStats.js";
+import ActivityCard from "../features/teacher/ActivityCard.js";
+import { useTeacherActivity, ActivityCategory } from "../hooks/teacher/useTeacherActivity.js";
 
 type TeacherUser = {
   id: string;
@@ -13,17 +15,20 @@ type TeacherUser = {
 };
 
 type Tab = "Activity" | "Stats";
+type Filter = "ALL" | ActivityCategory;
+
+const FILTER_OPTIONS: { value: Filter; label: string }[] = [
+  { value: "ALL", label: "All Activities" },
+  { value: "QUEST_COMPLETED", label: "Quest Completions" },
+  { value: "BOSS_BATTLE", label: "Boss Battles" },
+  { value: "TEACHER_ADJUSTMENT", label: "Teacher Adjustments" },
+];
 
 const ActivityPage = () => {
   const navigate = useNavigate(); 
-  const [activeTab, setActiveTab] = useState<Tab>("Activity"); // Default to activity tab
-  const [recentActivity, setRecentActivity] = useState<any[]>([]); // Recent activity data
-  const [loading, setIsLoading] = useState(false); // Loading state
+  const [activeTab, setActiveTab] = useState<Tab>("Activity");
+  const [filter, setFilter] = useState<Filter>("ALL");
   const [teacher, setTeacher] = useState<TeacherUser | null>(null);
-
-  useEffect(() => {
-    feather.replace();
-  });
 
   // Load teacher data from localStorage
   useEffect(() => {
@@ -38,29 +43,14 @@ const ActivityPage = () => {
     }
   }, []);
 
-  // Fetch recent activity from AWS
+  // Fetch activity from reward transactions
+  const { activities, loading, error } = useTeacherActivity(teacher?.id);
+
+  const filtered = filter === "ALL" ? activities : activities.filter((a) => a.category === filter);
+
   useEffect(() => {
-    if (activeTab !== "Activity") return;
-
-    const fetchActivity = async () => {
-      try {
-        setIsLoading(true);
-
-        const response = await fetch(
-          "https://your-api-url.amazonaws.com/activity" // Replace with AWS endpoint (TODO:)
-        );
-
-        const data = await response.json();
-        setRecentActivity(data.activities || []);
-      } catch (error) {
-        console.error("Error fetching activity:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchActivity();
-  }, [activeTab]);
+    feather.replace();
+  });
 
   const tabClass = (tab: Tab) =>
     `py-4 px-1 text-center border-b-2 font-bold text-xl ${
@@ -134,30 +124,44 @@ const ActivityPage = () => {
         {/* Tab content */}
         {activeTab === "Activity" && (
           <div className="bg-white/20 backdrop-blur-md rounded-lg p-6 text-white shadow-lg">
+            {/* Filter bar */}
+            <div className="mb-4 flex flex-wrap gap-2">
+              {FILTER_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setFilter(opt.value)}
+                  className={`px-3 py-1 rounded-full text-sm font-semibold transition ${
+                    filter === opt.value
+                      ? "bg-yellow-400 text-gray-900"
+                      : "bg-white/10 text-white hover:bg-white/20"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
             {loading ? (
               <p>Loading recent activity...</p>
-            ) : recentActivity.length === 0 ? (
-              <p>No recent activity found.</p>
+            ) : error ? (
+              <p className="text-red-300">Error: {error}</p>
+            ) : filtered.length === 0 ? (
+              <p>No activity found{filter !== "ALL" ? " for this filter" : ""}.</p>
             ) : (
-              <ul className="space-y-4">
-                {recentActivity.map((item, index) => (
-                  <li
-                    key={index}
-                    className="p-4 bg-white/10 rounded-lg border border-white/20 shadow"
-                  >
-                    <p className="font-semibold">{item.studentName}</p>
-                    <p className="text-sm">{item.action}</p>
-                    <p className="text-xs opacity-70">{item.timestamp}</p>
-                  </li>
-                ))}
-              </ul>
+              <div className="bg-white shadow overflow-hidden sm:rounded-md">
+                <ul className="divide-y divide-gray-200">
+                  {filtered.map((item) => (
+                    <ActivityCard key={item.id} item={item} />
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         )}
 
         {activeTab === "Stats" && (
           <div className="mt-6">
-            {/** Render pie chart component */}
+            {/** Render pie chart component (switch from pie chart to leader boards across all classes (filter by class)) */}
             <QuizStats />
           </div>
         )}
