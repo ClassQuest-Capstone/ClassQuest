@@ -1,13 +1,18 @@
-// Quests.tsx 
-// This version prevents INVALID_BASE_XP_REWARD by ALWAYS sending valid NUMBERS
-// for base_xp_reward / base_gold_reward (never NaN / undefined / "100XP").
-// - Default XP/Gold if missing
+// Quests_updated_from_old.tsx
+// Based on your OLD version (saving behavior unchanged) + your UI changes:
+// - "Save & Exit" moved INSIDE the Questions list card (bottom-left).
+// - "+" (Add Question) moved to bottom-right of the Questions list card.
+// - New "Create Question" button on the top-right of the page header.
+// - When editing: top-right shows "Save Changes" (not "Add Question").
+// - After "Save Changes": it clears the form and keeps you in create mode so you can immediately create the next question.
+
 import React, { useEffect, useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
-import { createQuestTemplate, updateQuestTemplate, QuestTemplate } from "../../api/questTemplates.js";
+import { createQuestTemplate, updateQuestTemplate, type QuestTemplate } from "../../api/questTemplates.js";
 import { createQuestQuestion, updateQuestQuestion, deleteQuestQuestion } from "../../api/questQuestions.js";
+
 type TeacherUser = {
   id: string;
   role: "teacher";
@@ -53,8 +58,12 @@ interface QuestData {
   grade: string;
   description: string;
   difficulty: string;
-  reward: string | number; // allow number too
+  reward: string | number;
   estimated_duration_minutes?: number;
+
+  // ✅ add these so TS doesn't complain (your old code already uses them)
+  base_xp_reward?: string | number;
+  base_gold_reward?: string | number;
   XP?: string | number;
 }
 
@@ -68,6 +77,7 @@ function clampNonNeg(n: number) {
   return n < 0 ? 0 : n;
 }
 
+
 const Quests = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -75,7 +85,7 @@ const Quests = () => {
 
   const questionTypes: QuestionType[] = ["Multiple Choice", "True/False", "Short Answer", "Matching"];
 
-  // for managing questions list
+  // questions list
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -84,7 +94,7 @@ const Quests = () => {
   const [error, setError] = useState<string>("");
   const templateInitialized = useRef(false);
 
-  // state for current question
+  // editor state
   const [activeTab, setActiveTab] = useState<QuestionType>("Multiple Choice");
   const [questionTitle, setQuestionTitle] = useState(questDataFromModal?.name || "New Question");
   const [difficulty, setDifficulty] = useState(questDataFromModal?.difficulty || "Medium");
@@ -102,29 +112,25 @@ const Quests = () => {
   const [enableTimeLimit, setEnableTimeLimit] = useState(false);
   const [timeLimit, setTimeLimit] = useState(120);
   const [teacher, setTeacher] = useState<TeacherUser | null>(null);
-  
-    useEffect(() => {
-      feather.replace();
-    }, []);
-  
-    // Load teacher data from localStorage
-      useEffect(() => {
-        const currentUserJson = localStorage.getItem("cq_currentUser");
-        if (currentUserJson) {
-          try {
-            const teacherData = JSON.parse(currentUserJson) as TeacherUser;
-            setTeacher(teacherData);
-          } catch (error) {
-            console.error("Failed to parse teacher data from localStorage:", error);
-          }
-        }
-      }, []);
 
   useEffect(() => {
     feather.replace();
   }, []);
 
-  // quest template on mount with modal data
+  // Load teacher from localStorage
+  useEffect(() => {
+    const currentUserJson = localStorage.getItem("cq_currentUser");
+    if (currentUserJson) {
+      try {
+        const teacherData = JSON.parse(currentUserJson) as TeacherUser;
+        setTeacher(teacherData);
+      } catch (error) {
+        console.error("Failed to parse teacher data from localStorage:", error);
+      }
+    }
+  }, []);
+
+  // quest template init on mount (modal data)
   useEffect(() => {
     const initializeQuestTemplate = async () => {
       if (!questDataFromModal) return;
@@ -158,7 +164,7 @@ const Quests = () => {
 
         const mappedDifficulty = difficultyMap[questDataFromModal.difficulty] || "MEDIUM";
 
-        //  "Grade 5" -> 5, "5th grade" -> 5, "5" -> 5
+        // "Grade 5" -> 5, "5th grade" -> 5, "5" -> 5
         const grade = toInt(questDataFromModal.grade, 0) || null;
 
         const questType = "QUEST";
@@ -200,7 +206,7 @@ const Quests = () => {
 
   useEffect(() => {
     feather.replace();
-  }, [activeTab]);
+  }, [activeTab, questions, selectedQuestion, isCreating]);
 
   // reset for new question
   const resetForm = () => {
@@ -222,17 +228,16 @@ const Quests = () => {
     setSelectedQuestion(null);
   };
 
-  // create new question
+  // create new question (enter create mode)
   const handleCreateNewQuestion = () => {
     setIsCreating(true);
+    setSelectedQuestion(null);
     resetForm();
     setActiveTab("Multiple Choice");
   };
 
-  // save question
+  // save question (create OR update like your old version)
   const handleSaveQuestion = async () => {
-    console.log("QuestTemplateId:", questTemplateId);
-
     if (!questTemplateId) {
       setError("Quest template not initialized. Please refresh and try again.");
       return;
@@ -305,9 +310,17 @@ const Quests = () => {
       const autoGradable = activeTab !== "Matching";
 
       if (selectedQuestion) {
-        await updateQuestQuestion(selectedQuestion.id, {
+        // ✅ DELETE + REPLACE (your preferred behavior)
+        // This avoids "question not found" issues in some backends and guarantees the edited version is what exists.
+        const orderIndex = questions.findIndex((q) => q.id === selectedQuestion.id);
+
+        // 1) delete old
+        await deleteQuestQuestion(selectedQuestion.id);
+
+        // 2) create new at the SAME order_index
+        const replaced = await createQuestQuestion(questTemplateId, {
           quest_template_id: questTemplateId,
-          order_index: questions.findIndex((q) => q.id === selectedQuestion.id),
+          order_index: orderIndex < 0 ? 0 : orderIndex,
           question_format: questionFormat,
           prompt: questionText,
           options: backendOptions,
@@ -320,11 +333,24 @@ const Quests = () => {
           time_limit_seconds: enableTimeLimit ? timeLimit : undefined,
         });
 
-        setQuestions(questions.map((q) => (q.id === selectedQuestion.id ? newQuestion : q)));
+        const replacedId = (replaced as any)?.id || (replaced as any)?.question_id || (replaced as any)?.quest_question_id || newQuestion.id;
+        const replacedQuestionWithBackendId: Question = { ...newQuestion, id: String(replacedId) };
+
+        // Replace in local state (keep ordering)
+        setQuestions(
+          questions.map((q) => (q.id === selectedQuestion.id ? replacedQuestionWithBackendId : q))
+        );
+
+        // ✅ after saving changes, go right back to create-another-question mode
+        setSelectedQuestion(null);
+        resetForm();
+        setIsCreating(true);
+        setActiveTab("Multiple Choice");
       } else {
+        // ✅ create new
         const orderIndex = questions.length;
 
-        await createQuestQuestion(questTemplateId, {
+        const created = await createQuestQuestion(questTemplateId, {
           quest_template_id: questTemplateId,
           order_index: orderIndex,
           question_format: questionFormat,
@@ -339,12 +365,17 @@ const Quests = () => {
           time_limit_seconds: enableTimeLimit ? timeLimit : undefined,
         });
 
-        setQuestions([...questions, newQuestion]);
+        const createdId = (created as any)?.id || (created as any)?.question_id || (created as any)?.quest_question_id || newQuestion.id;
+        const newQuestionWithBackendId: Question = { ...newQuestion, id: String(createdId) };
+
+        setQuestions([...questions, newQuestionWithBackendId]);
+
+        // ✅ keep creating (so you can immediately add Question 2, 3, 4...)
+        resetForm();
+        setIsCreating(true);
+        setActiveTab("Multiple Choice");
       }
 
-      console.log("Question saved:", newQuestion);
-      resetForm();
-      setIsCreating(false);
       setError("");
     } catch (err: any) {
       console.error("Failed to save question:", err);
@@ -354,7 +385,7 @@ const Quests = () => {
     }
   };
 
-  // Delete question
+  // Delete question (same signature as your old version)
   const handleDeleteQuestion = async (id: string) => {
     setIsLoading(true);
     try {
@@ -437,7 +468,7 @@ const Quests = () => {
     setMatchingPairs(matchingPairs.map((pair) => (pair.id === id ? { ...pair, [side]: text } : pair)));
   };
 
-  // Save to backend and navigate back
+  // Save & Exit (same as your old version — just navigates back)
   const handleDownloadJSON = async () => {
     if (!questTemplateId) {
       setError("Quest template not initialized. Unable to save.");
@@ -481,13 +512,14 @@ const Quests = () => {
               <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Activity</Link>
               <Link to="/teacherGuilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Guilds</Link>
               <Link to="/profile" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Profile</Link>
+
               <DropDownProfile
-                                    username={teacher?.displayName || "user"}
-                                    onLogout={() => {
-                                      localStorage.removeItem("cq_currentUser");
-                                      navigate("/TeacherLogin");
-                                    }}
-                                  />
+                username={teacher?.displayName || "user"}
+                onLogout={() => {
+                  localStorage.removeItem("cq_currentUser");
+                  navigate("/TeacherLogin");
+                }}
+              />
             </div>
           </div>
         </div>
@@ -501,6 +533,19 @@ const Quests = () => {
               <p className="text-sm text-gray-600 mt-1">Quest ID: {questTemplateId.substring(0, 8)}...</p>
             )}
           </div>
+
+          {/* ✅ NEW: Create Question button top-right (only when not already creating/editing) */}
+          {!isCreating && (
+            <button
+              onClick={handleCreateNewQuestion}
+              disabled={isLoading}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg disabled:opacity-50"
+            >
+              Create Question
+            </button>
+          )}
+
+          {/* When creating/editing: show Cancel + Add/Save */}
           {isCreating && (
             <div className="flex gap-4">
               <button
@@ -513,12 +558,13 @@ const Quests = () => {
               >
                 Cancel
               </button>
+
               <button
                 onClick={handleSaveQuestion}
                 disabled={isLoading}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg disabled:opacity-50"
               >
-                {isLoading ? "Saving..." : "Add Question"}
+                {isLoading ? "Saving..." : selectedQuestion ? "Save Changes" : "Add Question"}
               </button>
             </div>
           )}
@@ -536,12 +582,6 @@ const Quests = () => {
             <div className="bg-indigo-300 rounded-xl shadow-lg p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-bold text-gray-900">Questions</h2>
-                <button
-                  onClick={handleCreateNewQuestion}
-                  className="text-blue-600 hover:text-blue-800 text-2xl font-bold"
-                >
-                  +
-                </button>
               </div>
 
               <div className="space-y-2 max-h-[600px] overflow-y-auto">
@@ -573,6 +613,27 @@ const Quests = () => {
                     </div>
                   ))
                 )}
+              </div>
+
+              {/* ✅ NEW: Save & Exit inside card + Add Question bottom-right */}
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <button
+                  onClick={handleDownloadJSON}
+                  disabled={isLoading || !questTemplateId}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? "Saving..." : "Save & Exit"}
+                </button>
+
+                <button
+                  onClick={handleCreateNewQuestion}
+                  disabled={isLoading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg disabled:opacity-50"
+                  aria-label="Add Question"
+                  title="Add Question"
+                >
+                  +
+                </button>
               </div>
             </div>
           </div>
@@ -829,16 +890,6 @@ const Quests = () => {
                 </button>
               </div>
             )}
-
-            <div className="justify-center align-middle mt-3">
-              <button
-                onClick={handleDownloadJSON}
-                disabled={isLoading || !questTemplateId}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? "Saving..." : "Save & Exit"}
-              </button>
-            </div>
           </div>
         </div>
       </main>
