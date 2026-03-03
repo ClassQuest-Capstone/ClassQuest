@@ -303,7 +303,7 @@ const Profile = () => {
                   className="w-full px-4 py-2 border border-gray-300 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="mage">Mage</option>
-                  <option value="warrior">Warrior</option>
+                  <option value="guardian">Guardian</option>
                   <option value="healer">Healer</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">Coming soon - Character selection and customization</p>

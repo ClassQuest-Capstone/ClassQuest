@@ -2,8 +2,9 @@
 import React, { useEffect, useState, useMemo } from "react";
 import feather from "feather-icons";
 import { Link } from "react-router-dom";
-import { getStudentProfile } from "../../api/studentProfiles.js";
-import { usePlayerProgression } from "../hooks/students/usePlayerProgression.js";
+import { getStudentProfile, type StudentProfile } from "../../api/studentProfiles.js";
+import { getLeaderboard, type PlayerState } from "../../api/playerStates.js";
+import { usePlayerProgression, getLevelFromXP } from "../hooks/students/usePlayerProgression.js";
 
 type Tab = "students" | "guilds";
 
@@ -14,6 +15,14 @@ type StudentUser = {
   email?: string;
   classId?: string;
 };
+
+interface LeaderboardEntry {
+  rank: number;
+  studentId: string;
+  displayName: string;
+  level: number;
+  totalXP: number;
+}
 
 function getCurrentStudent(): StudentUser | null {
   const raw = localStorage.getItem("cq_currentUser");
@@ -32,6 +41,9 @@ const Leaderboard: React.FC = () => {
   const student = useMemo(() => getCurrentStudent(), []);
   const studentId = student?.id ?? null;
   const [classId, setClassId] = useState<string | null>(null);
+  const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
 
   useEffect(() => {
   // From student
@@ -40,7 +52,7 @@ const Leaderboard: React.FC = () => {
     return;
   }
 
-  // From localStorage (most important)
+  // From localStorage
   const stored = localStorage.getItem("cq_currentClassId");
   if (stored) {
     setClassId(stored);
@@ -55,6 +67,89 @@ const Leaderboard: React.FC = () => {
     studentId || "",
     classId || ""
   );
+
+  // Fetch leaderboard data when classId changes
+  useEffect(() => {
+    if (!classId) {
+      setLeaderboardData([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchLeaderboard = async () => {
+      try {
+        setLeaderboardLoading(true);
+        setLeaderboardError(null);
+
+        // Fetch the leaderboard for the class
+        const response = await getLeaderboard(classId, 100);
+        const playerStates = response?.items ?? [];
+
+        // Fetch student profiles for all players
+        const profilesPromise = playerStates.map(async (player: PlayerState) => {
+          try {
+            const profile = await getStudentProfile(player.student_id);
+            return {
+              studentId: player.student_id,
+              displayName: profile?.display_name ?? "Unknown",
+              level: getLevelFromXP(player.total_xp_earned),
+              totalXP: player.total_xp_earned,
+            };
+          } catch (err) {
+            // If profile fetch fails, use defaults
+            return {
+              studentId: player.student_id,
+              displayName: "Unknown",
+              level: getLevelFromXP(player.total_xp_earned),
+              totalXP: player.total_xp_earned,
+            };
+          }
+        });
+
+        const profiles = await Promise.all(profilesPromise);
+
+        // Sort by XP descending and add ranks
+        const sorted = profiles.sort((a, b) => b.totalXP - a.totalXP);
+        const entriesWithRank = sorted.map((entry, index) => ({
+          ...entry,
+          rank: index + 1,
+        }));
+
+        if (!cancelled) {
+          setLeaderboardData(entriesWithRank);
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setLeaderboardError(err?.message ?? "Failed to load leaderboard");
+          console.error("Error loading leaderboard:", err);
+        }
+      } finally {
+        if (!cancelled) {
+          setLeaderboardLoading(false);
+        }
+      }
+    };
+
+    fetchLeaderboard();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [classId]);
+
+  // Function to get level color based on level ranges
+  const getLevelColor = (level: number): string => {
+    if (level <= 10) {
+      return "bg-blue-100 text-blue-800";
+    } else if (level <= 15) {
+      return "bg-green-100 text-green-800";
+    } else if (level <= 25) {
+      return "bg-purple-100 text-purple-800";
+    } else {
+      return "bg-yellow-100 text-yellow-800";
+    }
+  };
 
   useEffect(() => {
     feather.replace();
@@ -185,203 +280,116 @@ const Leaderboard: React.FC = () => {
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead className="bg-gradient-to-r from-indigo-400/30 to-indigo-500/30">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Rank
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Student
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Class
+                      Display name
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Level
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Class
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       XP
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Bosses Defeated
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold">
-                          1
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <img
-                          src="http://static.photos/people/200x200/5"
-                          alt="Student"
-                          className="w-10 h-10 rounded-full mr-3"
-                        />
-                        <div>
-                          <div className="font-medium">Emma Smith</div>
-                          <div className="text-sm text-gray-500">
-                            The Equation Eliminators
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      Mrs. Anderson
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
-                        Level 8
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-6 h-6 bg-red-500 rounded-full mr-2" />
-                        <span className="text-sm">Warrior</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">
-                      4,850
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">5</td>
-                  </tr>
-
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white font-bold">
-                          2
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <img
-                          src="http://static.photos/people/200x200/6"
-                          alt="Student"
-                          className="w-10 h-10 rounded-full mr-3"
-                        />
-                        <div>
-                          <div className="font-medium">Liam Johnson</div>
-                          <div className="text-sm text-gray-500">
-                            Geometry Guardians
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      Mr. Thompson
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                        Level 7
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-6 h-6 bg-blue-500 rounded-full mr-2" />
-                        <span className="text-sm">Mage</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">
-                      4,200
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">4</td>
-                  </tr>
-
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-full bg-amber-700 flex items-center justify-center text-white font-bold">
-                          3
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <img
-                          src="http://static.photos/people/200x200/7"
-                          alt="Student"
-                          className="w-10 h-10 rounded-full mr-3"
-                        />
-                        <div>
-                          <div className="font-medium">Olivia Brown</div>
-                          <div className="text-sm text-gray-500">
-                            The Mathletes
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      Ms. Garcia
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                        Level 6
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-6 h-6 bg-green-500 rounded-full mr-2" />
-                        <span className="text-sm">Healer</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">
-                      3,750
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">3</td>
-                  </tr>
-
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 font-bold">
-                          8
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <img
-                          src="http://static.photos/people/200x200/8"
-                          alt="Student"
-                          className="w-10 h-10 rounded-full mr-3"
-                        />
-                        <div>
-                          <div className="font-medium">Alex Wilson</div>
-                          <div className="text-sm text-gray-500">
-                            Math Warriors
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      Mrs. Anderson
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                        Level 5
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-6 h-6 bg-red-500 rounded-full mr-2" />
-                        <span className="text-sm">Warrior</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">
-                      1,245
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">2</td>
-                  </tr>
+                  {leaderboardLoading ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                        Loading leaderboard...
+                      </td>
+                    </tr>
+                  ) : leaderboardError ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-4 text-center text-red-500">
+                        Error: {leaderboardError}
+                      </td>
+                    </tr>
+                  ) : leaderboardData.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                        No students in this class yet.
+                      </td>
+                    </tr>
+                  ) : (() => {
+                    const top5 = leaderboardData.slice(0, 5);
+                    const currentStudentEntry = leaderboardData.find(
+                      (entry) => entry.studentId === studentId
+                    );
+                    const isCurrentStudentInTop5 = currentStudentEntry && currentStudentEntry.rank <= 5;
+                    
+                    return (
+                      <>
+                        {/* Top 5 rows */}
+                        {top5.map((entry) => (
+                          <tr key={entry.studentId} className={isCurrentStudentInTop5 && entry.studentId === studentId ? 'bg-pink-50' : ''}> 
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold`}>
+                                  {entry.rank <= 3 ? (
+                                    entry.rank === 1 ? <span className="text-2xl">🥇</span> : entry.rank === 2 ? <span className="text-2xl">🥈</span> : <span className="text-2xl">🥉</span>
+                                  ) : (
+                                    entry.rank
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="font-medium text-gray-900">
+                                {entry.displayName}
+                                {isCurrentStudentInTop5 && entry.studentId === studentId && (
+                                  <span className="text-indigo-600 text-xs font-semibold ml-2">(You)</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getLevelColor(entry.level)}`}>
+                                Level {entry.level} 
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                              {entry.totalXP.toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+                        
+                        {/* Current student row if outside top 5 */}
+                        {currentStudentEntry && !isCurrentStudentInTop5 && (
+                          <>
+                            <tr>
+                              <td colSpan={4} className="px-6 py-4 text-center text-gray-400 text-sm italic">
+                                • • •
+                              </td>
+                            </tr>
+                            <tr className="bg-pink-50">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-gray-700 font-bold text-sm">
+                                    {currentStudentEntry.rank}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="font-medium text-gray-900">{currentStudentEntry.displayName} <span className="text-indigo-600 text-xs font-semibold">(You)</span></div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getLevelColor(currentStudentEntry.level)}`}>
+                                  Level {currentStudentEntry.level}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                                {currentStudentEntry.totalXP.toLocaleString()}
+                              </td>
+                            </tr>
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                 </tbody>
               </table>
             </div>
