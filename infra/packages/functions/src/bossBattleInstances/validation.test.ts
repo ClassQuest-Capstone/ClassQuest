@@ -1,7 +1,7 @@
 /**
  * Validation tests for BossBattleInstances
  *
- * Run with: node --loader tsx validation.test.ts
+ * Run with: node --import tsx validation.test.ts
  */
 
 import {
@@ -60,7 +60,7 @@ const test3 = validateCreateBattleInput({
     initial_boss_hp: 1000,
 });
 assert(test3.valid === false, "Should reject missing class_id");
-assert(test3.error === "class_id is required", "Should have correct error message");
+assert(!test3.valid && test3.error === "class_id is required", "Should have correct error message");
 
 // Test 4: Invalid initial_boss_hp (0)
 console.log("\nTest 4: Invalid initial_boss_hp = 0");
@@ -72,7 +72,7 @@ const test4 = validateCreateBattleInput({
 });
 assert(test4.valid === false, "Should reject HP = 0");
 assert(
-    test4.error === "initial_boss_hp must be a positive integer >= 1",
+    !test4.valid && test4.error === "initial_boss_hp must be a positive integer >= 1",
     "Should have correct error message"
 );
 

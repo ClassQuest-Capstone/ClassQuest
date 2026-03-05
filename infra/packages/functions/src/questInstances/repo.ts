@@ -8,6 +8,30 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 import type { QuestInstanceItem, QuestInstanceStatus } from "./types.ts";
 
+/**
+ * Compute the GSI_SCHEDULE sparse-index keys for an item.
+ * Returns { schedule_pk, schedule_sk } when the item should appear in the index,
+ * or {} (no keys) when it should not.
+ *
+ * Rules:
+ *   - Only SCHEDULED items with a start_date are indexed.
+ *   - schedule_sk = "${start_date}#${quest_instance_id}" — lexicographic sort
+ *     lets the cron query `schedule_sk <= "${nowISO}#~"` to find due items.
+ */
+export function computeScheduleKeys(
+    status: QuestInstanceStatus,
+    quest_instance_id: string,
+    start_date?: string | null
+): { schedule_pk?: string; schedule_sk?: string } {
+    if (status === "SCHEDULED" && start_date) {
+        return {
+            schedule_pk: "SCHEDULED",
+            schedule_sk: `${start_date}#${quest_instance_id}`,
+        };
+    }
+    return {};
+}
+
 // Initialize DynamoDB client
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const TABLE = process.env.QUEST_INSTANCES_TABLE_NAME;
@@ -88,25 +112,53 @@ export async function listByTemplate(
 }
 
 /**
- * Update quest instance status
+ * Update quest instance status.
+ *
+ * When transitioning TO "SCHEDULED", pass start_date so the GSI_SCHEDULE
+ * sparse-index keys can be set.  For all other statuses the keys are removed.
  */
 export async function updateStatus(
     quest_instance_id: string,
-    status: QuestInstanceStatus
+    status: QuestInstanceStatus,
+    start_date?: string | null
 ): Promise<void> {
+    const now = new Date().toISOString();
+    const setExpressions = ["#status = :status", "#updated_at = :updated_at"];
+    const removeExpressions: string[] = [];
+    const names: Record<string, string> = {
+        "#status": "status",
+        "#updated_at": "updated_at",
+    };
+    const values: Record<string, string> = {
+        ":status": status,
+        ":updated_at": now,
+    };
+
+    if (status === "SCHEDULED" && start_date) {
+        setExpressions.push("#schedule_pk = :schedule_pk", "#schedule_sk = :schedule_sk");
+        names["#schedule_pk"] = "schedule_pk";
+        names["#schedule_sk"] = "schedule_sk";
+        values[":schedule_pk"] = "SCHEDULED";
+        values[":schedule_sk"] = `${start_date}#${quest_instance_id}`;
+    } else {
+        // Remove sparse-index keys for all non-SCHEDULED statuses (no-op if absent)
+        removeExpressions.push("#schedule_pk", "#schedule_sk");
+        names["#schedule_pk"] = "schedule_pk";
+        names["#schedule_sk"] = "schedule_sk";
+    }
+
+    let updateExpression = "SET " + setExpressions.join(", ");
+    if (removeExpressions.length > 0) {
+        updateExpression += " REMOVE " + removeExpressions.join(", ");
+    }
+
     await ddb.send(
         new UpdateCommand({
             TableName: TABLE,
             Key: { quest_instance_id },
-            UpdateExpression: "SET #status = :status, #updated_at = :updated_at",
-            ExpressionAttributeNames: {
-                "#status": "status",
-                "#updated_at": "updated_at",
-            },
-            ExpressionAttributeValues: {
-                ":status": status,
-                ":updated_at": new Date().toISOString(),
-            },
+            UpdateExpression: updateExpression,
+            ExpressionAttributeNames: names,
+            ExpressionAttributeValues: values,
             ConditionExpression: "attribute_exists(quest_instance_id)",
         })
     );
@@ -134,12 +186,19 @@ export async function updateDates(
     // Handle start_date
     if (start_date !== undefined) {
         if (start_date === null) {
-            removeExpressions.push("#start_date");
+            // Removing start_date: also remove schedule keys so the item leaves GSI_SCHEDULE
+            removeExpressions.push("#start_date", "#schedule_pk", "#schedule_sk");
             expressionAttributeNames["#start_date"] = "start_date";
+            expressionAttributeNames["#schedule_pk"] = "schedule_pk";
+            expressionAttributeNames["#schedule_sk"] = "schedule_sk";
         } else {
             setExpressions.push("#start_date = :start_date");
             expressionAttributeNames["#start_date"] = "start_date";
             expressionAttributeValues[":start_date"] = start_date;
+            // Keep schedule_sk in sync; only affects GSI_SCHEDULE when schedule_pk is also present
+            setExpressions.push("#schedule_sk = :schedule_sk");
+            expressionAttributeNames["#schedule_sk"] = "schedule_sk";
+            expressionAttributeValues[":schedule_sk"] = `${start_date}#${quest_instance_id}`;
         }
     }
 

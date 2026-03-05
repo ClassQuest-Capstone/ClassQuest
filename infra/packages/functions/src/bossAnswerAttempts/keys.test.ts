@@ -1,7 +1,7 @@
 /**
  * Key building tests for BossAnswerAttempts
  *
- * Run with: node --loader tsx keys.test.ts
+ * Run with: node --import tsx keys.test.ts
  */
 
 import {

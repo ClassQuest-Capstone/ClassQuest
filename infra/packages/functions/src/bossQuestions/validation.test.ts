@@ -2,7 +2,7 @@
  * Validation tests for BossQuestions
  *
  * These tests demonstrate the validation behavior for time_limit_seconds.
- * Run with: node --loader tsx validation.test.ts (or via a test runner)
+ * Run with: node --import tsx validation.test.ts (or via a test runner)
  */
 
 import { validateQuestion, validateTimeLimit } from "./validation.js";

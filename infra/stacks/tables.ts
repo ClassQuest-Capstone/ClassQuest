@@ -141,15 +141,21 @@ export function createTables(ctx: StackContext) {
             class_id: "string",
             title_override: "string",
             description_override: "string",
-            status: "string",             // DRAFT | ACTIVE | ARCHIVED
+            status: "string",             // DRAFT | SCHEDULED | ACTIVE | ARCHIVED
             start_date: "string",         // ISO date string
             due_date: "string",           // ISO date string
             requires_manual_approval: "string",  // stored as string for DynamoDB
+            schedule_pk: "string",        // GSI_SCHEDULE PK: "SCHEDULED" (sparse - only on SCHEDULED items)
+            schedule_sk: "string",        // GSI_SCHEDULE SK: "${start_date}#${quest_instance_id}"
         },
         primaryIndex: { partitionKey: "quest_instance_id" },
         globalIndexes: {
             gsi1: { partitionKey: "class_id" },           // list quests by class
             gsi2: { partitionKey: "quest_template_id" },  // list instances by template (nullable)
+            GSI_SCHEDULE: {                               // cron activation query (sparse index)
+                partitionKey: "schedule_pk",
+                sortKey: "schedule_sk",
+            },
         },
     });
 

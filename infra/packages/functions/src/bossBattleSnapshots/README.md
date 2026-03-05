@@ -260,7 +260,7 @@ for (const participant of snapshot.joined_students) {
 Run validation tests:
 ```bash
 cd infra/packages/functions/src/bossBattleSnapshots
-node --loader tsx validation.test.ts
+node --import tsx validation.test.ts
 ```
 
 ### Test Scenarios

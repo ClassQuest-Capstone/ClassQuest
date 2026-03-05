@@ -92,8 +92,8 @@ import { handler as bbqpGet }                  from "../bossBattleQuestionPlans/
 // Format: "METHOD /path" with {param} placeholders verbatim
 const ROUTES: Record<string, (event: any) => Promise<any>> = {
     // Health & debug
-    "GET /health":                                                                                                                           healthHandler,
-    "POST /debug/create":                                                                                                                    debugCreateHandler,
+    //"GET /health":                                                                                                                           healthHandler,
+    //"POST /debug/create":                                                                                                                    debugCreateHandler,
 
     // QuestTemplates
     "POST /quest-templates":                                                                                                                 qtCreate,

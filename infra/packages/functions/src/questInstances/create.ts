@@ -1,8 +1,8 @@
 import { randomUUID } from "crypto";
-import { createInstance } from "./repo.ts";
+import { createInstance, computeScheduleKeys } from "./repo.ts";
 import type { QuestInstanceStatus } from "./types.ts";
 
-const VALID_STATUSES: QuestInstanceStatus[] = ["DRAFT", "ACTIVE", "ARCHIVED"];
+const VALID_STATUSES: QuestInstanceStatus[] = ["DRAFT", "SCHEDULED", "ACTIVE", "ARCHIVED"];
 
 /**
  * POST /classes/{class_id}/quest-instances
@@ -119,6 +119,8 @@ export const handler = async (event: any) => {
         start_date,
         due_date,
         requires_manual_approval,
+        // Populate GSI_SCHEDULE sparse-index keys when creating as SCHEDULED
+        ...computeScheduleKeys(finalStatus, quest_instance_id, start_date),
         created_at: now,
         updated_at: now,
     };

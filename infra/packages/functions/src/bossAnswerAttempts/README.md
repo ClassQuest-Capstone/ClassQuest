@@ -227,12 +227,12 @@ BossAnswerAttempts is an **append-only**, immutable combat log that stores every
 Run validation tests:
 ```bash
 cd infra/packages/functions/src/bossAnswerAttempts
-node --loader tsx validation.test.ts
+node --import tsx validation.test.ts
 ```
 
 Run key building tests:
 ```bash
-node --loader tsx keys.test.ts
+node -importr tsx keys.test.ts
 ```
 
 ### Key Test Scenarios

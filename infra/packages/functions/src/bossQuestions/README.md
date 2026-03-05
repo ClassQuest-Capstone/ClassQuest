@@ -237,7 +237,7 @@ export type UpdateBossQuestionInput = Partial<CreateBossQuestionInput>;
 Run validation tests:
 ```bash
 cd infra/packages/functions/src/bossQuestions
-node --loader tsx validation.test.ts
+node --import tsx validation.test.ts
 ```
 
 **Test Coverage:**

@@ -1,7 +1,7 @@
 /**
  * Tests for BossBattleQuestionPlans validation functions
  *
- * Run with: node --loader tsx validation.test.ts
+ * Run with: node --import tsx validation.test.ts
  */
 
 import {
