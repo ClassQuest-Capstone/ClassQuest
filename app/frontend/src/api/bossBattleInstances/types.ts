@@ -4,6 +4,7 @@
 
 export type BossBattleStatus =
     | "DRAFT"
+    | "ACTIVE"
     | "LOBBY"
     | "COUNTDOWN"
     | "QUESTION_ACTIVE"
@@ -82,7 +83,9 @@ export type BossBattleInstance = {
 export type CreateBossBattleInstanceInput = {
     class_id: string;
     boss_template_id: string;
+    created_by_teacher_id: string;
     initial_boss_hp: number;
+    status?: BossBattleStatus;
     mode_type?: ModeType;
     question_selection_mode?: QuestionSelectionMode;
     speed_bonus_enabled?: boolean;

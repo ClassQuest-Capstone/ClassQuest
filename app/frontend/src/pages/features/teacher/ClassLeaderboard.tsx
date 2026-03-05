@@ -174,14 +174,13 @@ export default function ClassLeaderboard({ classId }: ClassLeaderboardProps) {
                 className="bg-white "
               >
                 <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    {entry.rank === 1 && <span className="text-2xl">🥇</span>}
-                    {entry.rank === 2 && <span className="text-2xl">🥈</span>}
-                    {entry.rank === 3 && <span className="text-2xl">🥉</span>}
-                    <span className="text-gray-900 font-semibold">
-                      {entry.rank}
-                    </span>
-                  </div>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-gray-900 font-bold`}>
+                                  {entry.rank <= 3 ? (
+                                    entry.rank === 1 ? <span className="text-2xl">🥇</span> : entry.rank === 2 ? <span className="text-2xl">🥈</span> : <span className="text-2xl">🥉</span>
+                                  ) : (
+                                    entry.rank
+                                  )}
+                                </div>
                 </td>
                 <td className="px-6 py-4 text-gray-900">{entry.username}</td>
                 <td className="px-6 py-4 text-gray-900">{entry.displayName}</td>

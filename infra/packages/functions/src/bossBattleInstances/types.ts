@@ -3,13 +3,15 @@
  */
 export enum BossBattleStatus {
     DRAFT = "DRAFT",
+    ACTIVE = "ACTIVE",
     LOBBY = "LOBBY",
     COUNTDOWN = "COUNTDOWN",
     QUESTION_ACTIVE = "QUESTION_ACTIVE",
     RESOLVING = "RESOLVING",
     INTERMISSION = "INTERMISSION",
     COMPLETED = "COMPLETED",
-    ABORTED = "ABORTED"
+    ABORTED = "ABORTED",
+    ARCHIVED = "ARCHIVED"
 }
 
 /**
@@ -135,6 +137,7 @@ export type CreateBossBattleInstanceInput = {
     boss_template_id: string;
     created_by_teacher_id: string;
     initial_boss_hp: number;
+    status?: BossBattleStatus;
     mode_type?: ModeType;
     question_selection_mode?: QuestionSelectionMode;
     speed_bonus_enabled?: boolean;
@@ -181,7 +184,7 @@ export function applyBattleDefaults(
         class_id: input.class_id,
         boss_template_id: input.boss_template_id,
         created_by_teacher_id: input.created_by_teacher_id,
-        status: BossBattleStatus.DRAFT,
+        status: input.status ?? BossBattleStatus.DRAFT,
         mode_type: input.mode_type ?? ModeType.SIMULTANEOUS_ALL,
         question_selection_mode: input.question_selection_mode ?? QuestionSelectionMode.ORDERED,
         initial_boss_hp: input.initial_boss_hp,

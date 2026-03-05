@@ -1,4 +1,5 @@
 import { listByStudent } from "./repo.js";
+import { getAuthContext } from "../shared/auth.js";
 
 /**
  * GET /reward-transactions/by-student/{student_id}
@@ -21,19 +22,20 @@ export const handler = async (event: any) => {
             };
         }
 
-        // Authorization: Students can only list their own transactions
-        const userRole = event.requestContext?.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
-        const userId = event.requestContext?.authorizer?.jwt?.claims?.sub as string | undefined;
-
-        if (!userId) {
+        // Extract and validate JWT token
+        let auth;
+        try {
+            auth = await getAuthContext(event);
+        } catch (err: any) {
             return {
-                statusCode: 401,
-                body: JSON.stringify({ error: "Unauthorized: Missing user identity" }),
+                statusCode: err.statusCode || 401,
+                body: JSON.stringify({ error: err.message }),
             };
         }
 
-        const isStudent = userRole?.includes("Students");
-        if (isStudent && student_id !== userId) {
+        // Authorization: Students can only list their own transactions
+        const isStudent = auth.role === "student";
+        if (isStudent && student_id !== auth.sub) {
             return {
                 statusCode: 403,
                 body: JSON.stringify({ error: "Forbidden: You can only view your own transactions" }),

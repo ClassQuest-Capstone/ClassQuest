@@ -471,6 +471,12 @@ const GuildPage: React.FC = () => {
               >
                 Leaderboard
               </Link>
+              <Link
+                to="/shop"
+                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
+              >
+                Shop
+              </Link>
 
               <div className="flex items-center ml-4">
                 <Link

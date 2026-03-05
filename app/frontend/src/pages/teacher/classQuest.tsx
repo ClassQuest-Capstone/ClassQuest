@@ -24,7 +24,7 @@ import {
   listBossBattleTemplatesByOwner,
   listPublicBossBattleTemplates,
 } from "../../api/bossBattleTemplates/client.js";
-import type { BossBattleTemplateItem as BossBattleTemplate } from "../../api/bossBattleTemplates/types.js";
+import type { BossBattleTemplate as BossBattleTemplate } from "../../api/bossBattleTemplates/types.js";
 
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
 
@@ -384,7 +384,7 @@ const ClassQuest = () => {
   }
 
   return (
-    <div className="font-poppins bg-[url(/assets/background-teacher-dash.png)] bg-cover bg-center bg-no-repeat min-h-screen overflow-y-auto">
+    <div className="font-poppins bg-[url(/assets/background-teacher-dash.png)] bg-cover bg-center bg-no-repeat h-screen overflow-y-auto">
       {/* Nav bar */}
       <nav className="bg-blue-700 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -622,12 +622,12 @@ const ClassQuest = () => {
           </div>
         )}
 
-        {/* Boss Battles Section */}
-        <div className="mt-14">
+      {/* Boss Battles Section */}
+      <div className="mt-14">
           <div className="flex items-end justify-between mb-6">
             <div>
               <h2 className="text-3xl font-bold text-red-300 mb-1">Boss Battles</h2>
-              <p className="text-white/80">Assign and manage boss battles for this class</p>
+              <p className="text-white">Assign and manage boss battles for this class</p>
             </div>
 
             <div className="flex gap-3">
@@ -838,7 +838,6 @@ const ClassQuest = () => {
           </div>
         )}
       </main>
-
       {/* Extension Modal */}
       {extensionModalOpen && selectedInstance && (
         <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-start justify-center pt-20">

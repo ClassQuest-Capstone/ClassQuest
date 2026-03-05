@@ -2,6 +2,7 @@ import { putTransaction } from "./repo.js";
 import { validateTransactionData } from "./validation.js";
 import { RewardTransactionItem, SourceType, CreatedByRole, computeGSIKeys, generateDeterministicTransactionId } from "./types.js";
 import { randomUUID } from "crypto";
+import { getAuthContext } from "../shared/auth.js"; // Obtain user info and role from JWT token for authorization checks
 
 /**
  * POST /reward-transactions
@@ -11,41 +12,32 @@ import { randomUUID } from "crypto";
  */
 export const handler = async (event: any) => {
     try {
-        // Extract auth principal from Cognito authorizer
-        const userRole = event.requestContext?.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
-        const userId = event.requestContext?.authorizer?.jwt?.claims?.sub as string | undefined;
-
-        if (!userId) {
+        // Extract and validate JWT token
+        let auth;
+        try {
+            auth = await getAuthContext(event);
+        } catch (err: any) {
             return {
-                statusCode: 401,
-                body: JSON.stringify({ error: "Unauthorized: Missing user identity" }),
+                statusCode: err.statusCode || 401,
+                body: JSON.stringify({ error: err.message }),
             };
         }
 
-      /* (Comment role out since its blocking access to the endpoint for now enable when access to userpool is fixed)
-      // Authorization: Only TEACHER, ADMIN, SYSTEM can create transactions
-        const allowedRoles = ["Teachers", "Admins", "System"];
-        const hasPermission = userRole?.split(",").some(role => allowedRoles.includes(role.trim()));
+        const userId = auth.sub;
 
-        if (!hasPermission) {
+        // Authorization: Only TEACHER role can create transactions
+        if (auth.role !== "teacher") {
             return {
                 statusCode: 403,
-                body: JSON.stringify({ error: "Forbidden: Only teachers, admins, or system can create reward transactions" }),
+                body: JSON.stringify({ error: "Forbidden: Only teachers can create reward transactions" }),
             };
-        }*/
+        }
 
         // Parse request body
         const body = JSON.parse(event.body || "{}");
 
-        // Determine created_by_role based on Cognito group
-        let created_by_role: CreatedByRole;
-        if (userRole?.includes("Admins")) {
-            created_by_role = CreatedByRole.ADMIN;
-        } else if (userRole?.includes("System")) {
-            created_by_role = CreatedByRole.SYSTEM;
-        } else {
-            created_by_role = CreatedByRole.TEACHER;
-        }
+        // Determine created_by_role as TEACHER
+        const created_by_role: CreatedByRole = CreatedByRole.TEACHER;
 
         // Extract and validate required fields
         const {

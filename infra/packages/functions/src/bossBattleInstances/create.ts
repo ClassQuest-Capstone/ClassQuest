@@ -41,6 +41,7 @@ export const handler = async (event: any) => {
             boss_template_id: body.boss_template_id,
             created_by_teacher_id: body.created_by_teacher_id, // TODO: re-derive from auth principal when auth is re-enabled
             initial_boss_hp: body.initial_boss_hp,
+            status: body.status,
             mode_type: body.mode_type,
             question_selection_mode: body.question_selection_mode,
             speed_bonus_enabled: body.speed_bonus_enabled,

@@ -135,7 +135,9 @@ TODO: Top 3 students should call from backend (DONE)
 
 TODO: Adjust quest cards so that it shows date/ time more clearly and progress bar updates (DONE)
 
-TODO: Boss battle implementation for teachers & students side (IN PROGRESS)
+TODO: Boss battle implementation for teachers & students side (IN PROGRESS) Boss battle participants should be used as students wait room grouped by guild
+
+TODO: count down on boss battle when its scheduled
 
 TODO: Assist alvin with boss battle and correct minor errors in student tutorial, editing quest question 
 
@@ -157,6 +159,9 @@ TODO: Remove archived quests from ClassQuest.tsx
 
 TODO: Students join waiting room, each guild should only show active players (only ones with rewards) this should happen when the click join fighr on guilds page using modal then on modal when teacher clicks start battle it auto directs to bossfight page.
 
+TODO: Connect template to class and have it show up under class/boss-battles
+
+TODO: launch logic for boss battle
 students load on waiting screen awaiting teachers to click start 
 
 each vote on answers

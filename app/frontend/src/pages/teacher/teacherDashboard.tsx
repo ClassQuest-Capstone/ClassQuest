@@ -287,8 +287,8 @@ const TeacherDashboard = () => {
               </div>
             )}
 
-            {/* Recent Activity */}
-            <RecentActivitySection teacherId={teacher.id} />
+            {/* Recent Activity - only show after stats load to avoid API overload */}
+            {!loading && <RecentActivitySection teacherId={teacher.id} />}
 
             {/* Top Students */}
             <div className="mt-5">

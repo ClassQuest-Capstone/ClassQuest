@@ -1,4 +1,5 @@
 import { listBySource } from "./repo.js";
+import { getAuthContext } from "../shared/auth.js"; // same auth context extraction logic as other endpoints
 
 /**
  * GET /reward-transactions/by-source/{source_type}/{source_id}
@@ -22,24 +23,22 @@ export const handler = async (event: any) => {
             };
         }
 
-        // Authorization: Only teachers, admins, or system can query by source
-        const userRole = event.requestContext?.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
-        const userId = event.requestContext?.authorizer?.jwt?.claims?.sub as string | undefined;
-
-        if (!userId) {
+        // Extract and validate JWT token
+        let auth;
+        try {
+            auth = await getAuthContext(event);
+        } catch (err: any) {
             return {
-                statusCode: 401,
-                body: JSON.stringify({ error: "Unauthorized: Missing user identity" }),
+                statusCode: err.statusCode || 401,
+                body: JSON.stringify({ error: err.message }),
             };
         }
 
-        const allowedRoles = ["Teachers", "Admins", "System"];
-        const hasPermission = userRole?.split(",").some(role => allowedRoles.includes(role.trim()));
-
-        if (!hasPermission) {
+        // Authorization: Only teachers can query by source (option to expand to admins/system if needed)
+        if (auth.role !== "teacher") {
             return {
                 statusCode: 403,
-                body: JSON.stringify({ error: "Forbidden: Only teachers, admins, or system can query by source" }),
+                body: JSON.stringify({ error: "Forbidden: Only teachers can query by source" }),
             };
         }
 

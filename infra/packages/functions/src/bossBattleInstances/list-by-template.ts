@@ -18,25 +18,25 @@ export const handler = async (event: any) => {
         }
 
         // Authorization: Only teachers and admins
-        const userRole = event.requestContext?.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
-        const userId = event.requestContext?.authorizer?.jwt?.claims?.sub as string | undefined;
+        // const userRole = event.requestContext?.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
+        // const userId = event.requestContext?.authorizer?.jwt?.claims?.sub as string | undefined;
 
-        if (!userId) {
-            return {
-                statusCode: 401,
-                body: JSON.stringify({ error: "Unauthorized: Missing user identity" }),
-            };
-        }
+        // if (!userId) {
+        //     return {
+        //         statusCode: 401,
+        //         body: JSON.stringify({ error: "Unauthorized: Missing user identity" }),
+        //     };
+        // }
 
-        const allowedRoles = ["Teachers", "Admins"];
-        const hasPermission = userRole?.split(",").some(role => allowedRoles.includes(role.trim()));
+        // const allowedRoles = ["Teachers", "Admins"];
+        // const hasPermission = userRole?.split(",").some(role => allowedRoles.includes(role.trim()));
 
-        if (!hasPermission) {
-            return {
-                statusCode: 403,
-                body: JSON.stringify({ error: "Forbidden: Only teachers and admins can list instances by template" }),
-            };
-        }
+        // if (!hasPermission) {
+        //     return {
+        //         statusCode: 403,
+        //         body: JSON.stringify({ error: "Forbidden: Only teachers and admins can list instances by template" }),
+        //     };
+        // }
 
         // Extract pagination params
         const limit = event.queryStringParameters?.limit

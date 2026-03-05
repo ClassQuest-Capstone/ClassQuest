@@ -95,6 +95,12 @@ const StudentShop: React.FC = () => {
               >
                 Leaderboard
               </Link>
+              <Link
+                to="/shop"
+                className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900"
+              >
+                Shop
+              </Link>
 
             <div className="flex items-center ml-4">
             <Link

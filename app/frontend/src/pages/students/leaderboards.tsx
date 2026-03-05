@@ -202,6 +202,12 @@ const Leaderboard: React.FC = () => {
               >
                 Leaderboard
               </Link>
+              <Link
+                to="/shop"
+                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
+              >
+                Shop
+              </Link>
 
             <div className="flex items-center ml-4">
             <Link
@@ -258,12 +264,12 @@ const Leaderboard: React.FC = () => {
             >
               Students
             </button>
-            <button
+           {/* <button
               className={tabClass("guilds")}
               onClick={() => setActiveTab("guilds")}
             >
               Guilds
-            </button>
+            </button>*/}
           </nav>
         </div>
 
@@ -329,7 +335,7 @@ const Leaderboard: React.FC = () => {
                           <tr key={entry.studentId} className={isCurrentStudentInTop5 && entry.studentId === studentId ? 'bg-pink-50' : ''}> 
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold`}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-gray-900 font-bold`}>
                                   {entry.rank <= 3 ? (
                                     entry.rank === 1 ? <span className="text-2xl">🥇</span> : entry.rank === 2 ? <span className="text-2xl">🥈</span> : <span className="text-2xl">🥉</span>
                                   ) : (
@@ -368,7 +374,7 @@ const Leaderboard: React.FC = () => {
                             <tr className="bg-pink-50">
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
-                                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-gray-700 font-bold text-sm">
+                                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-gray-700 font-bold text-md">
                                     {currentStudentEntry.rank}
                                   </div>
                                 </div>
@@ -397,7 +403,7 @@ const Leaderboard: React.FC = () => {
         )}
 
         {/* Guilds Leaderboard */}
-        {activeTab === "guilds" && (
+        {/*activeTab === "guilds" && (
           <div className="bg-white/90 backdrop-blur-md rounded-xl shadow-lg overflow-hidden mb-8">
             <div className="px-6 py-5 border-b border-gray-200">
               <h3 className="text-lg font-medium text-gray-900">
@@ -464,12 +470,12 @@ const Leaderboard: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap">3,450</td>
                     <td className="px-6 py-4 whitespace-nowrap">7</td>
                   </tr>
-                  {/* Add more guild rows here */}
+                  Add more guild rows here 
                 </tbody>
               </table>
             </div>
           </div>
-        )}
+        )}*/}
       </div>
     </div>
   );
