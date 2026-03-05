@@ -7,7 +7,7 @@ import {
   listBossBattleInstancesByClass,
   updateBossBattleInstance,
 } from "../../api/bossBattleInstances/client.js";
-import type { BossBattleInstance } from "../../api/bossBattleInstances/types.js";
+import type { BossBattleInstance, ModeType, QuestionSelectionMode } from "../../api/bossBattleInstances/types.js";
 
 import {
   listBossBattleTemplatesByOwner,
@@ -50,6 +50,32 @@ function getBossTemplateIdFromInstance(i: BossBattleInstance): string {
 }
 function getBossStatus(i: BossBattleInstance): string {
   return safeStr((i as any).status);
+}
+
+function formatModeType(mode: unknown): string {
+  const modeStr = safeStr(mode);
+  switch (modeStr) {
+    case "SIMULTANEOUS_ALL":
+      return "All Questions sent to Guilds";
+    case "TURN_BASED_GUILD":
+      return "Guild Rotation";
+    case "RANDOMIZED_PER_GUILD":
+      return "Random Guild Challenge";
+    default:
+      return modeStr;
+  }
+}
+
+function formatQuestionSelectionMode(mode: unknown): string {
+  const modeStr = safeStr(mode);
+  switch (modeStr) {
+    case "ORDERED":
+      return "Sequential Order";
+    case "RANDOM_NO_REPEAT":
+      return "Shuffle Mode";
+    default:
+      return modeStr;
+  }
 }
 
 const BossClasses = () => {
@@ -241,6 +267,37 @@ const BossClasses = () => {
     }
   };
 
+  const launchBossBattle = async (instance: BossBattleInstance) => {
+    const instanceId = getBossInstanceId(instance);
+    if (!instanceId) return;
+
+    try {
+      const now = new Date();
+      await updateBossBattleInstance(
+        instanceId,
+        {
+          status: "LOBBY",
+          lobby_opened_at: now.toISOString(),
+        } as any
+      );
+
+      // refresh boss instances
+      const bossInstRes = await listBossBattleInstancesByClass(state!.class_id, {
+        limit: 100,
+      } as any);
+      const bossItems = (bossInstRes as any)?.items || [];
+      setBossInstances(bossItems as any);
+
+      // navigate to the battle lobby/detail view
+      navigate(`/bossBattle/${instanceId}`, {
+        state: { classId: state!.class_id, className: state!.className },
+      });
+    } catch (e: any) {
+      console.error("Failed to launch boss battle:", e);
+      alert(e?.message || "Failed to launch boss battle");
+    }
+  };
+
   useEffect(() => {
     feather.replace();
   });
@@ -407,7 +464,7 @@ const BossClasses = () => {
               const title = tmpl ? safeStr(tmpl.title) : "Unknown Boss";
               const subject = tmpl ? safeStr(tmpl.subject) : "—";
               const desc = tmpl ? safeStr(tmpl.description) : "";
-              const hp = tmpl ? toInt(tmpl.max_hp, 0) : 0;
+              const initialHearts = toInt((inst as any).initial_boss_hp, 0);
               const xp = tmpl ? toInt(tmpl.base_xp_reward, 0) : 0;
               const gold = tmpl ? toInt(tmpl.base_gold_reward, 0) : 0;
 
@@ -433,14 +490,30 @@ const BossClasses = () => {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <p className="text-xs font-semibold text-gray-500 uppercase">HP</p>
-                        <p className="text-gray-900 font-medium text-sm">{hp}</p>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Boss Hearts</p>
+                        <p className="text-gray-900 font-medium text-sm">{initialHearts}</p>
                       </div>
                       <div>
                         <p className="text-xs font-semibold text-gray-500 uppercase">Rewards</p>
                         <p className="text-gray-900 font-medium text-sm">
                           + {xp} XP / {gold} Gold
                         </p>
+                      </div>
+                    </div>
+
+                    {/* Battle Configuration */}
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-indigo-700 font-semibold">Battle Mode </span>
+                        <span className="text-gray-800 font-medium">
+                          {formatModeType((inst as any).mode_type)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-indigo-700 font-semibold">Questions Type</span>
+                        <span className="text-gray-800 font-medium">
+                          {formatQuestionSelectionMode((inst as any).question_selection_mode)}
+                        </span>
                       </div>
                     </div>
 
@@ -452,12 +525,12 @@ const BossClasses = () => {
                           {formatDateTime((inst as any).created_at)}
                         </span>
                       </div>
-                      <div className="flex justify-between text-sm mt-1">
+                      {/*<div className="flex justify-between text-sm mt-1">
                         <span className="text-blue-700 font-semibold">Updated</span>
                         <span className="text-gray-800">
                           {formatDateTime((inst as any).updated_at)}
                         </span>
-                      </div>
+                      </div>*/}
                     </div>
 
                     {/* Status */}
@@ -477,14 +550,23 @@ const BossClasses = () => {
                       </span>
                     </div>
 
-                    {/* Abort */}
-                    <button
-                      className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 transition"
-                      onClick={() => abortBossInstance(inst)}
-                    >
-                      <i data-feather="slash" className="w-4 h-4"></i>
-                      Abort Boss Battle
-                    </button>
+                    {/* Action Buttons   TODO: implement lobby modal */}
+                    <div className="space-y-2 pt-2">
+                        <button
+                          className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 transition"
+                          onClick={() => launchBossBattle(inst)}
+                        >
+                          <i data-feather="play-circle" className="w-4 h-4"></i>
+                          Open Lobby
+                        </button>   
+                        <button
+                          className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 transition"
+                          onClick={() => abortBossInstance(inst)}
+                        >
+                          <i data-feather="slash" className="w-4 h-4"></i>
+                          Abort Boss Battle
+                        </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -492,73 +574,7 @@ const BossClasses = () => {
           </div>
         )}
 
-        {/* Boss Assign Modal */}
-        {bossAssignOpen && (
-          <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-start justify-center pt-20">
-            <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Assign Boss Battle</h3>
-                <button
-                  onClick={() => setBossAssignOpen(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                  disabled={bossAssigning}
-                >
-                  <i data-feather="x"></i>
-                </button>
-              </div>
-
-              {bossTemplates.length === 0 ? (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800 mb-4">
-                  No boss templates found. Create one in{" "}
-                  <span className="font-semibold">Subjects</span> first.
-                </div>
-              ) : (
-                <>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Boss Template
-                    </label>
-                    <select
-                      value={selectedBossTemplateId}
-                      onChange={(e) => setSelectedBossTemplateId(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      disabled={bossAssigning}
-                    >
-                      <option value="">Select a boss...</option>
-                      {bossTemplates.map((t: any) => {
-                        const id = safeStr((t as any).boss_template_id);
-                        const title = safeStr((t as any).title);
-                        const subj = safeStr((t as any).subject);
-                        return (
-                          <option key={id} value={id}>
-                            {title} {subj ? `(${subj})` : ""}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </div>
-
-                  <div className="flex justify-end gap-3">
-                    <button
-                      onClick={() => setBossAssignOpen(false)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                      disabled={bossAssigning}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleAssignBoss}
-                      className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium disabled:opacity-50"
-                      disabled={bossAssigning || !selectedBossTemplateId}
-                    >
-                      {bossAssigning ? "Assigning..." : "Assign"}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
+        {}
       </main>
     </div>
   );
