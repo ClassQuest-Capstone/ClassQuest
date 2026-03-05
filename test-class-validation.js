@@ -4,7 +4,7 @@
  * Usage: node test-class-validation.js [JOIN_CODE]
  */
 
-const API_URL = process.env.VITE_API_URL || "https://2xcb84ws5b.execute-api.ca-central-1.amazonaws.com";
+const API_URL = process.env.VITE_API_URL;
 
 async function testValidation(joinCode) {
   console.log("\n=== Testing Class Code Validation ===\n");

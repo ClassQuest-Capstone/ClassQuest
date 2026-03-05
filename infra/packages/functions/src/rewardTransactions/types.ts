@@ -8,6 +8,7 @@ export enum SourceType {
 
 export enum CreatedByRole {
     TEACHER = "TEACHER",
+    STUDENT = "STUDENT",
     ADMIN = "ADMIN",
     SYSTEM = "SYSTEM"
 }

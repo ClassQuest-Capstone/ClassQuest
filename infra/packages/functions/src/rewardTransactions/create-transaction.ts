@@ -12,30 +12,31 @@ import { randomUUID } from "crypto";
 export const handler = async (event: any) => {
     try {
         // Extract auth principal from Cognito authorizer
+        const hasAuthContext = !!event.requestContext?.authorizer?.jwt;
         const userRole = event.requestContext?.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
         const userId = event.requestContext?.authorizer?.jwt?.claims?.sub as string | undefined;
 
         if (!userId) {
+            console.warn("create-transaction: 401 – hasAuthContext:", hasAuthContext);
             return {
                 statusCode: 401,
                 body: JSON.stringify({ error: "Unauthorized: Missing user identity" }),
             };
         }
 
-      /* (Comment role out since its blocking access to the endpoint for now enable when access to userpool is fixed)
-      // Authorization: Only TEACHER, ADMIN, SYSTEM can create transactions
-        const allowedRoles = ["Teachers", "Admins", "System"];
+        /* (Comment role out since its blocking access to the endpoint for now enable when access to userpool is fixed)
+        // Authorization: Only TEACHER, STUDENTS, ADMIN, SYSTEM can create transactions
+        const allowedRoles = ["Teachers", "Students", "Admins", "System"];
         const hasPermission = userRole?.split(",").some(role => allowedRoles.includes(role.trim()));
 
         if (!hasPermission) {
             return {
                 statusCode: 403,
-                body: JSON.stringify({ error: "Forbidden: Only teachers, admins, or system can create reward transactions" }),
+                body: JSON.stringify({ error: "Forbidden: Only teachers, students, admins, or system can create reward transactions" }),
             };
         }*/
 
-        // Parse request body
-        const body = JSON.parse(event.body || "{}");
+        
 
         // Determine created_by_role based on Cognito group
         let created_by_role: CreatedByRole;
@@ -43,9 +44,14 @@ export const handler = async (event: any) => {
             created_by_role = CreatedByRole.ADMIN;
         } else if (userRole?.includes("System")) {
             created_by_role = CreatedByRole.SYSTEM;
+        } else if (userRole?.includes("Students")) {
+            created_by_role = CreatedByRole.STUDENT;
         } else {
             created_by_role = CreatedByRole.TEACHER;
         }
+
+        // Parse request body
+        const body = JSON.parse(event.body || "{}");
 
         // Extract and validate required fields
         const {
@@ -64,6 +70,19 @@ export const handler = async (event: any) => {
             reason,
             metadata,
         } = body;
+
+        // Coerce deltas and reject NaN early — Number(undefined) === NaN but typeof NaN === "number",
+        // so validateDeltas alone cannot catch missing fields.
+        const xpDelta = Number(xp_delta);
+        const goldDelta = Number(gold_delta);
+        const heartsDelta = Number(hearts_delta);
+
+        if (isNaN(xpDelta) || isNaN(goldDelta) || isNaN(heartsDelta)) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ error: "xp_delta, gold_delta, and hearts_delta must be valid numbers" }),
+            };
+        }
 
         // Compute created_at server-side (ignore client-provided)
         const created_at = new Date().toISOString();
@@ -100,9 +119,9 @@ export const handler = async (event: any) => {
         const validation = validateTransactionData({
             transaction_id,
             student_id,
-            xp_delta: Number(xp_delta),
-            gold_delta: Number(gold_delta),
-            hearts_delta: Number(hearts_delta),
+            xp_delta: xpDelta,
+            gold_delta: goldDelta,
+            hearts_delta: heartsDelta,
             source_type,
             created_at,
             created_by: userId,
@@ -134,9 +153,9 @@ export const handler = async (event: any) => {
             transaction_id,
             student_id,
             class_id,
-            xp_delta: Number(xp_delta),
-            gold_delta: Number(gold_delta),
-            hearts_delta: Number(hearts_delta),
+            xp_delta: xpDelta,
+            gold_delta: goldDelta,
+            hearts_delta: heartsDelta,
             source_type: source_type as SourceType,
             source_id,
             quest_instance_id,

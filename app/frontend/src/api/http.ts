@@ -20,6 +20,10 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
         console.debug('Failed to fetch auth session:', err);
     }
 
+    if (import.meta.env.DEV) {
+        console.debug(`[api] ${init.method ?? "GET"} ${path} – Authorization header attached: ${!!token}`);
+    }
+
     const res = await fetch(`${API_URL}${path}`, {
         ...init,
         headers: {

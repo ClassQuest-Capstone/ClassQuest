@@ -56,6 +56,7 @@ type QuestApiStackProps = {
     };
     userPoolId: string;
     userPoolArn: string;
+    userPoolClientId: string;
 };
 
 /**
@@ -65,7 +66,7 @@ type QuestApiStackProps = {
  */
 export function QuestApiStack(ctx: StackContext, props: QuestApiStackProps) {
     const { stack } = ctx;
-    const { apiId, tableNames, tableArns, userPoolId, userPoolArn } = props;
+    const { apiId, tableNames, tableArns, userPoolId, userPoolArn, userPoolClientId } = props;
 
     // Define routes — method + path must exactly match what the router dispatch table uses
     const routes: Record<string, { method: string; path: string }> = {
@@ -236,13 +237,38 @@ export function QuestApiStack(ctx: StackContext, props: QuestApiStackProps) {
         sourceArn: `arn:aws:execute-api:${stack.region}:${stack.account}:${apiId}/*`,
     });
 
+    // Cognito JWT authorizer — validates the Bearer token from the Authorization header
+    const cognitoAuthorizer = new apigatewayv2.CfnAuthorizer(stack, "CognitoJwtAuthorizer", {
+        apiId,
+        authorizerType: "JWT",
+        identitySource: ["$request.header.Authorization"],
+        name: "CognitoJwtAuthorizer",
+        jwtConfiguration: {
+            audience: [userPoolClientId],
+            issuer: `https://cognito-idp.${stack.region}.amazonaws.com/${userPoolId}`,
+        },
+    });
+
+    // Routes that are intentionally public (no auth required)
+    const NO_AUTH_ROUTES = new Set([
+        "GET /health",
+        "POST /debug/create",
+        "GET /quest-templates/public",
+        "GET /boss-battle-templates/public",
+    ]);
+
     // Create one CfnRoute per endpoint — all pointing to the shared router integration
     Object.entries(routes).forEach(([routeKey, config]) => {
         const funcId = routeKey.replace(/[^a-zA-Z0-9]/g, "");
+        const requiresAuth = !NO_AUTH_ROUTES.has(routeKey);
         new apigatewayv2.CfnRoute(stack, `${funcId}Route`, {
             apiId,
             routeKey: `${config.method} ${config.path}`,
             target: `integrations/${sharedIntegration.ref}`,
+            ...(requiresAuth && {
+                authorizationType: "JWT",
+                authorizerId: cognitoAuthorizer.ref,
+            }),
         });
     });
 

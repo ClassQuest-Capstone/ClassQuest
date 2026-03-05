@@ -106,7 +106,7 @@ function normalizeOptions(raw: any): UiOption[] {
 
       return { id, text, isCorrect };
     })
-    .filter((o) => o.text);
+    .filter((o: { text: any; }) => o.text);
 }
 
 /**
