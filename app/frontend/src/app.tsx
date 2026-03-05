@@ -10,6 +10,7 @@ import CharacterPage from "./pages/students/characterpage.js";
 import Subjects from "./pages/teacher/subjects.js";
 import Classes from "./pages/teacher/classes.js";
 import ClassQuest from "./pages/teacher/classQuest.js";
+import BossClasses from "./pages/teacher/bossClasses.js";
 import Quests from "./pages/teacher/quests.js";
 import Rewards from "./pages/teacher/rewards.js";
 import Students from "./pages/teacher/students.js";
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="/Activity" element={<Activity />} />
         <Route path="/classes" element={<Classes />} />
         <Route path="/ClassQuest" element={<ClassQuest />} />
+        <Route path="/bossClasses" element={<BossClasses />} />
 
         <Route path="/profile" element={<Profile />} />
         <Route path="/character" element={<CharacterPage />} />

@@ -135,12 +135,6 @@ TODO: Top 3 students should call from backend (DONE)
 
 TODO: Adjust quest cards so that it shows date/ time more clearly and progress bar updates (DONE)
 
-TODO: Boss battle implementation for teachers & students side (IN PROGRESS) Boss battle participants should be used as students wait room grouped by guild
-
-TODO: count down on boss battle when its scheduled
-
-TODO: Assist alvin with boss battle and correct minor errors in student tutorial, editing quest question 
-
 TODO: recent activity display of 5 latest activities on teachers page (DONE)
 
 TODO: recent activity tracks rewards transactiions (Almost DONE)
@@ -155,14 +149,22 @@ TODO: fix students quests so that it allows saves only 1 attempt per question (D
 
 TODO: check date so that quest only shows up on the date its assigned if it date is not reached it stays as draft until the start date is reached (DONE)
 
-TODO: Remove archived quests from ClassQuest.tsx
+TODO: Remove archived quests from ClassQuest.tsx (Almost DONE)
 
-TODO: Students join waiting room, each guild should only show active players (only ones with rewards) this should happen when the click join fighr on guilds page using modal then on modal when teacher clicks start battle it auto directs to bossfight page.
+TODO: Connect template to class and have it show up under class/boss-battles (DONE)
 
-TODO: Connect template to class and have it show up under class/boss-battles
+TODO: modify boss battle section in class.tsx to follow  implementation logic
+
+TODO: Boss battle implementation for teachers & students side (IN PROGRESS) Boss battle participants should be used as students wait room grouped by guild
+
+TODO: count down on boss battle when its scheduled
+
+TODO: Assist alvin with boss battle and correct minor errors in student tutorial, editing quest question 
 
 TODO: launch logic for boss battle
 students load on waiting screen awaiting teachers to click start 
+
+TODO: Students join waiting room, each guild should only show active players (only ones with rewards) this should happen when the click join fighr on guilds page using modal then on modal when teacher clicks start battle it auto directs to bossfight page.
 
 each vote on answers
 

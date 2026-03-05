@@ -131,7 +131,7 @@ export const BossAssignModal: React.FC<BossAssignModalProps> = ({
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Class <span className="text-red-500">*</span></label>
             <select className={inputBox} value={bossAssignClassId} onChange={(e) => onClassIdChange(e.target.value)}>
               <option value="">Select a class</option>
               {classes
@@ -183,7 +183,7 @@ export const BossAssignModal: React.FC<BossAssignModalProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Boss battle mode *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Boss battle mode <span className="text-red-500">*</span></label>
               <select className={inputBox} value={bossAssignModeType} onChange={(e) => onModeTypeChange(e.target.value)}>
                 <option value="">Select mode</option>
                 <option value="SIMULTANEOUS_ALL">All Questions sent to Guilds</option>
@@ -192,7 +192,7 @@ export const BossAssignModal: React.FC<BossAssignModalProps> = ({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Question Distribution Mode *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Question Distribution Mode <span className="text-red-500">*</span></label>
               <select className={inputBox} value={bossAssignQuestionSelectionMode} onChange={(e) => onQuestionSelectionModeChange(e.target.value)}>
                 <option value="">Select mode</option>
                 <option value="ORDERED">Sequential Order</option>
@@ -211,7 +211,7 @@ export const BossAssignModal: React.FC<BossAssignModalProps> = ({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Initial Boss Hearts *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Initial Boss Hearts <span className="text-red-500">*</span></label>
               <select className={inputBox} value={bossAssignInitialBossHp} onChange={(e) => onInitialBossHpChange(Number(e.target.value))}>
                 <option value="0">Select Hearts</option>
                 <option value="3">3 Hearts</option>
@@ -226,7 +226,7 @@ export const BossAssignModal: React.FC<BossAssignModalProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Countdown Duration (seconds) *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Countdown Duration (seconds) <span className="text-red-500">*</span></label>
               <select className={inputBox} value={bossAssignCountdownSeconds} onChange={(e) => onCountdownSecondsChange(Number(e.target.value))}>
                 <option value="0">Select duration</option>
                 <option value="3">3 seconds</option>
