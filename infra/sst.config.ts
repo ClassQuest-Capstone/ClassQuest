@@ -30,6 +30,7 @@ import { ApiCoreStack } from "./stacks/ApiCoreStack";
 import { TeacherApiStack } from "./stacks/TeacherApiStack";
 import { StudentApiStack } from "./stacks/StudentApiStack";
 import { QuestApiStack } from "./stacks/QuestApiStack";
+import { AutomationStack } from "./stacks/AutomationStack";
 
 export default {
     config() {
@@ -106,5 +107,18 @@ export default {
             });
         }
         app.stack(ClassQuestQuestApiStack);
+
+        // 7. AutomationStack - Scheduled background jobs (depends on Data)
+        function ClassQuestAutomationStack(ctx: StackContext) {
+            return AutomationStack(ctx, {
+                tableNames: {
+                    questInstancesTable: dataStackOutputs.tableNames.questInstancesTable,
+                },
+                tableArns: {
+                    questInstancesTable: dataStackOutputs.tableArns.questInstancesTable,
+                },
+            });
+        }
+        app.stack(ClassQuestAutomationStack);
     },
 } satisfies SSTConfig;

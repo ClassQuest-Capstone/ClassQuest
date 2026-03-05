@@ -1,7 +1,7 @@
 import { updateStatus } from "./repo.ts";
 import type { QuestInstanceStatus } from "./types.ts";
 
-const VALID_STATUSES: QuestInstanceStatus[] = ["DRAFT", "ACTIVE", "ARCHIVED"];
+const VALID_STATUSES: QuestInstanceStatus[] = ["DRAFT", "SCHEDULED", "ACTIVE", "ARCHIVED"];
 
 /**
  * PATCH /quest-instances/{quest_instance_id}/status
@@ -25,7 +25,7 @@ export const handler = async (event: any) => {
             ? JSON.parse(rawBody)
             : rawBody ?? {};
 
-    const { status } = body;
+    const { status, start_date } = body;
 
     // Validate status
     if (!status || !VALID_STATUSES.includes(status as QuestInstanceStatus)) {
@@ -39,8 +39,20 @@ export const handler = async (event: any) => {
         };
     }
 
+    // start_date is required when setting SCHEDULED so the GSI_SCHEDULE index can be populated
+    if (status === "SCHEDULED" && !start_date) {
+        return {
+            statusCode: 400,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+                error: "MISSING_START_DATE",
+                message: "start_date is required when setting status to SCHEDULED",
+            }),
+        };
+    }
+
     try {
-        await updateStatus(quest_instance_id, status as QuestInstanceStatus);
+        await updateStatus(quest_instance_id, status as QuestInstanceStatus, start_date ?? null);
 
         return {
             statusCode: 200,

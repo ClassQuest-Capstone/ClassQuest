@@ -283,7 +283,7 @@ await kickParticipant('battle-123', 'student-456', {
 Run validation tests:
 ```bash
 cd infra/packages/functions/src/bossBattleParticipants
-node --loader tsx validation.test.ts
+node --import tsx validation.test.ts
 ```
 
 ### Join Logic Test Scenarios

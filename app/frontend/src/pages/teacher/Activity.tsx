@@ -2,9 +2,11 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.js";
-import QuizStats from "../features/teacher/quizStats.js";
+import QuizStats from "../components/teacher/quizStats.tsx";
 import ActivityCard from "../features/teacher/ActivityCard.js";
+import ClassLeaderboard from "../features/teacher/ClassLeaderboard.js";
 import { useTeacherActivity, ActivityCategory } from "../hooks/teacher/useTeacherActivity.js";
+import { listClassesByTeacher, type ClassItem } from "../../api/classes.js";
 
 type TeacherUser = {
   id: string;
@@ -14,7 +16,7 @@ type TeacherUser = {
   classCode?: string;
 };
 
-type Tab = "Activity" | "Stats";
+type Tab = "Activity" | "Leaderboard";
 type Filter = "ALL" | ActivityCategory;
 
 const FILTER_OPTIONS: { value: Filter; label: string }[] = [
@@ -29,6 +31,10 @@ const ActivityPage = () => {
   const [activeTab, setActiveTab] = useState<Tab>("Activity");
   const [filter, setFilter] = useState<Filter>("ALL");
   const [teacher, setTeacher] = useState<TeacherUser | null>(null);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [classesLoading, setClassesLoading] = useState(false);
+  const [classesError, setClassesError] = useState<string | null>(null);
 
   // Load teacher data from localStorage
   useEffect(() => {
@@ -42,6 +48,33 @@ const ActivityPage = () => {
       }
     }
   }, []);
+
+  // Fetch teacher's classes when teacher is loaded
+  useEffect(() => {
+    if (!teacher?.id) return;
+
+    const fetchClasses = async () => {
+      try {
+        setClassesLoading(true);
+        setClassesError(null);
+        const result = await listClassesByTeacher(teacher.id);
+        const activeClasses = result.items.filter((c) => c.is_active);
+        setClasses(activeClasses);
+        
+        // Set the first class as selected by default
+        if (activeClasses.length > 0) {
+          setSelectedClassId(activeClasses[0].class_id);
+        }
+      } catch (err: any) {
+        setClassesError(err?.message ?? "Failed to load classes");
+        console.error("Error loading teacher's classes:", err);
+      } finally {
+        setClassesLoading(false);
+      }
+    };
+
+    fetchClasses();
+  }, [teacher?.id]);
 
   // Fetch activity from reward transactions
   const { activities, loading, error } = useTeacherActivity(teacher?.id);
@@ -60,7 +93,7 @@ const ActivityPage = () => {
     }`;
 
   return (
-    <div className="font-poppins bg-[url(/assets/background-teacher-dash.png)] bg-cover bg-center bg-no-repeat min-h-screen">
+    <div className="font-poppins bg-[url(/assets/background-teacher-dash.png)] bg-cover bg-center bg-no-repeat h-screen overflow-y-auto">
               <nav className="bg-blue-700 text-white shadow-lg">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                   <div className="flex justify-between h-16">
@@ -106,7 +139,7 @@ const ActivityPage = () => {
       <main className="max-w-7xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-yellow-300">Activity</h1>
         <p className="text-white mb-6">
-          View your students' activity log and measure their performance
+          View your student's activity log and measure their performance across your classes.
         </p>
 
         {/* Tabs */}
@@ -115,8 +148,8 @@ const ActivityPage = () => {
             <button className={tabClass("Activity")} onClick={() => setActiveTab("Activity")}>
               Activity
             </button>
-            <button className={tabClass("Stats")} onClick={() => setActiveTab("Stats")}>
-              Stats
+            <button className={tabClass("Leaderboard")} onClick={() => setActiveTab("Leaderboard")}>
+              Leaderboard
             </button>
           </nav>
         </div>
@@ -159,10 +192,41 @@ const ActivityPage = () => {
           </div>
         )}
 
-        {activeTab === "Stats" && (
-          <div className="mt-6">
-            {/** Render pie chart component (switch from pie chart to leader boards across all classes (filter by class)) */}
-            <QuizStats />
+        {activeTab === "Leaderboard" && (
+          <div className="bg-white/20 backdrop-blur-md rounded-lg p-6 text-white shadow-lg">
+            {/* Class Filter */}
+            <div className="mb-6 ">
+              <label className="block text-white text-sm font-bold mb-2">
+                Select a Class:
+              </label>
+              <select
+                value={selectedClassId ?? ""}
+                onChange={(e) => setSelectedClassId(e.target.value || null)}
+                className="w-full md:w-64 bg-white border border-white/30 text-gray-900 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500"
+              >
+                <option value="">
+                  Choose a class...
+                </option>
+                {classes.map((cls) => (
+                  <option key={cls.class_id} value={cls.class_id}>
+                    {cls.name} {cls.subject ? `(${cls.subject})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Leaderboard Content */}
+            {classesLoading ? (
+              <p className="text-white">Loading classes...</p>
+            ) : classesError ? (
+              <p className="text-red-300">Error: {classesError}</p>
+            ) : classes.length === 0 ? (
+              <p className="text-white">You haven't created any classes yet.</p>
+            ) : selectedClassId ? (
+              <ClassLeaderboard classId={selectedClassId} />
+            ) : (
+              <p className="text-white">Select a class to view the leaderboard.</p>
+            )}
           </div>
         )}
       </main>

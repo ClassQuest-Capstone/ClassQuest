@@ -1,7 +1,7 @@
 /**
  * Tests for seeded shuffle determinism
  *
- * Run with: node --loader tsx seededShuffle.test.ts
+ * Run with: node --import tsx seededShuffle.test.ts
  */
 
 import { seededShuffle, deriveGuildSeed } from "./seededShuffle.js";

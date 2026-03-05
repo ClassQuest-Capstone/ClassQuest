@@ -18,25 +18,25 @@ export const handler = async (event: any) => {
         }
 
         // Authorization
-        const userRole = event.requestContext?.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
-        const userId = event.requestContext?.authorizer?.jwt?.claims?.sub as string | undefined;
+        // const userRole = event.requestContext?.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
+        // const userId = event.requestContext?.authorizer?.jwt?.claims?.sub as string | undefined;
 
-        if (!userId) {
-            return {
-                statusCode: 401,
-                body: JSON.stringify({ error: "Unauthorized: Missing user identity" }),
-            };
-        }
+        // if (!userId) {
+        //     return {
+        //         statusCode: 401,
+        //         body: JSON.stringify({ error: "Unauthorized: Missing user identity" }),
+        //     };
+        // }
 
-        const isTeacher = userRole?.includes("Teachers");
-        const isAdmin = userRole?.includes("Admins");
+        // const isTeacher = userRole?.includes("Teachers");
+        // const isAdmin = userRole?.includes("Admins");
 
         // Teachers and admins can always access
         // Students can access too (but should verify enrollment - simplified for now)
-        if (!isTeacher && !isAdmin) {
-            // Note: Should check ClassEnrollments to verify student is enrolled in this class
-            // For now, we allow all authenticated users
-        }
+        // if (!isTeacher && !isAdmin) {
+        //     // Note: Should check ClassEnrollments to verify student is enrolled in this class
+        //     // For now, we allow all authenticated users
+        // }
 
         // Extract pagination params
         const limit = event.queryStringParameters?.limit

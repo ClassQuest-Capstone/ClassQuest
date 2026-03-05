@@ -4,6 +4,41 @@ import { getClassEnrollments, EnrollmentItem } from "../../../api/classEnrollmen
 import { getStudentProfile, StudentProfile } from "../../../api/studentProfiles.js";
 import { listTransactionsByStudentAndClass, listTransactionsByStudent, RewardTransaction, SourceType, } from "../../../api/rewardTransactions.js";
 
+// Helper: Limits concurrent promise execution
+async function withConcurrencyLimit<T>(
+  tasks: (() => Promise<T>)[],
+  limit: number
+): Promise<T[]> {
+  const results: T[] = [];
+  let executing = 0;
+
+  const executeNext = async (): Promise<void> => {
+    if (tasks.length === 0) return;
+    
+    executing++;
+    const task = tasks.shift()!;
+    
+    try {
+      results.push(await task());
+    } catch (err) {
+      results.push(err as any);
+    } finally {
+      executing--;
+      if (tasks.length > 0) {
+        await executeNext();
+      }
+    }
+  };
+
+  // Start up to limit concurrent tasks
+  const workers = Array(Math.min(limit, tasks.length))
+    .fill(null)
+    .map(() => executeNext());
+
+  await Promise.all(workers);
+  return results;
+}
+
 // Types
 export type ActivityCategory =
   | "QUEST_COMPLETED"   // student completed a quest / earned quest rewards
@@ -126,20 +161,21 @@ export function useTeacherActivity(teacherId: string | undefined) {
         }),
       );
 
-      // Fetch student profiles (student_id)
+      // Fetch student profiles (student_id) with concurrency limit
       const uniqueStudentIds = [...new Set(classStudentPairs.map((p) => p.enrollment.student_id))];
       const profileMap = new Map<string, string>(); 
 
-      await Promise.all(
-        uniqueStudentIds.map(async (sid) => {
-          try {
-            const profile: StudentProfile = await getStudentProfile(sid);
-            profileMap.set(sid, profile.display_name);
-          } catch {
-            profileMap.set(sid, sid); // fallback to ID
-          }
-        }),
-      );
+      // Limit to 10 concurrent requests to avoid overwhelming the API
+      const profileTasks = uniqueStudentIds.map((sid) => async () => {
+        try {
+          const profile: StudentProfile = await getStudentProfile(sid);
+          profileMap.set(sid, profile.display_name);
+        } catch {
+          profileMap.set(sid, sid); // fallback to ID
+        }
+      });
+
+      await withConcurrencyLimit(profileTasks, 10);
 
       // For each student+class pair, try fetching reward transactions.
       const allItems: ActivityItem[] = [];

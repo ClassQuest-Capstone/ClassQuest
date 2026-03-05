@@ -356,7 +356,7 @@ await updateBossBattleInstance('battle-uuid', {
 Run validation tests:
 ```bash
 cd infra/packages/functions/src/bossBattleInstances
-node --loader tsx validation.test.ts
+node --import tsx validation.test.ts
 ```
 
 ## Related Tables/Features

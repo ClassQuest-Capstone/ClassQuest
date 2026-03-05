@@ -9,6 +9,7 @@ import { AssignQuestModal } from "../components/teacher/modals/AssignQuestModal.
 import { ExtensionDateModal } from "../components/teacher/modals/ExtensionDateModal.js";
 import { QuestionsListModal } from "../components/teacher/modals/QuestionsListModal.js";
 import { QuestionEditModal } from "../components/teacher/modals/QuestionEditModal.js";
+import { BossAssignModal, BossExtendModal } from "../components/teacher/modals/BossBattleModals.js";
 
 import {
   getQuestTemplatesByOwner,
@@ -36,7 +37,8 @@ import {
   listBossBattleTemplatesByOwner,
   listPublicBossBattleTemplates,
 } from "../../api/bossBattleTemplates/client.js";
-import type { BossBattleTemplateItem as BossBattleTemplate } from "../../api/bossBattleTemplates/types.js";
+import type { BossBattleTemplate as BossBattleTemplate } from "../../api/bossBattleTemplates/types.js";
+import { createBossBattleInstance as createBossBattleInstanceApi, listBossBattleInstancesByTemplate as listBossBattleInstancesByTemplateApi, updateBossBattleInstance as updateBossBattleInstanceApi, } from "../../api/bossBattleInstances/client.js";
 
 // --------------------
 // If your backend paths differ, change these two constants.
@@ -164,121 +166,44 @@ function getBossStatus(i: BossBattleInstance): string {
 }
 
 async function fetchBossInstancesByTemplateId(bossTemplateId: string): Promise<BossBattleInstance[]> {
-  const tryGet = async (url: string) => {
-    const res = await fetch(url, { method: "GET", credentials: "include" });
-    if (!res.ok) return null;
-    const data = await safeJson(res);
-    const items = (data as any)?.items ?? (data as any)?.data?.items ?? (data as any) ?? [];
-    return Array.isArray(items) ? items : null;
-  };
-
-  // common patterns (we try a few)
-  const urls = [
-    `${BOSS_INSTANCES_API_PATH}?boss_template_id=${encodeURIComponent(bossTemplateId)}`,
-    `${BOSS_INSTANCES_API_PATH}?bossTemplateId=${encodeURIComponent(bossTemplateId)}`,
-    `${BOSS_TEMPLATES_API_PATH}/${encodeURIComponent(bossTemplateId)}/instances`,
-    `${BOSS_TEMPLATES_API_PATH}/${encodeURIComponent(bossTemplateId)}/boss-battle-instances`,
-    `${BOSS_TEMPLATES_API_PATH}/${encodeURIComponent(bossTemplateId)}/bossInstances`,
-  ];
-
-  for (const u of urls) {
-    try {
-      const items = await tryGet(u);
-      if (items) return items as BossBattleInstance[];
-    } catch {
-      // keep trying
-    }
+  try {
+    const result = await listBossBattleInstancesByTemplateApi(bossTemplateId);
+    return result?.items ?? [];
+  } catch (e) {
+    console.error(`Failed to fetch boss instances for template ${bossTemplateId}:`, e);
+    return [];
   }
-
-  return [];
 }
 
 async function updateBossInstanceStatusBestEffort(instanceId: string, status: string) {
-  const patchBody = { status };
-
-  const tryReq = async (url: string, init: RequestInit) => {
-    const res = await fetch(url, init);
-    if (res.ok) return true;
-    return false;
-  };
-
-  const attempts: Array<() => Promise<boolean>> = [
-    // PATCH /boss-battle-instances/:id
-    () =>
-      tryReq(`${BOSS_INSTANCES_API_PATH}/${encodeURIComponent(instanceId)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patchBody),
-        credentials: "include",
-      }),
-    // POST /boss-battle-instances/:id/status
-    () =>
-      tryReq(`${BOSS_INSTANCES_API_PATH}/${encodeURIComponent(instanceId)}/status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patchBody),
-        credentials: "include",
-      }),
-    // POST /boss-battle-instances/:id/archive (when status is ARCHIVED)
-    () =>
-      status === "ARCHIVED"
-        ? tryReq(`${BOSS_INSTANCES_API_PATH}/${encodeURIComponent(instanceId)}/archive`, {
-            method: "POST",
-            credentials: "include",
-          })
-        : Promise.resolve(false),
-  ];
-
-  for (const fn of attempts) {
-    const ok = await fn();
-    if (ok) return;
+  try {
+    await updateBossBattleInstanceApi(instanceId, { status: status as any });
+    return { ok: true };
+  } catch (error: any) {
+    throw new Error(`Failed to update boss instance status: ${error.message}`);
   }
-
-  throw new Error("Failed to update boss instance status");
 }
 
-async function updateBossInstanceDatesBestEffort(instanceId: string, dates: { due_date?: string | null }) {
-  const tryReq = async (url: string, init: RequestInit) => {
+/**
+ * Update the status of a boss template
+ * Best-effort to update the status, using either the standard PATCH endpoint or the soft-delete endpoint if available
+ * @param {string} templateId - Boss template ID
+ * @param {string} status - New status of the boss template
+ * @returns {Promise<{ok: boolean}>}
+ */
+async function updateBossTemplateStatusBestEffort(templateId: string, status: string) {
+  const attempt = async (url: string, init: RequestInit) => {
     const res = await fetch(url, init);
-    if (res.ok) return true;
-    return false;
+    return { ok: res.ok, status: res.status };
   };
+ // Soft delete template here
+}
 
-  const body = { due_date: dates.due_date ?? null };
-
-  const attempts: Array<() => Promise<boolean>> = [
-    // PATCH /boss-battle-instances/:id
-    () =>
-      tryReq(`${BOSS_INSTANCES_API_PATH}/${encodeURIComponent(instanceId)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        credentials: "include",
-      }),
-    // PATCH /boss-battle-instances/:id/dates
-    () =>
-      tryReq(`${BOSS_INSTANCES_API_PATH}/${encodeURIComponent(instanceId)}/dates`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        credentials: "include",
-      }),
-    // POST /boss-battle-instances/:id/extend
-    () =>
-      tryReq(`${BOSS_INSTANCES_API_PATH}/${encodeURIComponent(instanceId)}/extend`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        credentials: "include",
-      }),
-  ];
-
-  for (const fn of attempts) {
-    const ok = await fn();
-    if (ok) return;
-  }
-
-  throw new Error("Failed to update boss instance dates");
+// TODO: Boss battle instances don't support due_date/start_date storage on the backend.
+async function updateBossInstanceDatesBestEffort(instanceId: string, dates: { due_date?: string | null }) 
+{
+  console.warn("updateBossInstanceDatesBestEffort: Backend does not support due_date for boss battles yet.");
+  throw new Error("Boss battle date updates are not yet supported by the backend");
 }
 
 const Subjects = () => {
@@ -352,6 +277,17 @@ const Subjects = () => {
   const [bossAssignManualApproval, setBossAssignManualApproval] = useState<boolean>(false);
   const [bossAssignTitleOverride, setBossAssignTitleOverride] = useState<string>("");
   const [bossAssignDescriptionOverride, setBossAssignDescriptionOverride] = useState<string>("");
+  
+  // Boss battle configuration state
+  const [bossAssignModeType, setBossAssignModeType] = useState<string>("");
+  const [bossAssignQuestionSelectionMode, setBossAssignQuestionSelectionMode] = useState<string>("");
+  const [bossAssignLateJoinPolicy, setBossAssignLateJoinPolicy] = useState<string>("");
+  const [bossAssignInitialBossHp, setBossAssignInitialBossHp] = useState<number>(5);
+  const [bossAssignCountdownSeconds, setBossAssignCountdownSeconds] = useState<number>(5);
+  const [bossAssignQuestionTimeLimit, setBossAssignQuestionTimeLimit] = useState<number | "">("");
+  const [bossAssignSpeedBonusEnabled, setBossAssignSpeedBonusEnabled] = useState<boolean>(false);
+  const [bossAssignSpeedBonusFloor, setBossAssignSpeedBonusFloor] = useState<number>(0.2);
+  const [bossAssignSpeedWindow, setBossAssignSpeedWindow] = useState<number>(30);
 
   // Boss instances state - map of boss_template_id -> instances
   const [bossInstances, setBossInstances] = useState<Map<string, BossBattleInstance[]>>(new Map());
@@ -785,10 +721,15 @@ const Subjects = () => {
     setBossAssignOpen(true);
   };
 
-  // Boss: create instance (now: after success, reload boss instances too)
+  // Boss: create instance and assign
   const handleAssignBoss = async () => {
     if (!bossAssigning || !bossAssignClassId) {
       setBossAssignError("Please select a class");
+      return;
+    }
+    
+    if (!bossAssignModeType || !bossAssignQuestionSelectionMode || bossAssignInitialBossHp === 0) {
+      setBossAssignError("Please configure battle settings (mode, question selection, and boss HP)");
       return;
     }
 
@@ -802,41 +743,57 @@ const Subjects = () => {
         boss_template_id: bossTemplateId,
         title_override: bossAssignTitleOverride.trim() || undefined,
         description_override: bossAssignDescriptionOverride.trim() || undefined,
-        start_date: bossAssignStartDate || undefined,
-        due_date: bossAssignDueDate || undefined,
+        //start_date: bossAssignStartDate || undefined,
+        //due_date: bossAssignDueDate || undefined,
         requires_manual_approval: bossAssignManualApproval,
         status: "ACTIVE",
         class_id: bossAssignClassId,
+        // Battle configuration
+        mode_type: bossAssignModeType,
+        question_selection_mode: bossAssignQuestionSelectionMode,
+        late_join_policy: bossAssignLateJoinPolicy || undefined,
+        initial_boss_hp: bossAssignInitialBossHp,
+        countdown_seconds: bossAssignCountdownSeconds,
+        time_limit_seconds_default: bossAssignQuestionTimeLimit === "" ? undefined : bossAssignQuestionTimeLimit,
+        speed_bonus_enabled: bossAssignSpeedBonusEnabled,
+        speed_bonus_floor_multiplier: bossAssignSpeedBonusFloor,
+        speed_window_seconds: bossAssignSpeedWindow,
       };
 
-      // try: POST /boss-battle-instances
-      let res = await fetch(BOSS_INSTANCES_API_PATH, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "include",
+      // POST 
+      await createBossBattleInstanceApi({
+        class_id: payload.class_id,
+        boss_template_id: payload.boss_template_id,
+        initial_boss_hp: payload.initial_boss_hp,
+        status: "ACTIVE",
+        mode_type: payload.mode_type,
+        question_selection_mode: payload.question_selection_mode,
+        late_join_policy: payload.late_join_policy,
+        speed_bonus_enabled: payload.speed_bonus_enabled,
+        speed_bonus_floor_multiplier: payload.speed_bonus_floor_multiplier,
+        speed_window_seconds: payload.speed_window_seconds,
+        time_limit_seconds_default: payload.time_limit_seconds_default,
+        created_by_teacher_id: teacher?.id || "",
       });
 
-      if (!res.ok) {
-        // fallback: POST /classes/:id/boss-battle-instances
-        res = await fetch(
-          `${"/classes"}/${encodeURIComponent(bossAssignClassId)}${BOSS_INSTANCES_API_PATH}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-            credentials: "include",
-          }
-        );
-      }
-
-      if (!res.ok) {
-        const data = await safeJson(res);
-        throw new Error(data?.message || data?.error || `Failed to assign boss (HTTP ${res.status})`);
-      }
-
+      // Reset form state
       setBossAssignOpen(false);
       setBossAssigning(null);
+      setBossAssignClassId("");
+     // setBossAssignStartDate("");
+    // setBossAssignDueDate("");
+      setBossAssignManualApproval(false);
+      setBossAssignTitleOverride("");
+      setBossAssignDescriptionOverride("");
+      setBossAssignModeType("");
+      setBossAssignQuestionSelectionMode("");
+      setBossAssignLateJoinPolicy("");
+      setBossAssignInitialBossHp(0);
+      setBossAssignCountdownSeconds(0);
+      setBossAssignQuestionTimeLimit("");
+      setBossAssignSpeedBonusEnabled(false);
+      setBossAssignSpeedBonusFloor(0.2);
+      setBossAssignSpeedWindow(30);
 
       // refresh instances so UI shows class assignment under the boss card
       await loadBossInstances();
@@ -847,112 +804,27 @@ const Subjects = () => {
     }
   };
 
-  // Boss: delete template (unchanged)
+  // Boss: delete template (soft-delete) TODO:
   const deleteBossTemplate = async (t: BossBattleTemplate) => {
     const id = safeStr((t as any).boss_template_id);
     const title = safeStr((t as any).title);
     if (!id) return;
     if (!window.confirm(`Delete "${title}"?`)) return;
 
-    const readBody = async (res: Response) => {
-      const text = await res.text().catch(() => "");
-      if (!text) return null;
-      try {
-        return JSON.parse(text);
-      } catch {
-        return { message: text };
-      }
-    };
-
-    const attempt = async (url: string, init: RequestInit) => {
-      const res = await fetch(url, init);
-      const data = res.ok ? null : await readBody(res);
-      return { ok: res.ok, res, data };
-    };
-
     try {
-      // 1) HARD DELETE patterns
-      const hardAttempts = [
-        () =>
-          attempt(`${BOSS_TEMPLATES_API_PATH}/${encodeURIComponent(id)}`, {
-            method: "DELETE",
-            credentials: "include",
-          }),
-        () =>
-          attempt(`${BOSS_TEMPLATES_API_PATH}/${encodeURIComponent(id)}/delete`, {
-            method: "POST",
-            credentials: "include",
-          }),
-      ];
+      await updateBossTemplateStatusBestEffort(id, "DELETED");
 
-      for (const fn of hardAttempts) {
-        const r = await fn();
-        if (r.ok) {
-          setBossTemplates((prev) => prev.filter((x) => safeStr((x as any).boss_template_id) !== id));
-          // also drop instances for this template
-          setBossInstances((prev) => {
-            const next = new Map(prev);
-            next.delete(id);
-            return next;
-          });
-          return;
-        }
-      }
-
-      // 2) SOFT DELETE patterns
-      const softPayloads: any[] = [
-        { is_deleted: true, deleted_by: teacher?.id || undefined },
-        { is_deleted: true, deleted_at: new Date().toISOString(), deleted_by: teacher?.id || undefined },
-        { deleted: true, deleted_by: teacher?.id || undefined },
-        { status: "DELETED", deleted_by: teacher?.id || undefined },
-        { archived: true, archived_by: teacher?.id || undefined },
-      ];
-
-      const softAttemptFns: Array<() => Promise<{ ok: boolean; res: Response; data: any }>> = [];
-      for (const body of softPayloads) {
-        softAttemptFns.push(() =>
-          attempt(`${BOSS_TEMPLATES_API_PATH}/${encodeURIComponent(id)}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-            credentials: "include",
-          })
-        );
-        softAttemptFns.push(() =>
-          attempt(`${BOSS_TEMPLATES_API_PATH}/${encodeURIComponent(id)}/soft-delete`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-            credentials: "include",
-          })
-        );
-      }
-
-      for (const fn of softAttemptFns) {
-        const r = await fn();
-        if (r.ok) {
-          setBossTemplates((prev) => prev.filter((x) => safeStr((x as any).boss_template_id) !== id));
-          setBossInstances((prev) => {
-            const next = new Map(prev);
-            next.delete(id);
-            return next;
-          });
-          return;
-        }
-      }
-
-      const lastTry = await attempt(`${BOSS_TEMPLATES_API_PATH}/${encodeURIComponent(id)}`, {
-        method: "DELETE",
-        credentials: "include",
+      // Remove from templates list
+      setBossTemplates((prev) => prev.filter((x) => safeStr((x as any).boss_template_id) !== id));
+      
+      // also drop instances for this template
+      setBossInstances((prev) => {
+        const next = new Map(prev);
+        next.delete(id);
+        return next;
       });
-
-      const msg =
-        lastTry.data?.message ||
-        lastTry.data?.error ||
-        `Backend rejected delete. HTTP ${lastTry.res.status}`;
-
-      alert(`Failed to delete boss template: ${msg}`);
     } catch (e: any) {
+      console.error("Failed to delete boss template:", e);
       alert("Failed to delete boss template: " + (e?.message || "Unknown error"));
     }
   };
@@ -1649,99 +1521,100 @@ const Subjects = () => {
                                   </span>
                                 </div>
 
-                                {/* Boss Instance Status (uses BossBattleInstance) */}
-                                {assignedInstances.length === 0 ? (
-                                  <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
-                                    <span className="inline-block px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-semibold">
-                                      DRAFT - Not assigned to any class
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                    <p className="text-xs font-semibold text-blue-700 mb-2">Classes Assigned to:</p>
-                                    <div className="space-y-3">
-                                      {assignedInstances.map((instance) => {
-                                        const instanceId = getBossInstanceId(instance);
-                                        const classId = getClassIdFromBossInstance(instance);
-                                        const status = getBossStatus(instance);
-                                        const titleOverride = safeStr((instance as any).title_override || "").trim();
+                                {/* Boss Instance Status */}
+                                {(() => {
+                                  if (assignedInstances.length === 0) {
+                                    return (
+                                      <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
+                                        <span className="inline-block px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-semibold">
+                                          DRAFT - Not assigned to any class
+                                        </span>
+                                      </div>
+                                    );
+                                  }
 
-                                        return (
-                                          <div
-                                            key={instanceId || `${id}-${classId}-${status}`}
-                                            className="text-xs border-b border-blue-100 pb-2 last:border-0 last:pb-0 bg-white rounded p-2"
-                                          >
-                                            <div className="flex items-center justify-between flex-wrap gap-1 mb-1">
-                                              <span className="font-semibold text-gray-800">
-                                                {getClassNameById(classId)}
-                                              </span>
-                                              <span
-                                                className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                  status === "ACTIVE"
-                                                    ? "bg-green-100 text-green-800"
-                                                    : status === "DRAFT"
-                                                    ? "bg-yellow-100 text-yellow-800"
-                                                    : "bg-gray-100 text-gray-800"
-                                                }`}
-                                              >
-                                                {status}
-                                              </span>
-                                            </div>
+                                  return (
+                                    <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                      <p className="text-xs font-semibold text-red-700 mb-2">Classes Assigned to:</p>
+                                      <div className="space-y-3">
+                                        {assignedInstances.map((instance: BossBattleInstance) => {
+                                          const instId = getBossInstanceId(instance);
+                                          const classId = getClassIdFromBossInstance(instance);
+                                          const status = getBossStatus(instance);
 
-                                            <div className="space-y-1 text-gray-600 mt-2">
-                                              <div className="flex justify-between items-start">
-                                                <span className="font-medium">Start:</span>
-                                                <span className="text-right text-gray-700">
-                                                  {formatDateTime((instance as any).start_date)}
+                                          return (
+                                            <div
+                                              key={instId}
+                                              className="text-xs border-b border-red-100 pb-2 last:border-0 last:pb-0 bg-white rounded p-2"
+                                            >
+                                              <div className="flex items-center justify-between flex-wrap gap-1 mb-1">
+                                                <span className="font-semibold text-gray-800">
+                                                  {getClassNameById(classId)}
                                                 </span>
-                                              </div>
-                                              <div className="flex justify-between items-start">
-                                                <span className="font-medium">Due:</span>
-                                                <span className="text-right text-gray-700">
-                                                  {formatDateTime((instance as any).due_date)}
-                                                </span>
-                                              </div>
-                                            </div>
-
-                                            {titleOverride ? (
-                                              <p className="text-gray-600 mt-1 pt-1 border-t border-blue-100">
-                                                Title Override: {titleOverride}
-                                              </p>
-                                            ) : null}
-
-                                            <div className="flex gap-1 mt-2 pt-2 border-t border-blue-100">
-                                              <button
-                                                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
-                                                onClick={() => openBossExtensionModal(instance)}
-                                                title="Edit due date for extension"
-                                              >
-                                                <i data-feather="calendar" className="w-3 h-3"></i> Extend
-                                              </button>
-
-                                              {status === "ACTIVE" && (
-                                                <button
-                                                  className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
-                                                  onClick={() => archiveBossInstance(instance)}
-                                                  title="Archive this boss battle"
+                                                <span
+                                                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                    status === "ACTIVE"
+                                                      ? "bg-green-100 text-green-800"
+                                                      : status === "DRAFT"
+                                                      ? "bg-yellow-100 text-yellow-800"
+                                                      : status === "LOBBY"
+                                                      ? "bg-blue-100 text-blue-800"
+                                                      : "bg-gray-100 text-gray-800"
+                                                  }`}
                                                 >
-                                                  <i data-feather="archive" className="w-3 h-3"></i> Archive
-                                                </button>
-                                              )}
+                                                  {status}
+                                                </span>
+                                              </div>
 
-                                              <button
-                                                className="flex-1 bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
-                                                onClick={() => removeBossAssignedClass(instance)}
-                                                title="Remove from class"
-                                              >
-                                                <i data-feather="trash-2" className="w-3 h-3"></i> Remove
-                                              </button>
+                                              <div className="space-y-1 text-gray-600 mt-2">
+                                                <div className="flex justify-between items-start">
+                                                  <span className="font-medium">Date created:</span>
+                                                  <span className="text-right text-gray-700">
+                                                    {formatDateTime((instance as any).created_at)}
+                                                  </span>
+                                                </div>
+                                                {/*(instance as any).due_date && (
+                                                  <div className="flex justify-between items-start">
+                                                    <span className="font-medium">Due:</span>
+                                                    <span className="text-right text-gray-700">
+                                                      {formatDateTime((instance as any).due_date)}
+                                                    </span>
+                                                  </div>
+                                                )*/}
+                                              </div>
+
+                                              <div className="flex gap-1 mt-2 pt-2 border-t border-red-100">
+                                               {/* <button
+                                                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
+                                                  onClick={() => openBossExtensionModal(instance)}
+                                                  title="Edit due date for extension"
+                                                >
+                                                  <i data-feather="calendar" className="w-3 h-3"></i> Extend
+                                                </button>*/}
+                                                {status === "ACTIVE" && (
+                                                  <button
+                                                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
+                                                    onClick={() => archiveBossInstance(instance)}
+                                                    title="Archive this boss battle"
+                                                  >
+                                                    <i data-feather="archive" className="w-3 h-3"></i> Archive
+                                                  </button>
+                                                )}
+                                                <button
+                                                  className="flex-1 bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs flex items-center justify-center gap-1"
+                                                  onClick={() => removeBossAssignedClass(instance)}
+                                                  title="Remove from class"
+                                                >
+                                                  <i data-feather="trash-2" className="w-3 h-3"></i> Remove
+                                                </button>
+                                              </div>
                                             </div>
-                                          </div>
-                                        );
-                                      })}
+                                          );
+                                        })}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  );
+                                })()}
 
                                 <div className="grid grid-cols-3 gap-2">
                                   <button
@@ -1805,7 +1678,7 @@ const Subjects = () => {
                 <select name="type" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="Quest">
                   <option value="Quest">Quest</option>
                   <option value="Side Quest">Side Quest</option>
-                  <option value="Boss Fight">Boss Fight</option>
+                  <option value="Boss Fight">Boss Battle</option>
                 </select>
               </div>
 
@@ -1884,171 +1757,67 @@ const Subjects = () => {
         </div>
       )}
 
-      {/* Boss Assign Modal (inline) */}
-      {bossAssignOpen && (
-        <div className="fixed inset-0 bg-white/300 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center text-gray-900">
-          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Assign Boss Battle</h3>
-              <button
-                onClick={() => {
-                  setBossAssignOpen(false);
-                  setBossAssigning(null);
-                }}
-                className="text-blue-500 hover:text-blue-700"
-              >
-                <i data-feather="x-circle"></i>
-              </button>
-            </div>
+      {/* Boss Assign Modal */}
+      <BossAssignModal
+        isOpen={bossAssignOpen}
+        bossAssigning={bossAssigning}
+        bossAssignError={bossAssignError}
+        bossAssignLoading={bossAssignLoading}
+        bossAssignClassId={bossAssignClassId}
+        bossAssignStartDate={bossAssignStartDate}
+        bossAssignDueDate={bossAssignDueDate}
+        bossAssignManualApproval={bossAssignManualApproval}
+        bossAssignTitleOverride={bossAssignTitleOverride}
+        bossAssignDescriptionOverride={bossAssignDescriptionOverride}
+        bossAssignModeType={bossAssignModeType}
+        bossAssignQuestionSelectionMode={bossAssignQuestionSelectionMode}
+        bossAssignLateJoinPolicy={bossAssignLateJoinPolicy}
+        bossAssignInitialBossHp={bossAssignInitialBossHp}
+        bossAssignCountdownSeconds={bossAssignCountdownSeconds}
+        bossAssignQuestionTimeLimit={bossAssignQuestionTimeLimit}
+        bossAssignSpeedBonusEnabled={bossAssignSpeedBonusEnabled}
+        bossAssignSpeedBonusFloor={bossAssignSpeedBonusFloor}
+        bossAssignSpeedWindow={bossAssignSpeedWindow}
+        classes={classes}
+        onClassIdChange={setBossAssignClassId}
+        onStartDateChange={setBossAssignStartDate}
+        onDueDateChange={setBossAssignDueDate}
+        onManualApprovalChange={setBossAssignManualApproval}
+        onTitleOverrideChange={setBossAssignTitleOverride}
+        onDescriptionOverrideChange={setBossAssignDescriptionOverride}
+        onModeTypeChange={setBossAssignModeType}
+        onQuestionSelectionModeChange={setBossAssignQuestionSelectionMode}
+        onLateJoinPolicyChange={setBossAssignLateJoinPolicy}
+        onInitialBossHpChange={setBossAssignInitialBossHp}
+        onCountdownSecondsChange={setBossAssignCountdownSeconds}
+        onQuestionTimeLimitChange={setBossAssignQuestionTimeLimit}
+        onSpeedBonusEnabledChange={setBossAssignSpeedBonusEnabled}
+        onSpeedBonusFloorChange={setBossAssignSpeedBonusFloor}
+        onSpeedWindowChange={setBossAssignSpeedWindow}
+        onClose={() => {
+          setBossAssignOpen(false);
+          setBossAssigning(null);
+        }}
+        onAssign={handleAssignBoss}
+      />
 
-            <div className="space-y-4">
-              <div className="text-sm text-gray-700">
-                <div className="font-semibold">Template:</div>
-                <div>{safeStr((bossAssigning as any)?.title)}</div>
-              </div>
+      {/* Boss Extend Modal */}
+      <BossExtendModal
+        isOpen={bossExtensionOpen}
+        bossSelectedForExtension={bossSelectedForExtension}
+        bossExtensionDueDate={bossExtensionDueDate}
+        bossExtensionError={bossExtensionError}
+        bossExtensionSaving={bossExtensionSaving}
+        getClassNameById={getClassNameById}
+        onDueDateChange={setBossExtensionDueDate}
+        onClose={() => {
+          setBossExtensionOpen(false);
+          setBossSelectedForExtension(null);
+        }}
+        onSave={saveBossExtensionDate}
+      />
 
-              {bossAssignError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700">{bossAssignError}</div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
-                <select className={inputBox} value={bossAssignClassId} onChange={(e) => setBossAssignClassId(e.target.value)}>
-                  <option value="">Select a class</option>
-                  {classes.map((c) => (
-                    <option key={(c as any).class_id} value={(c as any).class_id}>
-                      {(c as any).name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                  <input type="datetime-local" className={inputBox} value={bossAssignStartDate} onChange={(e) => setBossAssignStartDate(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-                  <input type="datetime-local" className={inputBox} value={bossAssignDueDate} onChange={(e) => setBossAssignDueDate(e.target.value)} />
-                </div>
-              </div>
-
-              <div>
-                <label className="inline-flex items-center gap-2 text-sm text-gray-800">
-                  <input type="checkbox" checked={bossAssignManualApproval} onChange={(e) => setBossAssignManualApproval(e.target.checked)} />
-                  Requires manual approval
-                </label>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title Override</label>
-                <input className={inputBox} value={bossAssignTitleOverride} onChange={(e) => setBossAssignTitleOverride(e.target.value)} placeholder="Optional" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description Override</label>
-                <textarea
-                  className={inputBox}
-                  value={bossAssignDescriptionOverride}
-                  onChange={(e) => setBossAssignDescriptionOverride(e.target.value)}
-                  rows={3}
-                  placeholder="Optional"
-                />
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBossAssignOpen(false);
-                    setBossAssigning(null);
-                  }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-500"
-                  disabled={bossAssignLoading}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAssignBoss}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
-                  disabled={bossAssignLoading}
-                >
-                  {bossAssignLoading ? "Assigning…" : "Assign"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Boss Extend Modal (inline) */}
-      {bossExtensionOpen && (
-        <div className="fixed inset-0 bg-white/300 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center text-gray-900">
-          <div className="relative top-20 mx-auto p-5 border w-full max-w-xl shadow-lg rounded-md bg-white">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Extend Boss Battle Due Date</h3>
-              <button
-                onClick={() => {
-                  setBossExtensionOpen(false);
-                  setBossSelectedForExtension(null);
-                }}
-                className="text-blue-500 hover:text-blue-700"
-              >
-                <i data-feather="x-circle"></i>
-              </button>
-            </div>
-
-            {bossExtensionError && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 mb-3">
-                {bossExtensionError}
-              </div>
-            )}
-
-            <div className="space-y-3">
-              <div className="text-sm text-gray-700">
-                <div className="font-semibold">Class:</div>
-                <div>{getClassNameById(getClassIdFromBossInstance(bossSelectedForExtension || ({} as any)))}</div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">New Due Date</label>
-                <input
-                  type="datetime-local"
-                  className={inputBox}
-                  value={bossExtensionDueDate}
-                  onChange={(e) => setBossExtensionDueDate(e.target.value)}
-                />
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBossExtensionOpen(false);
-                    setBossSelectedForExtension(null);
-                  }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-500"
-                  disabled={bossExtensionSaving}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={saveBossExtensionDate}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
-                  disabled={bossExtensionSaving}
-                >
-                  {bossExtensionSaving ? "Saving…" : "Save"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Quest Modals (unchanged) */}
+      {/* Quest Modals */}
       <EditQuestModal
         isOpen={editOpen}
         editing={editing}

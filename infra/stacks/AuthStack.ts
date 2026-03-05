@@ -126,8 +126,8 @@ export function AuthStack(ctx: StackContext, props: AuthStackProps) {
     });
 
     return {
-        userPool,
-        userPoolClient,
+        //userPool,
+        //userPoolClient,
         userPoolId: userPool.userPoolId,
         userPoolArn: userPool.userPoolArn,
         userPoolClientId: userPoolClient.userPoolClientId,

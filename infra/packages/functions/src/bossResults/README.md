@@ -313,12 +313,12 @@ POST /boss-battle-instances/{boss_instance_id}/results/compute
 Run validation tests:
 ```bash
 cd infra/packages/functions/src/bossResults
-node --loader tsx validation.test.ts
+node -importr tsx validation.test.ts
 ```
 
 Run key building tests:
 ```bash
-node --loader tsx keys.test.ts
+node --import tsx keys.test.ts
 ```
 
 ### Test Scenarios
