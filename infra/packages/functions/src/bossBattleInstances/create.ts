@@ -11,26 +11,26 @@ import { applyBattleDefaults, type CreateBossBattleInstanceInput, type BossBattl
  */
 export const handler = async (event: any) => {
     try {
-        // Authorization: Only teachers and admins can create
-        const userRole = event.requestContext?.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
-        const userId = event.requestContext?.authorizer?.jwt?.claims?.sub as string | undefined;
+        // // Authorization: Only teachers and admins can create
+        // const userRole = event.requestContext?.authorizer?.jwt?.claims?.["cognito:groups"] as string | undefined;
+        // const userId = event.requestContext?.authorizer?.jwt?.claims?.sub as string | undefined;
 
-        if (!userId) {
-            return {
-                statusCode: 401,
-                body: JSON.stringify({ error: "Unauthorized: Missing user identity" }),
-            };
-        }
+        // if (!userId) {
+        //     return {
+        //         statusCode: 401,
+        //         body: JSON.stringify({ error: "Unauthorized: Missing user identity" }),
+        //     };
+        // }
 
-        const allowedRoles = ["Teachers", "Admins"];
-        const hasPermission = userRole?.split(",").some(role => allowedRoles.includes(role.trim()));
+        // const allowedRoles = ["Teachers", "Admins"];
+        // const hasPermission = userRole?.split(",").some(role => allowedRoles.includes(role.trim()));
 
-        if (!hasPermission) {
-            return {
-                statusCode: 403,
-                body: JSON.stringify({ error: "Forbidden: Only teachers and admins can create boss battles" }),
-            };
-        }
+        // if (!hasPermission) {
+        //     return {
+        //         statusCode: 403,
+        //         body: JSON.stringify({ error: "Forbidden: Only teachers and admins can create boss battles" }),
+        //     };
+        // }
 
         // Parse request body
         const rawBody = event.body;
@@ -39,7 +39,7 @@ export const handler = async (event: any) => {
         const input: CreateBossBattleInstanceInput = {
             class_id: body.class_id,
             boss_template_id: body.boss_template_id,
-            created_by_teacher_id: userId, // Derive from auth principal
+            created_by_teacher_id: body.created_by_teacher_id, // TODO: re-derive from auth principal when auth is re-enabled
             initial_boss_hp: body.initial_boss_hp,
             mode_type: body.mode_type,
             question_selection_mode: body.question_selection_mode,

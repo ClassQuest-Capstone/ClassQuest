@@ -14,7 +14,7 @@
   "license": "ISC",
   "devDependencies": {
     "@types/aws-lambda": "^8.10.159",
-    "@types/node": "^24.10.1",
+    "@types/node": "^24.11.0",
     "baseline-browser-mapping": "^2.9.19",
     "sst": "^2.49.6",
     "tsx": "^4.20.6",
