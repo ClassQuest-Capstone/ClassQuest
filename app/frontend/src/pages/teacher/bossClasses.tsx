@@ -16,6 +16,7 @@ import {
 import type { BossBattleTemplate as BossBattleTemplate } from "../../api/bossBattleTemplates/types.js";
 
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
+import BossLobbyModal from "../components/teacher/modals/BossLobbyModal.tsx";
 
 // Utility to convert string input to int
 function toInt(val: unknown, fallback = 0) {
@@ -91,6 +92,8 @@ const BossClasses = () => {
   const [bossAssignOpen, setBossAssignOpen] = useState(false);
   const [selectedBossTemplateId, setSelectedBossTemplateId] = useState<string>("");
   const [bossAssigning, setBossAssigning] = useState(false);
+  const [lobbyModalOpen, setLobbyModalOpen] = useState(false);
+  const [selectedInstanceForLobby, setSelectedInstanceForLobby] = useState<BossBattleInstance | null>(null);
 
   const [teacher, setTeacher] = useState<TeacherUser | null>(null);
 
@@ -194,14 +197,17 @@ const BossClasses = () => {
   }, [bossTemplates, bossInstances]);
 
   const formatDateTime = (dateString: string | null | undefined) => {
-    if (!dateString) return "Not set";
+  if (!dateString) return "";
+  try {
     const date = new Date(dateString);
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    return `${year}-${month}-${day} ${hours}:${minutes}`;
+    const month = date.toLocaleString('en-US', { month: 'short' });
+    const day = date.getDate();
+    const time = date.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return `${month}. ${day} ${year}, ${time}`;
+  } catch (e) {
+    return dateString;
+  }
   };
 
   // --------------------
@@ -288,10 +294,9 @@ const BossClasses = () => {
       const bossItems = (bossInstRes as any)?.items || [];
       setBossInstances(bossItems as any);
 
-      // navigate to the battle lobby/detail view
-      navigate(`/bossBattle/${instanceId}`, {
-        state: { classId: state!.class_id, className: state!.className },
-      });
+      // Open the lobby modal
+      setSelectedInstanceForLobby(instance);
+      setLobbyModalOpen(true);
     } catch (e: any) {
       console.error("Failed to launch boss battle:", e);
       alert(e?.message || "Failed to launch boss battle");
@@ -576,6 +581,36 @@ const BossClasses = () => {
 
         {}
       </main>
+
+      {/* Boss Lobby Modal */}
+      {selectedInstanceForLobby && (
+        <BossLobbyModal
+          isOpen={lobbyModalOpen}
+          instance={selectedInstanceForLobby}
+          classId={state!.class_id}
+          onClose={() => {
+            setLobbyModalOpen(false);
+            // Refresh instances after countdown starts
+            const loadBossData = async () => {
+              try {
+                const bossInstRes = await listBossBattleInstancesByClass(
+                  state!.class_id,
+                  { limit: 100 }
+                );
+                const bossItems = (bossInstRes as any)?.items || [];
+                setBossInstances(bossItems as any);
+              } catch (e) {
+                console.error("Failed to refresh boss instances:", e);
+              }
+            };
+            loadBossData();
+          }}
+          onCountdownStarted={() => {
+            console.log("Countdown started");
+            // Could navigate to battle view or keep in lobby
+          }}
+        />
+      )}
     </div>
   );
 };
