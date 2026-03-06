@@ -111,6 +111,8 @@ export function QuestApiStack(ctx: StackContext, props: QuestApiStackProps) {
         "GET /boss-battle-templates/{boss_template_id}": { method: "GET", path: "/boss-battle-templates/{boss_template_id}" },
         "GET /teachers/{teacher_id}/boss-battle-templates": { method: "GET", path: "/teachers/{teacher_id}/boss-battle-templates" },
         "GET /boss-battle-templates/public": { method: "GET", path: "/boss-battle-templates/public" },
+        "PATCH /boss-battle-templates/{boss_template_id}/soft-delete": { method: "PATCH", path: "/boss-battle-templates/{boss_template_id}/soft-delete" },
+        "PATCH /boss-battle-templates/{boss_template_id}/restore": { method: "PATCH", path: "/boss-battle-templates/{boss_template_id}/restore" },
 
         // RewardTransactions
         "POST /reward-transactions": { method: "POST", path: "/reward-transactions" },

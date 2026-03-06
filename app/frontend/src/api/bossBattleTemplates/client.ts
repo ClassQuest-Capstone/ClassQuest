@@ -44,6 +44,34 @@ export function listBossBattleTemplatesByOwner(teacher_id: string) {
 }
 
 /**
+ * Soft-delete a boss battle template
+ * PATCH /boss-battle-templates/{boss_template_id}/soft-delete
+ */
+export function softDeleteBossBattleTemplate(
+    boss_template_id: string,
+    deleted_by_teacher_id: string
+) {
+    return api<{ ok: boolean; message: string; template: BossBattleTemplate }>(
+        `/boss-battle-templates/${encodeURIComponent(boss_template_id)}/soft-delete`,
+        {
+            method: "PATCH",
+            body: JSON.stringify({ deleted_by_teacher_id }),
+        }
+    );
+}
+
+/**
+ * Restore a soft-deleted boss battle template
+ * PATCH /boss-battle-templates/{boss_template_id}/restore
+ */
+export function restoreBossBattleTemplate(boss_template_id: string) {
+    return api<{ ok: boolean; message: string; template: BossBattleTemplate }>(
+        `/boss-battle-templates/${encodeURIComponent(boss_template_id)}/restore`,
+        { method: "PATCH" }
+    );
+}
+
+/**
  * List public boss battle templates with optional filters
  * GET /boss-battle-templates/public?subject=&limit=&cursor=
  */

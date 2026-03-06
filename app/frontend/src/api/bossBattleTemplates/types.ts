@@ -15,6 +15,9 @@ export type BossBattleTemplate = {
     public_sort: string;
     created_at: string;
     updated_at: string;
+    is_deleted?: boolean;
+    deleted_at?: string;
+    deleted_by_teacher_id?: string;
 };
 
 export type CreateBossBattleTemplateInput = {

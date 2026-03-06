@@ -95,6 +95,7 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             public_sort,
             created_at: now,
             updated_at: now,
+            is_deleted: false,
         };
 
         await createTemplate(item);

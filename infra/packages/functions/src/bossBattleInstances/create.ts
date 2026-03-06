@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { createBossBattleInstance } from "./repo.js";
 import { validateCreateBattleInput } from "./validation.js";
 import { applyBattleDefaults, type CreateBossBattleInstanceInput, type BossBattleInstanceItem } from "./types.js";
+import { getTemplate as getBossTemplate } from "../bossBattleTemplates/repo.js";
 
 /**
  * POST /boss-battle-instances
@@ -61,6 +62,17 @@ export const handler = async (event: any) => {
                 statusCode: 400,
                 body: JSON.stringify({ error: validation.error }),
             };
+        }
+
+        // Guard: reject if the referenced template is deleted or missing
+        if (input.boss_template_id) {
+            const template = await getBossTemplate(input.boss_template_id);
+            if (!template) {
+                return {
+                    statusCode: 404,
+                    body: JSON.stringify({ error: "Boss battle template not found or has been deleted" }),
+                };
+            }
         }
 
         // Apply defaults

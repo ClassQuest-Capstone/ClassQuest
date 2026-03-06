@@ -42,9 +42,11 @@ export async function createTemplate(item: BossBattleTemplateItem): Promise<void
 
 /**
  * Get template by primary key
+ * By default returns null if the template is soft-deleted
  */
 export async function getTemplate(
-    boss_template_id: string
+    boss_template_id: string,
+    options?: { includeDeleted?: boolean }
 ): Promise<BossBattleTemplateItem | null> {
     const result = await ddb.send(
         new GetCommand({
@@ -57,19 +59,27 @@ export async function getTemplate(
         return null;
     }
 
-    // Convert string back to boolean
-    return {
+    const item = {
         ...result.Item,
         is_shared_publicly: result.Item.is_shared_publicly === "true",
     } as BossBattleTemplateItem;
+
+    // Filter out soft-deleted items unless explicitly requested
+    if (item.is_deleted && !options?.includeDeleted) {
+        return null;
+    }
+
+    return item;
 }
 
 /**
  * List all templates owned by a teacher
  * Query gsi1 by owner_teacher_id
+ * By default, filters out soft-deleted templates
  */
 export async function listByOwner(
-    owner_teacher_id: string
+    owner_teacher_id: string,
+    options?: { includeDeleted?: boolean }
 ): Promise<BossBattleTemplateItem[]> {
     const result = await ddb.send(
         new QueryCommand({
@@ -82,11 +92,17 @@ export async function listByOwner(
         })
     );
 
-    const items = (result.Items ?? []) as any[];
-    return items.map(item => ({
+    const items = ((result.Items ?? []) as any[]).map(item => ({
         ...item,
         is_shared_publicly: item.is_shared_publicly === "true",
     })) as BossBattleTemplateItem[];
+
+    // Filter out soft-deleted items unless explicitly requested
+    if (!options?.includeDeleted) {
+        return items.filter(item => !item.is_deleted);
+    }
+
+    return items;
 }
 
 /**
@@ -104,6 +120,7 @@ export async function listPublic(options?: {
     let keyConditionExpression = "is_shared_publicly = :is_public";
     const expressionAttributeValues: Record<string, any> = {
         ":is_public": "true",
+        ":is_del_false": false,
     };
 
     // Add subject prefix filter if provided
@@ -117,6 +134,11 @@ export async function listPublic(options?: {
             TableName: TABLE,
             IndexName: "gsi2",
             KeyConditionExpression: keyConditionExpression,
+            // Exclude soft-deleted items; keep backwards compat with items missing the field
+            FilterExpression: "attribute_not_exists(#is_deleted) OR #is_deleted = :is_del_false",
+            ExpressionAttributeNames: {
+                "#is_deleted": "is_deleted",
+            },
             ExpressionAttributeValues: expressionAttributeValues,
             Limit: limit,
             ExclusiveStartKey: cursor
@@ -231,4 +253,82 @@ export async function updateTemplate(
             ConditionExpression: "attribute_exists(boss_template_id)",
         })
     );
+}
+
+/**
+ * Soft-delete a boss battle template
+ * Sets is_deleted=true, deleted_at=now, deleted_by_teacher_id
+ * Uses a condition so it only fires if the item exists
+ */
+export async function softDeleteTemplate(
+    boss_template_id: string,
+    deleted_by_teacher_id: string
+): Promise<BossBattleTemplateItem> {
+    const now = new Date().toISOString();
+
+    const result = await ddb.send(
+        new UpdateCommand({
+            TableName: TABLE,
+            Key: { boss_template_id },
+            UpdateExpression:
+                "SET #is_deleted = :is_deleted, #deleted_at = :deleted_at, #deleted_by = :deleted_by, #updated_at = :updated_at",
+            ExpressionAttributeNames: {
+                "#is_deleted": "is_deleted",
+                "#deleted_at": "deleted_at",
+                "#deleted_by": "deleted_by_teacher_id",
+                "#updated_at": "updated_at",
+            },
+            ExpressionAttributeValues: {
+                ":is_deleted": true,
+                ":deleted_at": now,
+                ":deleted_by": deleted_by_teacher_id,
+                ":updated_at": now,
+            },
+            ConditionExpression: "attribute_exists(boss_template_id)",
+            ReturnValues: "ALL_NEW",
+        })
+    );
+
+    const raw = result.Attributes as any;
+    return {
+        ...raw,
+        is_shared_publicly: raw.is_shared_publicly === "true",
+    } as BossBattleTemplateItem;
+}
+
+/**
+ * Restore a soft-deleted boss battle template
+ * Clears is_deleted, deleted_at, deleted_by_teacher_id; updates updated_at
+ */
+export async function restoreTemplate(
+    boss_template_id: string
+): Promise<BossBattleTemplateItem> {
+    const now = new Date().toISOString();
+
+    const result = await ddb.send(
+        new UpdateCommand({
+            TableName: TABLE,
+            Key: { boss_template_id },
+            UpdateExpression:
+                "SET #is_deleted = :false, #updated_at = :updated_at REMOVE #deleted_at, #deleted_by",
+            ExpressionAttributeNames: {
+                "#is_deleted": "is_deleted",
+                "#updated_at": "updated_at",
+                "#deleted_at": "deleted_at",
+                "#deleted_by": "deleted_by_teacher_id",
+            },
+            ExpressionAttributeValues: {
+                ":false": false,
+                ":updated_at": now,
+            },
+            ConditionExpression: "attribute_exists(boss_template_id)",
+            ReturnValues: "ALL_NEW",
+        })
+    );
+
+    const raw = result.Attributes as any;
+    return {
+        ...raw,
+        is_shared_publicly: raw.is_shared_publicly === "true",
+    } as BossBattleTemplateItem;
 }

@@ -43,6 +43,8 @@ import { handler as bbtCreate }                from "../bossBattleTemplates/crea
 import { handler as bbtGet }                   from "../bossBattleTemplates/get.js";
 import { handler as bbtListByOwner }           from "../bossBattleTemplates/list-by-owner.js";
 import { handler as bbtListPublic }            from "../bossBattleTemplates/list-public.js";
+import { handler as bbtSoftDelete }            from "../bossBattleTemplates/soft-delete.js";
+import { handler as bbtRestore }               from "../bossBattleTemplates/restore.js";
 
 // RewardTransactions
 import { handler as rtCreate }                 from "../rewardTransactions/create-transaction.js";
@@ -132,6 +134,8 @@ const ROUTES: Record<string, (event: any) => Promise<any>> = {
     "GET /boss-battle-templates/{boss_template_id}":                                                                                         bbtGet,
     "GET /teachers/{teacher_id}/boss-battle-templates":                                                                                      bbtListByOwner,
     "GET /boss-battle-templates/public":                                                                                                     bbtListPublic,
+    "PATCH /boss-battle-templates/{boss_template_id}/soft-delete":                                                                          bbtSoftDelete,
+    "PATCH /boss-battle-templates/{boss_template_id}/restore":                                                                              bbtRestore,
 
     // RewardTransactions
     "POST /reward-transactions":                                                                                                             rtCreate,

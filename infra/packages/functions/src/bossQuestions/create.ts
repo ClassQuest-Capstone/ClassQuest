@@ -4,6 +4,7 @@ import type { BossQuestionItem } from "./types.ts";
 import { createQuestion } from "./repo.ts";
 import { makeOrderKey } from "./keys.ts";
 import { validateQuestion } from "./validation.ts";
+import { getTemplate as getBossTemplate } from "../bossBattleTemplates/repo.ts";
 
 /**
  * POST /boss-templates/{boss_template_id}/questions
@@ -64,6 +65,18 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
                         "damage_to_guild_on_incorrect",
                         "auto_gradable",
                     ],
+                }),
+            };
+        }
+
+        // Step 3b: Guard — reject if the template is deleted or missing
+        const template = await getBossTemplate(boss_template_id);
+        if (!template) {
+            return {
+                statusCode: 404,
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({
+                    error: "Boss battle template not found or has been deleted",
                 }),
             };
         }

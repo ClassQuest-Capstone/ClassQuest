@@ -14,6 +14,9 @@ export type BossBattleTemplateItem = {
     public_sort: string;                // Derived sort key: subject#created_at#id (GSI2 SK)
     created_at: string;                 // ISO timestamp
     updated_at: string;                 // ISO timestamp
+    is_deleted: boolean;                // Soft-delete flag (default false)
+    deleted_at?: string;                // ISO timestamp when soft-deleted
+    deleted_by_teacher_id?: string;     // Teacher who performed the soft delete
 };
 
 export type CreateBossBattleTemplateInput = Omit<
