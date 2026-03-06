@@ -1,4 +1,3 @@
-// guild.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import feather from "feather-icons";
 import { Link } from "react-router-dom";
@@ -12,19 +11,19 @@ import {
   type GuildMembership,
 } from "../../api/guildMemberships.js";
 
-// ✅ pull classId from enrollments if missing
+// pull classId from enrollments if missing
 import {
   getStudentEnrollments,
   type EnrollmentItem,
 } from "../../api/classEnrollments.js";
 
-// ✅ class type (NO getClass export in your file)
+// class type (NO getClass export in your file)
 import type { ClassItem } from "../../api/classes.js";
 
-// ✅ display names
+// display names
 import { getStudentProfile } from "../../api/studentProfiles.js";
 
-// ✅ your shared http client (so we can fetch class by id safely)
+// your shared http client (so we can fetch class by id safely)
 import { api } from "../../api/http.js";
 
 // Boss battle imports
@@ -179,7 +178,7 @@ const GuildPage: React.FC = () => {
     };
   }, [student?.classId, studentId]);
 
-  // ✅ fetch class details (name) via api directly (no getClass import)
+  // fetch class details (name) via api directly (no getClass import)
   useEffect(() => {
     if (!classId) {
       setClassInfo(null);
@@ -254,7 +253,7 @@ const GuildPage: React.FC = () => {
   const [bossBattlesLoading, setBossBattlesLoading] = useState(false);
   const [bossBattlesError, setBossBattlesError] = useState<string | null>(null);
 
-  // ✅ Name cache
+  // Name cache
   const [nameByStudentId, setNameByStudentId] = useState<Record<string, string>>(
     {}
   );
@@ -851,9 +850,12 @@ const GuildPage: React.FC = () => {
                       </div>
 
                       {/* Action Button */}
-                      <button className="w-full bg-white text-gray-800 font-bold py-3 rounded-lg hover:bg-gray-100 transition-colors shadow-lg">
+                      <Link
+                        to={`/students/boss-lobby/${battle.boss_instance_id}`}
+                        className="block w-full bg-white text-gray-800 font-bold py-3 rounded-lg hover:bg-gray-100 transition-colors shadow-lg text-center"
+                      >
                         Join Battle
-                      </button>
+                      </Link>
                     </div>
                   </div>
                 );

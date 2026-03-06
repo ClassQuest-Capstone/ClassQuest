@@ -476,7 +476,14 @@ const BossClasses = () => {
                         {status}
                       </span>
                     </div>
-
+                    {/* Lobby */}
+                    <button
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 transition"
+                      onClick={() => navigate(`/teacher/boss-lobby/${getBossInstanceId(inst)}`)}
+                    >
+                      <i data-feather="users" className="w-4 h-4"></i>
+                      Lobby
+                    </button>
                     {/* Abort */}
                     <button
                       className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 transition"

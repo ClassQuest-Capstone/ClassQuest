@@ -28,6 +28,13 @@ import BossQuestions from "./pages/teacher/bossQuestions.js";
 
 import ApiSmoke from "./pages/api/ApiSmoke.js";
 
+// Lobby pages
+import BossBattleLobbyStudent from "./pages/students/bossBattleLobby.js";
+import BossBattleLobbyTeacher from "./pages/teacher/bossBattleLobbyTeacher.js";
+
+/* 🔹 NEW IMPORT */
+import BossBattleMonitorTeacher from "./pages/teacher/bossBattleMonitorTeacher.js";
+
 Amplify.configure(awsExports);
 
 export default function App() {
@@ -71,6 +78,22 @@ export default function App() {
         <Route path="/shop" element={<StudentShop />} />
         <Route path="/welcome" element={<Welcome />} />
         <Route path="/teacherGuilds" element={<TeacherGuilds />} />
+
+        {/* Boss Battle Lobby routes */}
+        <Route
+          path="/students/boss-lobby/:bossInstanceId"
+          element={<BossBattleLobbyStudent />}
+        />
+
+        <Route
+          path="/teacher/boss-lobby/:bossInstanceId"
+          element={<BossBattleLobbyTeacher />}
+        />
+
+        <Route
+          path="/teacher/bossfight-monitor/:bossInstanceId"
+          element={<BossBattleMonitorTeacher />}
+        />
 
         <Route path="*" element={<Home />} />
       </Routes>
