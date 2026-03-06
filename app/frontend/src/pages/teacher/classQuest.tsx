@@ -147,14 +147,17 @@ const ClassQuest = () => {
   }, [instances]);
 
   const formatDateTime = (dateString: string | null | undefined) => {
-    if (!dateString) return "Not set";
+   if (!dateString) return "";
+  try {
     const date = new Date(dateString);
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    return `${year}-${month}-${day} ${hours}:${minutes}`;
+    const month = date.toLocaleString('en-US', { month: 'short' });
+    const day = date.getDate();
+    const time = date.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return `${month}. ${day} ${year}, ${time}`;
+  } catch (e) {
+    return dateString;
+  }
   };
 
   const openExtensionModal = (instance: QuestInstance) => {

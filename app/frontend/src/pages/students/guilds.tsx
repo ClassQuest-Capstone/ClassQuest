@@ -808,7 +808,7 @@ const GuildPage: React.FC = () => {
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-sm font-semibold">Boss Health</span>
                           <span className="text-sm font-semibold">
-                            {battle.current_boss_hp.toLocaleString()} / {battle.initial_boss_hp.toLocaleString()} HP
+                            {battle.current_boss_hp.toLocaleString()} / {battle.initial_boss_hp.toLocaleString()} Hearts
                           </span>
                         </div>
                         <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
@@ -830,18 +830,18 @@ const GuildPage: React.FC = () => {
                         <div>
                           <p className="text-xs opacity-75 mb-1">Base XP Reward</p>
                           <p className="text-lg font-bold">
-                            +{template?.base_xp_reward?.toLocaleString() || "—"}
+                            +{template?.base_xp_reward?.toLocaleString() || "—"} XP
                           </p>
                         </div>
                         <div>
                           <p className="text-xs opacity-75 mb-1">Base Gold Reward</p>
                           <p className="text-lg font-bold">
-                            +{template?.base_gold_reward?.toLocaleString() || "—"}
+                            +{template?.base_gold_reward?.toLocaleString() || "—"} Gold
                           </p>
                         </div>
                         <div>
                           <p className="text-xs opacity-75 mb-1">Created</p>
-                          <p className="text-xs font-semibold">
+                          <p className="text-lg font-semibold">
                             {template?.created_at
                               ? new Date(template.created_at).toLocaleDateString()
                               : "—"}
