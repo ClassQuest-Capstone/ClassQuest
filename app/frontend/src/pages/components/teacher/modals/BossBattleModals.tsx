@@ -187,7 +187,7 @@ export const BossAssignModal: React.FC<BossAssignModalProps> = ({
               <select className={inputBox} value={bossAssignModeType} onChange={(e) => onModeTypeChange(e.target.value)}>
                 <option value="">Select mode</option>
                 <option value="SIMULTANEOUS_ALL">All Questions sent to Guilds</option>
-                <option value="TURN_BASED_GUILD">Guild Rotation</option>
+                <option value="TURN_BASED_GUILD">Guild Rotation (Turn Based)</option>
                 <option value="RANDOMIZED_PER_GUILD">Random Guild Challenge</option>
               </select>
             </div>

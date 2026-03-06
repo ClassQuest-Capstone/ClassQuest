@@ -7,7 +7,11 @@ import {
   listBossBattleInstancesByClass,
   updateBossBattleInstance,
 } from "../../api/bossBattleInstances/client.js";
-import type { BossBattleInstance } from "../../api/bossBattleInstances/types.js";
+import type {
+  BossBattleInstance,
+  ModeType,
+  QuestionSelectionMode,
+} from "../../api/bossBattleInstances/types.js";
 
 import {
   listBossBattleTemplatesByOwner,
@@ -52,6 +56,32 @@ function getBossStatus(i: BossBattleInstance): string {
   return safeStr((i as any).status);
 }
 
+function formatModeType(mode: unknown): string {
+  const modeStr = safeStr(mode);
+  switch (modeStr) {
+    case "SIMULTANEOUS_ALL":
+      return "All Questions sent to Guilds";
+    case "TURN_BASED_GUILD":
+      return "Guild Rotation";
+    case "RANDOMIZED_PER_GUILD":
+      return "Random Guild Challenge";
+    default:
+      return modeStr;
+  }
+}
+
+function formatQuestionSelectionMode(mode: unknown): string {
+  const modeStr = safeStr(mode);
+  switch (modeStr) {
+    case "ORDERED":
+      return "Sequential Order";
+    case "RANDOM_NO_REPEAT":
+      return "Shuffle Mode";
+    default:
+      return modeStr;
+  }
+}
+
 const BossClasses = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -94,7 +124,6 @@ const BossClasses = () => {
       setBossError(null);
 
       try {
-        // Get teacher ID from localStorage
         const currentUserJson = localStorage.getItem("cq_currentUser");
         if (!currentUserJson) {
           setBossError("User information not found. Please log in again.");
@@ -132,7 +161,6 @@ const BossClasses = () => {
           ? bossPublicRes
           : (bossPublicRes as any)?.items || [];
 
-        // de-dupe by boss_template_id
         const seen = new Set<string>();
         const mergedBoss: BossBattleTemplate[] = [];
         for (const t of [...ownedBoss, ...publicBoss]) {
@@ -144,7 +172,6 @@ const BossClasses = () => {
         }
         setBossTemplates(mergedBoss);
 
-        // Boss instances for this class
         const bossInstRes = await listBossBattleInstancesByClass(state.class_id, {
           limit: 100,
         } as any);
@@ -165,17 +192,37 @@ const BossClasses = () => {
 
   useEffect(() => {
     feather.replace();
-  }, [bossTemplates, bossInstances]);
+  }, [bossTemplates, bossInstances, bossAssignOpen]);
 
   const formatDateTime = (dateString: string | null | undefined) => {
-    if (!dateString) return "Not set";
-    const date = new Date(dateString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    return `${year}-${month}-${day} ${hours}:${minutes}`;
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = date.toLocaleString("en-US", { month: "short" });
+      const day = date.getDate();
+      const time = date.toLocaleString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      return `${month}. ${day} ${year}, ${time}`;
+    } catch (e) {
+      return String(dateString);
+    }
+  };
+
+  const refreshBossInstances = async () => {
+    if (!state?.class_id) return;
+    try {
+      const bossInstRes = await listBossBattleInstancesByClass(state.class_id, {
+        limit: 100,
+      } as any);
+      const bossItems = (bossInstRes as any)?.items || [];
+      setBossInstances(bossItems as any);
+    } catch (e) {
+      console.error("Failed to refresh boss instances:", e);
+    }
   };
 
   // --------------------
@@ -206,12 +253,7 @@ const BossClasses = () => {
         initial_boss_hp: initialHp,
       } as any);
 
-      // refresh boss instances
-      const bossInstRes = await listBossBattleInstancesByClass(state!.class_id, {
-        limit: 100,
-      } as any);
-      const bossItems = (bossInstRes as any)?.items || [];
-      setBossInstances(bossItems as any);
+      await refreshBossInstances();
 
       setBossAssignOpen(false);
       setSelectedBossTemplateId("");
@@ -229,15 +271,34 @@ const BossClasses = () => {
 
     try {
       await updateBossBattleInstance(instanceId, { status: "ABORTED" } as any);
-
-      const bossInstRes = await listBossBattleInstancesByClass(state!.class_id, {
-        limit: 100,
-      } as any);
-      const bossItems = (bossInstRes as any)?.items || [];
-      setBossInstances(bossItems as any);
+      await refreshBossInstances();
     } catch (e: any) {
       console.error("Failed to abort boss battle:", e);
       alert(e?.message || "Failed to abort boss battle");
+    }
+  };
+
+  const launchBossBattle = async (instance: BossBattleInstance) => {
+    const instanceId = getBossInstanceId(instance);
+    if (!instanceId) return;
+
+    try {
+      const now = new Date();
+
+      await updateBossBattleInstance(
+        instanceId,
+        {
+          status: "LOBBY",
+          lobby_opened_at: now.toISOString(),
+        } as any
+      );
+
+      await refreshBossInstances();
+
+      navigate(`/teacher/boss-lobby/${instanceId}`);
+    } catch (e: any) {
+      console.error("Failed to launch boss battle:", e);
+      alert(e?.message || "Failed to launch boss battle");
     }
   };
 
@@ -355,7 +416,7 @@ const BossClasses = () => {
       </nav>
 
       {/* Back button */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
         <Link
           to="/classes"
           className="inline-flex items-center bg-indigo-600 text-white border-2 border-indigo-600 rounded-md px-3 py-2 hover:bg-indigo-700"
@@ -363,6 +424,14 @@ const BossClasses = () => {
           <i data-feather="arrow-left" className="w-5 h-5 mr-2"></i>
           <span className="text-sm font-medium">Back</span>
         </Link>
+
+        <button
+          onClick={openBossAssignModal}
+          className="inline-flex items-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold"
+        >
+          <i data-feather="plus" className="w-4 h-4 mr-2"></i>
+          Assign Boss Battle
+        </button>
       </div>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
@@ -407,7 +476,7 @@ const BossClasses = () => {
               const title = tmpl ? safeStr(tmpl.title) : "Unknown Boss";
               const subject = tmpl ? safeStr(tmpl.subject) : "—";
               const desc = tmpl ? safeStr(tmpl.description) : "";
-              const hp = tmpl ? toInt(tmpl.max_hp, 0) : 0;
+              const initialHearts = toInt((inst as any).initial_boss_hp, 0);
               const xp = tmpl ? toInt(tmpl.base_xp_reward, 0) : 0;
               const gold = tmpl ? toInt(tmpl.base_gold_reward, 0) : 0;
 
@@ -415,7 +484,10 @@ const BossClasses = () => {
 
               return (
                 <div
-                  key={getBossInstanceId(inst) || `${bossTemplateId}-${safeStr((inst as any).created_at)}`}
+                  key={
+                    getBossInstanceId(inst) ||
+                    `${bossTemplateId}-${safeStr((inst as any).created_at)}`
+                  }
                   className="bg-white rounded-xl shadow-md overflow-hidden transition duration-300 hover:shadow-lg"
                 >
                   {/* Header */}
@@ -433,29 +505,51 @@ const BossClasses = () => {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <p className="text-xs font-semibold text-gray-500 uppercase">HP</p>
-                        <p className="text-gray-900 font-medium text-sm">{hp}</p>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">
+                          Boss Hearts
+                        </p>
+                        <p className="text-gray-900 font-medium text-sm">
+                          {initialHearts}
+                        </p>
                       </div>
                       <div>
-                        <p className="text-xs font-semibold text-gray-500 uppercase">Rewards</p>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">
+                          Rewards
+                        </p>
                         <p className="text-gray-900 font-medium text-sm">
                           + {xp} XP / {gold} Gold
                         </p>
                       </div>
                     </div>
 
-                    {/* Created / Updated */}
+                    {/* Battle Configuration */}
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-indigo-700 font-semibold">
+                          Battle Mode
+                        </span>
+                        <span className="text-gray-800 font-medium">
+                          {formatModeType((inst as any).mode_type)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-indigo-700 font-semibold">
+                          Questions Type
+                        </span>
+                        <span className="text-gray-800 font-medium">
+                          {formatQuestionSelectionMode(
+                            (inst as any).question_selection_mode
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Created */}
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                       <div className="flex justify-between text-sm">
                         <span className="text-blue-700 font-semibold">Created</span>
                         <span className="text-gray-800">
                           {formatDateTime((inst as any).created_at)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm mt-1">
-                        <span className="text-blue-700 font-semibold">Updated</span>
-                        <span className="text-gray-800">
-                          {formatDateTime((inst as any).updated_at)}
                         </span>
                       </div>
                     </div>
@@ -477,14 +571,24 @@ const BossClasses = () => {
                       </span>
                     </div>
 
-                    {/* Abort */}
-                    <button
-                      className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 transition"
-                      onClick={() => abortBossInstance(inst)}
-                    >
-                      <i data-feather="slash" className="w-4 h-4"></i>
-                      Abort Boss Battle
-                    </button>
+                    {/* Action Buttons */}
+                    <div className="space-y-2 pt-2">
+                      <button
+                        className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 transition"
+                        onClick={() => launchBossBattle(inst)}
+                      >
+                        <i data-feather="play-circle" className="w-4 h-4"></i>
+                        Open Lobby
+                      </button>
+
+                      <button
+                        className="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 transition"
+                        onClick={() => abortBossInstance(inst)}
+                      >
+                        <i data-feather="slash" className="w-4 h-4"></i>
+                        Abort Boss Battle
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -497,7 +601,9 @@ const BossClasses = () => {
           <div className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-start justify-center pt-20">
             <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Assign Boss Battle</h3>
+                <h3 className="text-lg font-medium text-gray-900">
+                  Assign Boss Battle
+                </h3>
                 <button
                   onClick={() => setBossAssignOpen(false)}
                   className="text-gray-500 hover:text-gray-700"
