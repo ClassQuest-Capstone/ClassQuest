@@ -1,18 +1,24 @@
 // src/pages/teacher/bossBattleMonitorTeacher.tsx
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import feather from "feather-icons";
 
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
 import { getTeacherProfile } from "../../api/teacherProfiles.js";
 
-import { getBossBattleInstance } from "../../api/bossBattleInstances/client.js";
+import {
+  getBossBattleInstance,
+  updateBossBattleInstance,
+} from "../../api/bossBattleInstances/client.js";
 import type { BossBattleInstance } from "../../api/bossBattleInstances/types.js";
 
 import { getBossBattleTemplate } from "../../api/bossBattleTemplates/client.js";
 import type { BossBattleTemplate } from "../../api/bossBattleTemplates/types.js";
 
-import { getBossQuestion } from "../../api/bossQuestions/client.js";
+import {
+  getBossQuestion,
+  listBossQuestionsByTemplate,
+} from "../../api/bossQuestions/client.js";
 import type { BossQuestion } from "../../api/bossQuestions/types.js";
 
 import { listBossBattleParticipants } from "../../api/bossBattleParticipants/client.js";
@@ -109,6 +115,28 @@ async function fetchAllGuildsByClass(classId: string) {
   return all;
 }
 
+async function fetchAllBossQuestionsByTemplate(bossTemplateId: string) {
+  const all: BossQuestion[] = [];
+  let cursor: string | undefined = undefined;
+
+  while (true) {
+    const res = await listBossQuestionsByTemplate(bossTemplateId, {
+      limit: 100,
+      cursor,
+    });
+
+    all.push(...(res.items || []));
+    cursor = res.nextToken || res.cursor;
+    if (!cursor) break;
+  }
+
+  return all.sort((a: any, b: any) => {
+    const ai = Number(a?.order_index ?? 0);
+    const bi = Number(b?.order_index ?? 0);
+    return ai - bi;
+  });
+}
+
 function formatDateTime(iso?: string) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -126,6 +154,48 @@ function getStatusPill(status?: string) {
   if (s === "COUNTDOWN") return "bg-blue-600";
   if (s === "LOBBY") return "bg-indigo-600";
   return "bg-yellow-600";
+}
+
+function getSecondsRemaining(endAt?: string | null) {
+  if (!endAt) return 0;
+  const end = new Date(endAt).getTime();
+  if (Number.isNaN(end)) return 0;
+  return Math.max(0, Math.ceil((end - Date.now()) / 1000));
+}
+
+function getQuestionDurationSeconds(question?: any, template?: any, instance?: any) {
+  const fromQuestion =
+    Number(question?.time_limit_seconds) > 0
+      ? Number(question.time_limit_seconds)
+      : Number(question?.duration_seconds) > 0
+      ? Number(question.duration_seconds)
+      : 0;
+
+  if (fromQuestion > 0) return fromQuestion;
+
+  const fromTemplate =
+    Number(template?.question_time_limit_seconds) > 0
+      ? Number(template.question_time_limit_seconds)
+      : Number(template?.time_limit_seconds) > 0
+      ? Number(template.time_limit_seconds)
+      : 0;
+
+  if (fromTemplate > 0) return fromTemplate;
+
+  const fromInstance =
+    Number(instance?.question_time_limit_seconds) > 0
+      ? Number(instance.question_time_limit_seconds)
+      : Number(instance?.speed_window_seconds) > 0
+      ? Number(instance.speed_window_seconds)
+      : 0;
+
+  if (fromInstance > 0) return fromInstance;
+
+  return 60;
+}
+
+function isoNowPlusSeconds(seconds: number) {
+  return new Date(Date.now() + seconds * 1000).toISOString();
 }
 
 export default function BossBattleMonitorTeacher() {
@@ -151,6 +221,9 @@ export default function BossBattleMonitorTeacher() {
   const [attempts, setAttempts] = useState<BossAnswerAttempt[]>([]);
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [nameMap, setNameMap] = useState<StudentNameMap>({});
+
+  const [transitioning, setTransitioning] = useState(false);
+  const transitionLockRef = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -228,6 +301,142 @@ export default function BossBattleMonitorTeacher() {
     }
   }, [bossInstanceId, teacherId]);
 
+  const activateQuestionAtIndex = useCallback(
+    async (inst: BossBattleInstance, tpl: BossBattleTemplate | null, nextIndex: number) => {
+      if (!inst?.boss_template_id) return false;
+
+      const allQuestions = await fetchAllBossQuestionsByTemplate(inst.boss_template_id);
+      if (!allQuestions.length) {
+        setError("This boss template has no questions, so the battle cannot start.");
+        return false;
+      }
+
+      const safeIndex = Math.max(0, Math.min(nextIndex, allQuestions.length - 1));
+      const nextQuestion = allQuestions[safeIndex];
+      const durationSeconds = getQuestionDurationSeconds(nextQuestion, tpl, inst);
+      const nowIso = new Date().toISOString();
+
+      await updateBossBattleInstance(inst.boss_instance_id, {
+      status: "QUESTION_ACTIVE" as any,
+      active_question_id: nextQuestion.question_id,
+      current_question_index: safeIndex,
+      question_started_at: nowIso,
+      question_ends_at: isoNowPlusSeconds(durationSeconds),
+    } as any);
+
+      return true;
+    },
+    []
+  );
+
+  const maybeAdvanceBattleState = useCallback(async () => {
+    if (!instance || transitionLockRef.current) return;
+    if (!bossInstanceId) return;
+
+    const status = String(instance.status || "").toUpperCase();
+
+    try {
+      // COUNTDOWN -> QUESTION_ACTIVE
+      if (status === "COUNTDOWN") {
+        const remaining = getSecondsRemaining((instance as any)?.countdown_end_at);
+        if (remaining <= 0) {
+          transitionLockRef.current = true;
+          setTransitioning(true);
+
+          const tpl =
+            template ||
+            (instance.boss_template_id
+              ? await getBossBattleTemplate(instance.boss_template_id).catch(() => null)
+              : null);
+
+          const success = await activateQuestionAtIndex(
+            instance,
+            tpl,
+            Number((instance as any)?.current_question_index ?? 0)
+          );
+
+          if (success) {
+            await refresh();
+          }
+        }
+        return;
+      }
+
+      // QUESTION_ACTIVE but somehow missing active_question_id
+      if (status === "QUESTION_ACTIVE" && !instance.active_question_id) {
+        transitionLockRef.current = true;
+        setTransitioning(true);
+
+        const tpl =
+          template ||
+          (instance.boss_template_id
+            ? await getBossBattleTemplate(instance.boss_template_id).catch(() => null)
+            : null);
+
+        const success = await activateQuestionAtIndex(
+          instance,
+          tpl,
+          Number((instance as any)?.current_question_index ?? 0)
+        );
+
+        if (success) {
+          await refresh();
+        }
+        return;
+      }
+
+      // INTERMISSION ended and no question is active yet -> move to next question
+      if (status === "INTERMISSION") {
+        const remaining = getSecondsRemaining((instance as any)?.intermission_ends_at);
+        if (remaining <= 0) {
+          transitionLockRef.current = true;
+          setTransitioning(true);
+
+          const tpl =
+            template ||
+            (instance.boss_template_id
+              ? await getBossBattleTemplate(instance.boss_template_id).catch(() => null)
+              : null);
+
+          const nextIndex = Number((instance as any)?.current_question_index ?? 0) + 1;
+          const allQuestions = instance.boss_template_id
+            ? await fetchAllBossQuestionsByTemplate(instance.boss_template_id)
+            : [];
+
+          if (!allQuestions.length) {
+            setError("No questions found for this boss template.");
+            return;
+          }
+
+          if (nextIndex >= allQuestions.length) {
+            await updateBossBattleInstance(instance.boss_instance_id, {
+              status: "COMPLETED" as any,
+              outcome: currentHp <= 0 ? "WIN" : "LOSE",
+              completed_at: new Date().toISOString(),
+              active_question_id: null as any,
+              question_ends_at: null as any,
+              intermission_ends_at: null as any,
+            } as any);
+
+            await refresh();
+            return;
+          }
+
+          const success = await activateQuestionAtIndex(instance, tpl, nextIndex);
+          if (success) {
+            await refresh();
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error("Failed to advance battle state:", err);
+      setError(err?.message || "Failed to advance battle state.");
+    } finally {
+      transitionLockRef.current = false;
+      setTransitioning(false);
+    }
+  }, [bossInstanceId, instance, template, refresh, activateQuestionAtIndex]);
+
   useEffect(() => {
     refresh();
   }, [refresh]);
@@ -241,8 +450,12 @@ export default function BossBattleMonitorTeacher() {
   }, [refresh]);
 
   useEffect(() => {
+    maybeAdvanceBattleState();
+  }, [maybeAdvanceBattleState]);
+
+  useEffect(() => {
     feather.replace();
-  }, [loading, instance, template, question, participants, attempts, guilds, error]);
+  }, [loading, instance, template, question, participants, attempts, guilds, error, transitioning]);
 
   const guildById = useMemo(() => {
     const m = new Map<string, Guild>();
@@ -376,7 +589,7 @@ export default function BossBattleMonitorTeacher() {
 
         <button
           onClick={refresh}
-          disabled={loading}
+          disabled={loading || transitioning}
           className="inline-flex items-center bg-blue-600 text-white border-2 border-blue-600 rounded-md px-3 py-2 hover:bg-blue-700 disabled:opacity-60"
         >
           <i data-feather="refresh-cw" className="w-5 h-5 mr-2"></i>
@@ -408,6 +621,11 @@ export default function BossBattleMonitorTeacher() {
               Status:{" "}
               <span className="font-bold">{instance?.status || "Loading..."}</span>
             </div>
+            {transitioning ? (
+              <div className="mt-1 text-xs font-semibold text-purple-600">
+                Advancing battle...
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -537,6 +755,35 @@ export default function BossBattleMonitorTeacher() {
                   </div>
                   <div className="mt-2 text-sm font-semibold text-gray-900">
                     {formatDateTime(instance.updated_at)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="rounded-lg border p-4">
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest">
+                    QUESTION STARTED
+                  </div>
+                  <div className="mt-2 text-sm font-semibold text-gray-900">
+                    {formatDateTime((instance as any)?.question_started_at)}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border p-4">
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest">
+                    QUESTION ENDS
+                  </div>
+                  <div className="mt-2 text-sm font-semibold text-gray-900">
+                    {formatDateTime((instance as any)?.question_ends_at)}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border p-4">
+                  <div className="text-xs text-gray-500 font-semibold tracking-widest">
+                    CURRENT INDEX
+                  </div>
+                  <div className="mt-2 text-sm font-semibold text-gray-900">
+                    {Number((instance as any)?.current_question_index ?? 0)}
                   </div>
                 </div>
               </div>
