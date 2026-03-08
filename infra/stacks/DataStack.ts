@@ -72,6 +72,7 @@ export function DataStack(ctx: StackContext) {
             bossResultsTable: tables.bossResultsTable.tableName,
             bossBattleSnapshotsTable: tables.bossBattleSnapshotsTable.tableName,
             bossBattleQuestionPlansTable: tables.bossBattleQuestionPlansTable.tableName,
+            rewardMilestonesTable: tables.rewardMilestonesTable.tableName,
         },
         tableArns: {
             usersTable: tables.usersTable.tableArn,
@@ -97,6 +98,7 @@ export function DataStack(ctx: StackContext) {
             bossResultsTable: tables.bossResultsTable.tableArn,
             bossBattleSnapshotsTable: tables.bossBattleSnapshotsTable.tableArn,
             bossBattleQuestionPlansTable: tables.bossBattleQuestionPlansTable.tableArn,
+            rewardMilestonesTable: tables.rewardMilestonesTable.tableArn,
         },
     };
 }

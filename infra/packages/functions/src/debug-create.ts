@@ -1,3 +1,6 @@
+// This is a simple debug function to test that we can write to DynamoDB from our Lambda functions.
+// It is not intended to be used for anything else, and can be invoked with any HTTP client (e.g. curl, Postman) or from the browser.
+
 import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { DynamoDBClient, PutItemCommand } from "@aws-sdk/client-dynamodb";
 

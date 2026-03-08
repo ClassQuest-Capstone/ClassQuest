@@ -20,6 +20,7 @@ type StudentApiStackProps = {
         guildMembershipsTable: string;
         bossQuestionsTable: string;
         bossBattleTemplatesTable: string;
+        rewardMilestonesTable: string;
     };
     tableArns: {
         usersTable: string;
@@ -37,6 +38,7 @@ type StudentApiStackProps = {
         guildMembershipsTable: string;
         bossQuestionsTable: string;
         bossBattleTemplatesTable: string;
+        rewardMilestonesTable: string;
     };
     userPoolId: string;
     userPoolArn: string;
@@ -64,6 +66,9 @@ export function StudentApiStack(ctx: StackContext, props: StudentApiStackProps) 
         "PUT /classes/{class_id}/players/{student_id}/state": { method: "PUT", path: "/classes/{class_id}/players/{student_id}/state" },
         "GET /classes/{class_id}/players/{student_id}/state": { method: "GET", path: "/classes/{class_id}/players/{student_id}/state" },
         "GET /classes/{class_id}/leaderboard": { method: "GET", path: "/classes/{class_id}/leaderboard" },
+
+        // RewardMilestones (student view)
+        "GET /student/classes/{class_id}/rewards": { method: "GET", path: "/student/classes/{class_id}/rewards" },
     };
 
     // ── ROUTER LAMBDA (replaces individual Lambdas) ──────────────────────────
@@ -87,6 +92,7 @@ export function StudentApiStack(ctx: StackContext, props: StudentApiStackProps) 
             GUILD_MEMBERSHIPS_TABLE_NAME:             tableNames.guildMembershipsTable,
             BOSS_QUESTIONS_TABLE_NAME:                tableNames.bossQuestionsTable,
             BOSS_BATTLE_TEMPLATES_TABLE_NAME:         tableNames.bossBattleTemplatesTable,
+            REWARD_MILESTONES_TABLE_NAME:             tableNames.rewardMilestonesTable,
             USER_POOL_ID:                             userPoolId,
         },
         timeout: 30,

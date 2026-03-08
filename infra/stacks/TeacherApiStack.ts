@@ -20,6 +20,7 @@ type TeacherApiStackProps = {
         guildMembershipsTable: string;
         bossQuestionsTable: string;
         bossBattleTemplatesTable: string;
+        rewardMilestonesTable: string;
     };
     tableArns: {
         usersTable: string;
@@ -37,6 +38,7 @@ type TeacherApiStackProps = {
         guildMembershipsTable: string;
         bossQuestionsTable: string;
         bossBattleTemplatesTable: string;
+        rewardMilestonesTable: string;
     };
     userPoolId: string;
     userPoolArn: string;
@@ -99,6 +101,16 @@ export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) 
         "GET /guilds/{guild_id}/members": { method: "GET", path: "/guilds/{guild_id}/members" },
         "GET /students/{student_id}/guild-memberships": { method: "GET", path: "/students/{student_id}/guild-memberships" },
         "PATCH /classes/{class_id}/guild-memberships/{student_id}/leave": { method: "PATCH", path: "/classes/{class_id}/guild-memberships/{student_id}/leave" },
+
+        // RewardMilestones
+        "POST /teacher/rewards":                                   { method: "POST",   path: "/teacher/rewards" },
+        "GET /teacher/rewards/{reward_id}":                        { method: "GET",    path: "/teacher/rewards/{reward_id}" },
+        "GET /teacher/classes/{class_id}/rewards":                 { method: "GET",    path: "/teacher/classes/{class_id}/rewards" },
+        "GET /teacher/rewards":                                    { method: "GET",    path: "/teacher/rewards" },
+        "PUT /teacher/rewards/{reward_id}":                        { method: "PUT",    path: "/teacher/rewards/{reward_id}" },
+        "PATCH /teacher/rewards/{reward_id}/status":               { method: "PATCH",  path: "/teacher/rewards/{reward_id}/status" },
+        "DELETE /teacher/rewards/{reward_id}":                     { method: "DELETE", path: "/teacher/rewards/{reward_id}" },
+        "PATCH /teacher/rewards/{reward_id}/restore":              { method: "PATCH",  path: "/teacher/rewards/{reward_id}/restore" },
     };
 
     // ── ROUTER LAMBDA (replaces individual Lambdas) ──────────────────────────
@@ -122,6 +134,7 @@ export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) 
             GUILD_MEMBERSHIPS_TABLE_NAME:             tableNames.guildMembershipsTable,
             BOSS_QUESTIONS_TABLE_NAME:                tableNames.bossQuestionsTable,
             BOSS_BATTLE_TEMPLATES_TABLE_NAME:         tableNames.bossBattleTemplatesTable,
+            REWARD_MILESTONES_TABLE_NAME:             tableNames.rewardMilestonesTable,
             USER_POOL_ID:                             userPoolId,
         },
         timeout: 30,

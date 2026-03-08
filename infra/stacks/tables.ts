@@ -1,4 +1,5 @@
 import { StackContext, Table } from "sst/constructs";
+import { RemovalPolicy } from "aws-cdk-lib";
 
 export function createTables(ctx: StackContext) {
     const { stack } = ctx;
@@ -476,6 +477,57 @@ export function createTables(ctx: StackContext) {
         },
     });
 
+    // RewardMilestones table - level-based cosmetic rewards that unlock for students
+    //
+    // Attributes (all stored dynamically; only index keys declared in `fields`):
+    //   reward_id               (string)  PK — UUID
+    //   class_id                (string)  GSI1 PK
+    //   unlock_sort             (string)  GSI1 SK — "ACTIVE#00005#HELMET#reward_id"
+    //                                     format guarantees: active-first grouping,
+    //                                     correct numeric level sort, type, stable id suffix
+    //   created_by_teacher_id   (string)  GSI2 PK
+    //   teacher_sort            (string)  GSI2 SK — "class_id#ACTIVE#00005#reward_id"
+    //   title                   (string)
+    //   description             (string)
+    //   unlock_level            (number)
+    //   type                    (string)  e.g. "HELMET", "ARMOR_SET"
+    //   reward_target_type      (string)  e.g. "AVATAR"
+    //   reward_target_id        (string)
+    //   image_asset_path        (string)
+    //   is_active               (boolean)
+    //   is_deleted              (boolean)
+    //   created_at              (string)  ISO timestamp
+    //   updated_at              (string)  ISO timestamp
+    //   deleted_at              (string)  ISO timestamp — optional, set on soft-delete
+    //   updated_by_teacher_id   (string)  optional
+    //   notes                   (string)  optional
+    const rewardMilestonesTable = new Table(stack, "RewardMilestones", {
+        fields: {
+            reward_id:              "string",  // PK
+            class_id:               "string",  // GSI1 PK
+            unlock_sort:            "string",  // GSI1 SK: ACTIVE#00005#TYPE#reward_id
+            created_by_teacher_id:  "string",  // GSI2 PK
+            teacher_sort:           "string",  // GSI2 SK: class_id#ACTIVE#00005#reward_id
+        },
+        primaryIndex: { partitionKey: "reward_id" },
+        globalIndexes: {
+            GSI1: {  // rewards by class, ordered by unlock level
+                partitionKey: "class_id",
+                sortKey: "unlock_sort",
+            },
+            GSI2: {  // rewards created by a teacher (across classes)
+                partitionKey: "created_by_teacher_id",
+                sortKey: "teacher_sort",
+            },
+        },
+        cdk: {
+            table: {
+                pointInTimeRecovery: true,
+                removalPolicy: RemovalPolicy.RETAIN,
+            },
+        },
+    });
+
     // BossBattleQuestionPlans table - deterministic question sequences
     const bossBattleQuestionPlansTable = new Table(stack, "BossBattleQuestionPlans", {
         fields: {
@@ -518,5 +570,6 @@ export function createTables(ctx: StackContext) {
         bossResultsTable,
         bossBattleSnapshotsTable,
         bossBattleQuestionPlansTable,
+        rewardMilestonesTable,
     };
 }

@@ -49,6 +49,16 @@ import { handler as gmListByGuild }                 from "../guildMemberships/li
 import { handler as gmListByStudent }               from "../guildMemberships/list-by-student.js";
 import { handler as gmLeave }                       from "../guildMemberships/leave.js";
 
+// RewardMilestones
+import { handler as rmCreate }                      from "../rewardMilestones/create.js";
+import { handler as rmGet }                         from "../rewardMilestones/get.js";
+import { handler as rmListByClass }                 from "../rewardMilestones/list-by-class.js";
+import { handler as rmListByTeacher }               from "../rewardMilestones/list-by-teacher.js";
+import { handler as rmUpdate }                      from "../rewardMilestones/update.js";
+import { handler as rmSetStatus }                   from "../rewardMilestones/set-status.js";
+import { handler as rmSoftDelete }                  from "../rewardMilestones/soft-delete.js";
+import { handler as rmRestore }                     from "../rewardMilestones/restore.js";
+
 // Dispatch table: keys must exactly match the routeKey API Gateway sets on event.routeKey
 const ROUTES: Record<string, (event: any) => Promise<any>> = {
     // Schools
@@ -97,6 +107,16 @@ const ROUTES: Record<string, (event: any) => Promise<any>> = {
     "GET /guilds/{guild_id}/members":                                        gmListByGuild,
     "GET /students/{student_id}/guild-memberships":                          gmListByStudent,
     "PATCH /classes/{class_id}/guild-memberships/{student_id}/leave":        gmLeave,
+
+    // RewardMilestones
+    "POST /teacher/rewards":                                                  rmCreate,
+    "GET /teacher/rewards/{reward_id}":                                       rmGet,
+    "GET /teacher/classes/{class_id}/rewards":                                rmListByClass,
+    "GET /teacher/rewards":                                                   rmListByTeacher,
+    "PUT /teacher/rewards/{reward_id}":                                       rmUpdate,
+    "PATCH /teacher/rewards/{reward_id}/status":                              rmSetStatus,
+    "DELETE /teacher/rewards/{reward_id}":                                    rmSoftDelete,
+    "PATCH /teacher/rewards/{reward_id}/restore":                             rmRestore,
 };
 
 export const handler = async (event: any): Promise<any> => {

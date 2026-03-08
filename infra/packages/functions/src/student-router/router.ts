@@ -14,6 +14,9 @@ import { handler as psUpsert }          from "../playerStates/upsert-state.js";
 import { handler as psGet }             from "../playerStates/get.js";
 import { handler as psLeaderboard }     from "../playerStates/get-leaderboard.js";
 
+// RewardMilestones (student view)
+import { handler as rmStudentList }     from "../rewardMilestones/list-student-rewards.js";
+
 // Dispatch table: keys must exactly match the routeKey API Gateway sets on event.routeKey
 const ROUTES: Record<string, (event: any) => Promise<any>> = {
     // StudentProfiles
@@ -27,6 +30,9 @@ const ROUTES: Record<string, (event: any) => Promise<any>> = {
     "PUT /classes/{class_id}/players/{student_id}/state":              psUpsert,
     "GET /classes/{class_id}/players/{student_id}/state":              psGet,
     "GET /classes/{class_id}/leaderboard":                             psLeaderboard,
+
+    // RewardMilestones (student view)
+    "GET /student/classes/{class_id}/rewards":                         rmStudentList,
 };
 
 export const handler = async (event: any): Promise<any> => {
