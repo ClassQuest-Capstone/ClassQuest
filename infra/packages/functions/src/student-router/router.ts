@@ -17,6 +17,11 @@ import { handler as psLeaderboard }     from "../playerStates/get-leaderboard.js
 // RewardMilestones (student view)
 import { handler as rmStudentList }     from "../rewardMilestones/list-student-rewards.js";
 
+// StudentRewardClaims (student routes)
+import { handler as srcListByStudent }  from "../studentRewardClaims/list-by-student.js";
+import { handler as srcClaimReward }    from "../studentRewardClaims/claim-reward.js";
+import { handler as srcRewardsState }   from "../studentRewardClaims/rewards-state.js";
+
 // Dispatch table: keys must exactly match the routeKey API Gateway sets on event.routeKey
 const ROUTES: Record<string, (event: any) => Promise<any>> = {
     // StudentProfiles
@@ -33,6 +38,11 @@ const ROUTES: Record<string, (event: any) => Promise<any>> = {
 
     // RewardMilestones (student view)
     "GET /student/classes/{class_id}/rewards":                         rmStudentList,
+
+    // StudentRewardClaims (student routes)
+    "GET /student/classes/{class_id}/reward-claims":                   srcListByStudent,
+    "POST /student/rewards/{reward_id}/claim":                         srcClaimReward,
+    "GET /student/classes/{class_id}/rewards-state":                   srcRewardsState,
 };
 
 export const handler = async (event: any): Promise<any> => {

@@ -21,6 +21,7 @@ type TeacherApiStackProps = {
         bossQuestionsTable: string;
         bossBattleTemplatesTable: string;
         rewardMilestonesTable: string;
+        studentRewardClaimsTable: string;
     };
     tableArns: {
         usersTable: string;
@@ -39,6 +40,7 @@ type TeacherApiStackProps = {
         bossQuestionsTable: string;
         bossBattleTemplatesTable: string;
         rewardMilestonesTable: string;
+        studentRewardClaimsTable: string;
     };
     userPoolId: string;
     userPoolArn: string;
@@ -111,6 +113,12 @@ export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) 
         "PATCH /teacher/rewards/{reward_id}/status":               { method: "PATCH",  path: "/teacher/rewards/{reward_id}/status" },
         "DELETE /teacher/rewards/{reward_id}":                     { method: "DELETE", path: "/teacher/rewards/{reward_id}" },
         "PATCH /teacher/rewards/{reward_id}/restore":              { method: "PATCH",  path: "/teacher/rewards/{reward_id}/restore" },
+
+        // StudentRewardClaims (internal/admin routes)
+        "POST /internal/student-reward-claims":                                          { method: "POST", path: "/internal/student-reward-claims" },
+        "GET /internal/student-reward-claims/{claim_id}":                                { method: "GET",  path: "/internal/student-reward-claims/{claim_id}" },
+        "GET /internal/students/{student_id}/reward-claims":                             { method: "GET",  path: "/internal/students/{student_id}/reward-claims" },
+        "POST /internal/students/{student_id}/reward-claims/level-up-sync":              { method: "POST", path: "/internal/students/{student_id}/reward-claims/level-up-sync" },
     };
 
     // ── ROUTER LAMBDA (replaces individual Lambdas) ──────────────────────────
@@ -135,6 +143,7 @@ export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) 
             BOSS_QUESTIONS_TABLE_NAME:                tableNames.bossQuestionsTable,
             BOSS_BATTLE_TEMPLATES_TABLE_NAME:         tableNames.bossBattleTemplatesTable,
             REWARD_MILESTONES_TABLE_NAME:             tableNames.rewardMilestonesTable,
+            STUDENT_REWARD_CLAIMS_TABLE_NAME:         tableNames.studentRewardClaimsTable,
             USER_POOL_ID:                             userPoolId,
         },
         timeout: 30,

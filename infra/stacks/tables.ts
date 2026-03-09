@@ -528,6 +528,49 @@ export function createTables(ctx: StackContext) {
         },
     });
 
+    // StudentRewardClaims table - per-student claim state for reward milestones
+    //
+    // Attributes (all stored dynamically; only index keys declared in `fields`):
+    //   student_reward_claim_id  (string)  PK — UUID
+    //   student_id               (string)  GSI1 PK
+    //   claim_sort               (string)  GSI1 SK — "{AVAILABLE|CLAIMED}#{class_id}#{level_5d}#{reward_id}"
+    //   reward_id                (string)  GSI2 PK
+    //   class_id                 (string)
+    //   status                   (string)  AVAILABLE | CLAIMED
+    //   unlocked_at_level        (number)
+    //   unlocked_at              (string)  ISO timestamp — set when AVAILABLE
+    //   claimed_at               (string)  ISO timestamp — set when CLAIMED
+    //   reward_target_type       (string)  optional
+    //   reward_target_id         (string)  optional
+    //   created_at               (string)  ISO timestamp
+    //   updated_at               (string)  ISO timestamp
+    //   notes                    (string)  optional
+    const studentRewardClaimsTable = new Table(stack, "StudentRewardClaims", {
+        fields: {
+            student_reward_claim_id: "string",  // PK
+            student_id:              "string",  // GSI1 PK & GSI2 SK
+            claim_sort:              "string",  // GSI1 SK: {status}#{class_id}#{level_5d}#{reward_id}
+            reward_id:               "string",  // GSI2 PK
+        },
+        primaryIndex: { partitionKey: "student_reward_claim_id" },
+        globalIndexes: {
+            GSI1: {  // list all rewards for one student, sorted by status/class/level
+                partitionKey: "student_id",
+                sortKey: "claim_sort",
+            },
+            GSI2: {  // duplicate check: find existing claim for student + reward
+                partitionKey: "reward_id",
+                sortKey: "student_id",
+            },
+        },
+        cdk: {
+            table: {
+                pointInTimeRecovery: true,
+                removalPolicy: RemovalPolicy.RETAIN,
+            },
+        },
+    });
+
     // BossBattleQuestionPlans table - deterministic question sequences
     const bossBattleQuestionPlansTable = new Table(stack, "BossBattleQuestionPlans", {
         fields: {
@@ -571,5 +614,6 @@ export function createTables(ctx: StackContext) {
         bossBattleSnapshotsTable,
         bossBattleQuestionPlansTable,
         rewardMilestonesTable,
+        studentRewardClaimsTable,
     };
 }

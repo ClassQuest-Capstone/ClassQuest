@@ -49,6 +49,12 @@ import { handler as gmListByGuild }                 from "../guildMemberships/li
 import { handler as gmListByStudent }               from "../guildMemberships/list-by-student.js";
 import { handler as gmLeave }                       from "../guildMemberships/leave.js";
 
+// StudentRewardClaims (internal/admin routes)
+import { handler as srcCreate }                     from "../studentRewardClaims/create.js";
+import { handler as srcGet }                        from "../studentRewardClaims/get.js";
+import { handler as srcListInternal }               from "../studentRewardClaims/list-internal.js";
+import { handler as srcLevelUpSync }                from "../studentRewardClaims/level-up-sync.js";
+
 // RewardMilestones
 import { handler as rmCreate }                      from "../rewardMilestones/create.js";
 import { handler as rmGet }                         from "../rewardMilestones/get.js";
@@ -107,6 +113,12 @@ const ROUTES: Record<string, (event: any) => Promise<any>> = {
     "GET /guilds/{guild_id}/members":                                        gmListByGuild,
     "GET /students/{student_id}/guild-memberships":                          gmListByStudent,
     "PATCH /classes/{class_id}/guild-memberships/{student_id}/leave":        gmLeave,
+
+    // StudentRewardClaims (internal/admin routes)
+    "POST /internal/student-reward-claims":                                          srcCreate,
+    "GET /internal/student-reward-claims/{claim_id}":                                srcGet,
+    "GET /internal/students/{student_id}/reward-claims":                             srcListInternal,
+    "POST /internal/students/{student_id}/reward-claims/level-up-sync":              srcLevelUpSync,
 
     // RewardMilestones
     "POST /teacher/rewards":                                                  rmCreate,

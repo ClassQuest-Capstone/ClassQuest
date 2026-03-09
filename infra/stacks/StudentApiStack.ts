@@ -21,6 +21,7 @@ type StudentApiStackProps = {
         bossQuestionsTable: string;
         bossBattleTemplatesTable: string;
         rewardMilestonesTable: string;
+        studentRewardClaimsTable: string;
     };
     tableArns: {
         usersTable: string;
@@ -39,6 +40,7 @@ type StudentApiStackProps = {
         bossQuestionsTable: string;
         bossBattleTemplatesTable: string;
         rewardMilestonesTable: string;
+        studentRewardClaimsTable: string;
     };
     userPoolId: string;
     userPoolArn: string;
@@ -69,6 +71,11 @@ export function StudentApiStack(ctx: StackContext, props: StudentApiStackProps) 
 
         // RewardMilestones (student view)
         "GET /student/classes/{class_id}/rewards": { method: "GET", path: "/student/classes/{class_id}/rewards" },
+
+        // StudentRewardClaims (student routes)
+        "GET /student/classes/{class_id}/reward-claims":  { method: "GET",  path: "/student/classes/{class_id}/reward-claims" },
+        "POST /student/rewards/{reward_id}/claim":        { method: "POST", path: "/student/rewards/{reward_id}/claim" },
+        "GET /student/classes/{class_id}/rewards-state":  { method: "GET",  path: "/student/classes/{class_id}/rewards-state" },
     };
 
     // ── ROUTER LAMBDA (replaces individual Lambdas) ──────────────────────────
@@ -93,6 +100,7 @@ export function StudentApiStack(ctx: StackContext, props: StudentApiStackProps) 
             BOSS_QUESTIONS_TABLE_NAME:                tableNames.bossQuestionsTable,
             BOSS_BATTLE_TEMPLATES_TABLE_NAME:         tableNames.bossBattleTemplatesTable,
             REWARD_MILESTONES_TABLE_NAME:             tableNames.rewardMilestonesTable,
+            STUDENT_REWARD_CLAIMS_TABLE_NAME:         tableNames.studentRewardClaimsTable,
             USER_POOL_ID:                             userPoolId,
         },
         timeout: 30,
