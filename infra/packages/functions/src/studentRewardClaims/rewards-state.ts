@@ -1,6 +1,7 @@
 import { listRewardMilestonesByClass } from "../rewardMilestones/repo.js";
 import { listStudentRewardClaimsByStudentAndClass } from "./repo.ts";
 import { getPlayerState } from "../playerStates/repo.js";
+import { getLevelFromXP } from "../shared/xp-progression.js";
 
 /**
  * GET /student/classes/{class_id}/rewards-state
@@ -51,10 +52,10 @@ export const handler = async (event: any) => {
     }
 
     try {
-        // 1. Derive student level from PlayerStates
+        // 1. Derive student level from PlayerStates using the same formula as frontend was wrong before
         const playerState = await getPlayerState(class_id, student_id);
         const student_level = playerState
-            ? Math.floor(playerState.total_xp_earned / 100) + 1
+            ? getLevelFromXP(playerState.total_xp_earned)
             : 1;
 
         // 2. Get all active, non-deleted reward milestones for the class

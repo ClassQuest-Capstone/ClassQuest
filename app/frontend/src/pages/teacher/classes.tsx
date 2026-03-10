@@ -13,6 +13,7 @@ import {
 
 import { getTeacherProfile } from "../../api/teacherProfiles.js";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
+import ProfileModal from "../features/teacher/ProfileModal.js";
 
 // Teacher interface
 type TeacherUser = {
@@ -101,6 +102,7 @@ const Classes = () => {
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const activeClasses = useMemo(
     () => classes.filter((c) => c.is_active !== false),
@@ -253,14 +255,14 @@ const Classes = () => {
               <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Quests</Link>
               <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Activity</Link>
               <Link to="/teacherGuilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Guilds</Link>
-              <Link to="/profile" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Profile</Link>
               <DropDownProfile
-                                    username={teacher?.displayName || "user"}
-                                    onLogout={() => {
-                                      localStorage.removeItem("cq_currentUser");
-                                      navigate("/TeacherLogin");
-                                    }}
-                                  />
+                                      username={teacher?.displayName || "user"}
+                                      onLogout={() => {
+                                        localStorage.removeItem("cq_currentUser");
+                                        navigate("/TeacherLogin");
+                                      }}
+                                      onProfileClick={() => setIsProfileModalOpen(true)}
+                                    />
             </div>
 
             <div className="-mr-2 flex items-center md:hidden">
@@ -425,7 +427,7 @@ const Classes = () => {
                         )}
                     >
                       <i data-feather="gift" className="mr-1 w-4 h-4"></i>{" "}
-                      Rewards
+                      Shop Items
                     </button>
 
                     <button
@@ -553,6 +555,14 @@ const Classes = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Profile Modal */}
+       {isProfileModalOpen && (
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
       )}
     </div>
   );

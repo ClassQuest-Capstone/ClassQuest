@@ -1,5 +1,9 @@
-import { getStudentRewardClaimByRewardAndStudent, updateStudentRewardClaimStatus } from "./repo.ts";
+import { randomUUID } from "crypto";
+import { getStudentRewardClaimByRewardAndStudent, updateStudentRewardClaimStatus, createStudentRewardClaim } from "./repo.ts";
+import { getRewardMilestoneById } from "../rewardMilestones/repo.ts";
+import { getPlayerState } from "../playerStates/repo.ts";
 import { buildClaimSort } from "./keys.ts";
+import type { StudentRewardClaimItem } from "./types.ts";
 
 /**
  * POST /student/rewards/{reward_id}/claim
@@ -43,17 +47,67 @@ export const handler = async (event: any) => {
 
     try {
         // Look up the claim row for this student + reward
-        const claim = await getStudentRewardClaimByRewardAndStudent(reward_id, student_id);
+        let claim = await getStudentRewardClaimByRewardAndStudent(reward_id, student_id);
+        
+        // Auto-create claim if it doesn't exist yet (handles backfill scenarios)
         if (!claim) {
-            return {
-                statusCode: 404,
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({
-                    error: "CLAIM_NOT_FOUND",
-                    message: "No reward claim found for this student and reward. " +
-                        "The student may not have reached the required level yet.",
-                }),
+            console.log(`Claim not found for ${reward_id}/${student_id}. Attempting auto-create.`);
+            
+            // Verify the reward exists
+            const reward = await getRewardMilestoneById(reward_id);
+            if (!reward) {
+                return {
+                    statusCode: 404,
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({
+                        error: "REWARD_NOT_FOUND",
+                        message: "Reward does not exist",
+                    }),
+                };
+            }
+
+            // Verify the student's level >= reward unlock level
+            const playerState = await getPlayerState(class_id, student_id);
+            const studentLevel = playerState
+                ? Math.floor(playerState.total_xp_earned / 100) + 1
+                : 1;
+
+            if (studentLevel < reward.unlock_level) {
+                return {
+                    statusCode: 403,
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({
+                        error: "LEVEL_NOT_REACHED",
+                        message: `Student level ${studentLevel} is below required level ${reward.unlock_level}`,
+                        required_level: reward.unlock_level,
+                        current_level: studentLevel,
+                    }),
+                };
+            }
+
+            // Auto-create the AVAILABLE claim
+            const now = new Date().toISOString();
+            claim = {
+                student_reward_claim_id: randomUUID(),
+                student_id,
+                class_id,
+                reward_id,
+                status: "AVAILABLE",
+                unlocked_at_level: reward.unlock_level,
+                claim_sort: buildClaimSort(
+                    "AVAILABLE",
+                    class_id,
+                    reward.unlock_level,
+                    reward_id
+                ),
+                unlocked_at: now,
+                reward_target_type: reward.reward_target_type,
+                reward_target_id: reward.reward_target_id,
+                created_at: now,
+                updated_at: now,
             };
+            await createStudentRewardClaim(claim);
+            console.log(`Auto-created claim for ${reward_id}/${student_id}`);
         }
 
         if (claim.status === "CLAIMED") {

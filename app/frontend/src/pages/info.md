@@ -84,11 +84,11 @@ Current TODO:
 4. adding quests to students side (DONE)
 5. adding quests to teachers side (DONE)
 6. adding students to classes alongside their xp, gold and level to make this editable(DONE)
-7. adding rewards to classes & creating custom rewards for classes
-8. Boss Battle students side 
-9. Leaderboards teachers side
-10. Leader boards students side
-11. Student's shop
+7. adding rewards to classes & creating custom rewards for classes 
+8. Boss Battle students side (Almost DONE)
+9. Leaderboards teachers side (DONE)
+10. Leader boards students side (DONE)
+11. Student's shop 
 
 
 Dynamic (TODO:)
@@ -153,20 +153,30 @@ TODO: Remove archived quests from ClassQuest.tsx (Almost DONE)
 
 TODO: Connect template to class and have it show up under class/boss-battles (DONE)
 
-TODO: modify boss battle section in class.tsx to follow  implementation logic
+TODO: modify boss battle section in class.tsx to follow  implementation logic 
 
 TODO: Boss battle implementation for teachers & students side (IN PROGRESS) Boss battle participants should be used as students wait room grouped by guild
 
-TODO: count down on boss battle when its scheduled
+TODO: count down on boss battle when its scheduled (DONE)
 
 TODO: Assist alvin with boss battle and correct minor errors in student tutorial, editing quest question 
 
 TODO: launch logic for boss battle
-students load on waiting screen awaiting teachers to click start 
+students load on waiting screen awaiting teachers to click start (DONE)
 
-TODO: Students join waiting room, each guild should only show active players (only ones with rewards) this should happen when the click join fighr on guilds page using modal then on modal when teacher clicks start battle it auto directs to bossfight page.
+TODO: Students join waiting room, each guild should only show active players (only ones with rewards) this should happen when the click join fighr on guilds page using modal then on modal when teacher clicks start battle it auto directs to bossfight page. (DONE)
 
-each vote on answers
+TODO: boss avatar showing on page and herats alongside students avatar (DONE)
+
+TODO: remove gold on rewards only unlock for level (DONE)
+
+TODO: once claimed button should remain as owned (DONE)
+
+TODO: teacher inclass rewards for shop & add to students shop modify UI (DONE)
+
+TODO:each vote on answers 
+
+TODO: make shop items avaliable to students and not avaliable button to launch to shop?
 
 view guilds perfromance at end like kahoot 
 

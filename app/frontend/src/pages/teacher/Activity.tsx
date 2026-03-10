@@ -7,6 +7,7 @@ import ActivityCard from "../features/teacher/ActivityCard.js";
 import ClassLeaderboard from "../features/teacher/ClassLeaderboard.js";
 import { useTeacherActivity, ActivityCategory } from "../hooks/teacher/useTeacherActivity.js";
 import { listClassesByTeacher, type ClassItem } from "../../api/classes.js";
+import ProfileModal from "../features/teacher/ProfileModal.js";
 
 type TeacherUser = {
   id: string;
@@ -35,6 +36,7 @@ const ActivityPage = () => {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [classesLoading, setClassesLoading] = useState(false);
   const [classesError, setClassesError] = useState<string | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Load teacher data from localStorage
   useEffect(() => {
@@ -115,14 +117,14 @@ const ActivityPage = () => {
                       <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Quests</Link>
                       <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900">Activity</Link>
                       <Link to="/teacherGuilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Guilds</Link>
-                      <Link to="/profile" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Profile</Link>
                       <DropDownProfile
-                                            username={teacher?.displayName || "user"}
-                                            onLogout={() => {
-                                              localStorage.removeItem("cq_currentUser");
-                                              navigate("/TeacherLogin");
-                                            }}
-                                          />
+                                      username={teacher?.displayName || "user"}
+                                      onLogout={() => {
+                                        localStorage.removeItem("cq_currentUser");
+                                        navigate("/TeacherLogin");
+                                      }}
+                                      onProfileClick={() => setIsProfileModalOpen(true)}
+                                    />
                     </div>
                   </div>
                 </div> 
@@ -230,6 +232,11 @@ const ActivityPage = () => {
           </div>
         )}
       </main>
+         {/* Profile Modal */}
+          <ProfileModal
+            isOpen={isProfileModalOpen}
+            onClose={() => setIsProfileModalOpen(false)}
+          />
     </div>
   );
 };

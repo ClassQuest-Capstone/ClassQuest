@@ -20,6 +20,7 @@ import {
 import type { BossBattleTemplate as BossBattleTemplate } from "../../api/bossBattleTemplates/types.js";
 
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
+import ProfileModal from "../features/teacher/ProfileModal.js";
 
 // Utility to convert string input to int
 function toInt(val: unknown, fallback = 0) {
@@ -95,7 +96,7 @@ const BossClasses = () => {
   const [bossAssignOpen, setBossAssignOpen] = useState(false);
   const [selectedBossTemplateId, setSelectedBossTemplateId] = useState<string>("");
   const [bossAssigning, setBossAssigning] = useState(false);
-
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [teacher, setTeacher] = useState<TeacherUser | null>(null);
 
   useEffect(() => {
@@ -391,19 +392,14 @@ const BossClasses = () => {
               >
                 Guilds
               </Link>
-              <Link
-                to="/profile"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
-                Profile
-              </Link>
-              <DropDownProfile
-                username={teacher?.displayName || "user"}
-                onLogout={() => {
-                  localStorage.removeItem("cq_currentUser");
-                  navigate("/TeacherLogin");
-                }}
-              />
+               <DropDownProfile
+                                      username={teacher?.displayName || "user"}
+                                      onLogout={() => {
+                                        localStorage.removeItem("cq_currentUser");
+                                        navigate("/TeacherLogin");
+                                      }}
+                                      onProfileClick={() => setIsProfileModalOpen(true)}
+                                    />
             </div>
 
             <div className="-mr-2 flex items-center md:hidden">
@@ -627,10 +623,10 @@ const BossClasses = () => {
                     <select
                       value={selectedBossTemplateId}
                       onChange={(e) => setSelectedBossTemplateId(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900"
                       disabled={bossAssigning}
                     >
-                      <option value="">Select a boss...</option>
+                      <option value="">Select Template...</option>
                       {bossTemplates.map((t: any) => {
                         const id = safeStr((t as any).boss_template_id);
                         const title = safeStr((t as any).title);
@@ -666,6 +662,11 @@ const BossClasses = () => {
           </div>
         )}
       </main>
+        {/* Profile Modal */}
+          <ProfileModal
+            isOpen={isProfileModalOpen}
+            onClose={() => setIsProfileModalOpen(false)}
+          />
     </div>
   );
 };

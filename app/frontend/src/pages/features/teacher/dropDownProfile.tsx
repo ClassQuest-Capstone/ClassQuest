@@ -4,9 +4,10 @@ import { Link } from "react-router-dom";
 type DropDownProfileProps = {
   username: string;
   onLogout: () => void;
+  onProfileClick?: () => void;
 };
 
-const DropDownProfile = ({ username, onLogout }: DropDownProfileProps) => {
+const DropDownProfile = ({ username, onLogout, onProfileClick }: DropDownProfileProps) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -51,13 +52,26 @@ const DropDownProfile = ({ username, onLogout }: DropDownProfileProps) => {
              Signed in as: {username}
             </p>
             <hr className="my-1 border-gray-200" />
-            <Link
-              to="/profile"
-              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              role="menuitem"
-            >
-              Profile
-            </Link>
+            {onProfileClick ? (
+              <button
+                onClick={() => {
+                  onProfileClick();
+                  setOpen(false);
+                }}
+                className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                role="menuitem"
+              >
+                Profile
+              </button>
+            ) : (
+              <Link
+                to="/profile"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                role="menuitem"
+              >
+                Profile
+              </Link>
+            )}
            {/* <button
               onClick={onLogout}
               className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"

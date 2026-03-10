@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.js";
+import ProfileModal from "../features/teacher/ProfileModal.js";
 
 type TeacherUser = {
   id: string;
@@ -16,9 +17,11 @@ const rewards = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [loading, setIsLoading] = useState(false); // Loading state
     const [teacher, setTeacher] = useState<TeacherUser | null>(null);
-    const [rewardType, setRewardType] = useState("");
+    const [shopType, setShopType] = useState("");
     const [price, setPrice] = useState("");
-    const [rewardLevel, setRewardLevel] = useState("");
+    const [shopImage, setShopImage] = useState<File | null>(null);
+    const [shopLevel, setShopLevel] = useState("");
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
     useEffect(() => {
         feather.replace();
@@ -40,14 +43,16 @@ const rewards = () => {
         const formData = new FormData(event.currentTarget);
         // TODO: Send reward data to API
         console.log({
-            rewardType,
+            shopType,
             price,
-            rewardLevel
+            shopLevel,
+            shopImage
         });
         // Reset form
-        setRewardType("");
+        setShopType("");
         setPrice("");
-        setRewardLevel("");
+        setShopLevel("");
+        setShopImage(null);
         setIsModalOpen(false);
     }
     
@@ -75,14 +80,14 @@ const rewards = () => {
                       <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Quests</Link>
                       <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Activity</Link>
                       <Link to="/teacherGuilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Guilds</Link>
-                      <Link to="/profile" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Profile</Link>
                       <DropDownProfile
-                                            username={teacher?.displayName || "user"}
-                                            onLogout={() => {
-                                              localStorage.removeItem("cq_currentUser");
-                                              navigate("/TeacherLogin");
-                                            }}
-                                          />
+                                      username={teacher?.displayName || "user"}
+                                      onLogout={() => {
+                                        localStorage.removeItem("cq_currentUser");
+                                        navigate("/TeacherLogin");
+                                      }}
+                                      onProfileClick={() => setIsProfileModalOpen(true)}
+                                    />
                     </div>
                     <div className="-mr-2 flex items-center md:hidden">
                       <button className="inline-flex items-center justify-center p-2 rounded-md text-blue-100 hover:text-white hover:bg-blue-600">
@@ -103,7 +108,7 @@ const rewards = () => {
               <main className="max-w-7xl mx-auto px-4 py-8">
                     <div className="flex flex-wrap gap-4 justify-between items-center mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-yellow-300">Class Rewards</h1>
+                        <h1 className="text-3xl font-bold text-yellow-300">Shop Items</h1>
                         <p className="text-white">Add and manage items available for students to purchase</p>
                     </div>
                     <button
@@ -120,11 +125,11 @@ const rewards = () => {
                           <div className="bg-gradient-to-r from-green-300 to-green-500 rounded-lg shadow-lg p-8 text-center hover:shadow-xl transition-shadow">
                               <div className="flex items-center justify-center gap-6">
                                 <div className="bg-green-50 text-green-700 rounded-full w-24 h-24 flex items-center justify-center">
-                                  <i data-feather="gift" className="w-12 h-12"></i>
+                                  <i data-feather="shopping-cart" className="w-12 h-12"></i>
                               </div>
                               <div className="text-left">
-                                <h3 className="text-2xl font-bold text-green-900">Rewards</h3>
-                                <p className="text-green-800">Create exciting in class rewards fot your students</p>
+                                <h3 className="text-2xl font-bold text-green-900">Shop</h3>
+                                <p className="text-green-800">Create exciting in class shop items for your students</p>
                               </div>
                               </div>
                           </div>
@@ -144,8 +149,9 @@ const rewards = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Level</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reward</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Level</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         </tr>
@@ -178,31 +184,26 @@ const rewards = () => {
           {isModalOpen && (
             <div className="fixed inset-0 bg-white/300 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center text-gray-900">
               <div className="relative top-20 mx-auto p-5 border w-full max-w-xl shadow-lg rounded-md bg-white">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Create Reward </h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Create Shop Item </h2>
                 
                 <form onSubmit={handleCreateQuest} className="space-y-5">
-                  {/* Reward Type Dropdown */}
-                  <div>
-                    <label htmlFor="rewardType" className="block text-sm font-medium text-gray-700 mb-2">
-                      Reward Type
-                    </label>
-                    <select
-                      id="rewardType"
-                      value={rewardType}
-                      onChange={(e) => setRewardType(e.target.value)}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  {/* Reward Type Input */}
+                 <div>
+                    <label
+                      htmlFor="shopType"
+                      className="block text-sm font-medium text-gray-700 mb-2"
                     >
-                      <option value="">Select a reward type...</option>
-                      <option value="Music Time">Music Time</option>
-                      <option value="Phone Break">Phone Break (5mins)</option>
-                      <option value="Seat Choice">Seat Choice</option>
-                      <option value="Pick your partner">Pick your partner</option>
-                      <option value="Snack Pass">Snack Pass</option>
-                      <option value="Quick classroom game (10 min)">Quick classroom game (10 min)</option>
-                    </select>
+                      Item Type
+                    </label>
+                    <input
+                      type="text"
+                      id="shopType"
+                      value={shopType}
+                      onChange={(e) => setShopType(e.target.value)}
+                      required
+                      placeholder="Enter item type. e.g 5mins Phone Time"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
                   </div>
-
                   {/* Price Dropdown */}
                   <div>
                     <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-2">
@@ -228,13 +229,13 @@ const rewards = () => {
 
                   {/* Reward Level Dropdown */}
                   <div>
-                    <label htmlFor="rewardLevel" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="shopLevel" className="block text-sm font-medium text-gray-700 mb-2">
                        Level
                     </label>
                     <select
-                      id="rewardLevel"
-                      value={rewardLevel}
-                      onChange={(e) => setRewardLevel(e.target.value)}
+                      id="shopLevel"
+                      value={shopLevel}
+                      onChange={(e) => setShopLevel(e.target.value)}
                       required
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
@@ -247,6 +248,32 @@ const rewards = () => {
                       <option value="30">Level 30</option>
                     </select>
                   </div>
+                  <div>
+                    <label
+                      htmlFor="shopImage"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Item Image
+                    </label>
+
+                    <button type="button">
+                      <label
+                        htmlFor="shopImage"
+                        className="w-full flex flex-col items-center px-4 py-2 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:border-gray-400"
+                      >
+                        <i data-feather="upload-cloud" className="w-6 h-6 mb-2"></i>
+                        <span className="text-sm text-gray-600">Upload Image</span>
+                      </label>
+                      <input
+                        type="file"
+                        id="shopImage"
+                        accept="image/*"
+                        onChange={(e) => setShopImage(e.target.files![0])}
+                        className="hidden"
+                      />
+                    </button>
+                  </div>
+
 
                   {/* Buttons */}
                   <div className="flex gap-3 pt-4">
@@ -261,9 +288,10 @@ const rewards = () => {
                       type="button"
                       onClick={() => {
                         setIsModalOpen(false);
-                        setRewardType("");
+                        setShopType("");
                         setPrice("");
-                        setRewardLevel("");
+                        setShopLevel("");
+                        setShopImage(null);
                       }}
                       className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-900 font-medium py-2 rounded-lg transition-colors"
                     >
@@ -273,7 +301,14 @@ const rewards = () => {
                 </form>
               </div>
             </div>
-          )}        </div>
+          )}
+
+          {/* Profile Modal */}
+          <ProfileModal
+            isOpen={isProfileModalOpen}
+            onClose={() => setIsProfileModalOpen(false)}
+          />
+        </div>
     );
 }
 

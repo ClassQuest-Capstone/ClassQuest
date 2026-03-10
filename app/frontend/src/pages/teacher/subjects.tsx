@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
+import ProfileModal from "../features/teacher/ProfileModal.js";
 import { useQuestions } from "../hooks/teacher/useQuestions.js";
 import { EditQuestModal } from "../components/teacher/modals/EditQuestModal.js";
 import { AssignQuestModal } from "../components/teacher/modals/AssignQuestModal.js";
@@ -219,6 +220,7 @@ const Subjects = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<QuestTemplate[]>([]);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Boss battle templates
   const [bossTemplates, setBossTemplates] = useState<BossBattleTemplate[]>([]);
@@ -1181,15 +1183,13 @@ const Subjects = () => {
               <Link to="/teacherGuilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                 Guilds
               </Link>
-              <Link to="/profile" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
-                Profile
-              </Link>
               <DropDownProfile
                 username={teacher?.displayName || "user"}
                 onLogout={() => {
                   localStorage.removeItem("cq_currentUser");
                   navigate("/TeacherLogin");
                 }}
+                onProfileClick={() => setIsProfileModalOpen(true)}
               />
             </div>
 
@@ -1921,6 +1921,12 @@ const Subjects = () => {
         onFormFieldChange={setEditFormField}
         onClose={closeQuestionEditModal}
         onSave={saveQuestionEdit}
+      />
+
+      {/* Profile Modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
       />
     </div>
   );

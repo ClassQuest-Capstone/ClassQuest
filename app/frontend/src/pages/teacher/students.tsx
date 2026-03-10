@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, Navigate, useSearchParams } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.js";
+import ProfileModal from "../features/teacher/ProfileModal.js";
 
 import { validateJoinCode } from "../../api/classes.js";
 import { getClassEnrollments, unenrollStudent } from "../../api/classEnrollments.js";
@@ -56,6 +57,7 @@ const Students = () => {
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [classId, setClassId] = useState<string | null>(null);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   //  read teacher
   const teacher = useMemo<CurrentUser | null>(() => {
@@ -416,14 +418,14 @@ const Students = () => {
               <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Quests</Link>
               <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Activity</Link>
               <Link to="/teacherGuilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Guilds</Link>
-              <Link to="/profile" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Profile</Link>
-              <DropDownProfile
-                                    username={teacher?.displayName || "user"}
-                                    onLogout={() => {
-                                      localStorage.removeItem("cq_currentUser");
-                                      navigate("/TeacherLogin");
-                                    }}
-                                  />
+             <DropDownProfile
+                                      username={teacher?.displayName || "user"}
+                                      onLogout={() => {
+                                        localStorage.removeItem("cq_currentUser");
+                                        navigate("/TeacherLogin");
+                                      }}
+                                      onProfileClick={() => setIsProfileModalOpen(true)}
+                                    />
             </div>
           </div>
         </div>
@@ -718,6 +720,12 @@ const Students = () => {
           </div>
         </div>
       </main>
+
+      {/* Profile Modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
     </div>
   );
 };

@@ -14,6 +14,7 @@ import {
 } from "../../api/questTemplates.js";
 
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
+import ProfileModal from "../features/teacher/ProfileModal.js";
 
 // Utility to convert string input to int
 function toInt(val: unknown, fallback = 0) {
@@ -57,6 +58,7 @@ const ClassQuest = () => {
   const [extensionError, setExtensionError] = useState<string | null>(null);
   const [extensionSaving, setExtensionSaving] = useState(false);
   const [teacher, setTeacher] = useState<TeacherUser | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   useEffect(() => {
     feather.replace();
@@ -297,19 +299,14 @@ const ClassQuest = () => {
               >
                 Guilds
               </Link>
-              <Link
-                to="/profile"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
-                Profile
-              </Link>
               <DropDownProfile
-                username={teacher?.displayName || "user"}
-                onLogout={() => {
-                  localStorage.removeItem("cq_currentUser");
-                  navigate("/TeacherLogin");
-                }}
-              />
+                                username={teacher?.displayName || "user"}
+                                onLogout={() => {
+                                  localStorage.removeItem("cq_currentUser");
+                                  navigate("/TeacherLogin");
+                                }}
+                                onProfileClick={() => setIsProfileModalOpen(true)}
+                              />
             </div>
 
             <div className="-mr-2 flex items-center md:hidden">
@@ -556,6 +553,11 @@ const ClassQuest = () => {
         </div>
         )}
       </main>
+       {/* Profile Modal */}
+          <ProfileModal
+            isOpen={isProfileModalOpen}
+            onClose={() => setIsProfileModalOpen(false)}
+          />
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import { listRewardMilestonesByClass } from "./repo.ts";
 import { getPlayerState } from "../playerStates/repo.js";
+import { getLevelFromXP } from "../shared/xp-progression.js";
 
 /**
  * GET /student/classes/{class_id}/rewards
@@ -53,7 +54,7 @@ export const handler = async (event: any) => {
         // TODO: sync level formula with game design doc / frontend
         const playerState = await getPlayerState(class_id, student_id);
         const studentLevel = playerState
-            ? Math.floor(playerState.total_xp_earned / 100) + 1
+            ? getLevelFromXP(playerState.total_xp_earned)
             : 1;  // default to level 1 for students with no recorded state
 
         const items = activeRewards.map(reward => ({

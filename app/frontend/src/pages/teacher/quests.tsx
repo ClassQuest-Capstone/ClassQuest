@@ -10,6 +10,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
+import ProfileModal from "../features/teacher/ProfileModal.js";
 import { createQuestTemplate, updateQuestTemplate, type QuestTemplate } from "../../api/questTemplates.js";
 import { createQuestQuestion, updateQuestQuestion, deleteQuestQuestion } from "../../api/questQuestions.js";
 
@@ -112,6 +113,7 @@ const Quests = () => {
   const [enableTimeLimit, setEnableTimeLimit] = useState(false);
   const [timeLimit, setTimeLimit] = useState(120);
   const [teacher, setTeacher] = useState<TeacherUser | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   useEffect(() => {
     feather.replace();
@@ -511,15 +513,14 @@ const Quests = () => {
               <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900">Quests</Link>
               <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Activity</Link>
               <Link to="/teacherGuilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Guilds</Link>
-              <Link to="/profile" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Profile</Link>
-
               <DropDownProfile
-                username={teacher?.displayName || "user"}
-                onLogout={() => {
-                  localStorage.removeItem("cq_currentUser");
-                  navigate("/TeacherLogin");
-                }}
-              />
+                                      username={teacher?.displayName || "user"}
+                                      onLogout={() => {
+                                        localStorage.removeItem("cq_currentUser");
+                                        navigate("/TeacherLogin");
+                                      }}
+                                      onProfileClick={() => setIsProfileModalOpen(true)}
+                                    />
             </div>
           </div>
         </div>
@@ -893,6 +894,12 @@ const Quests = () => {
           </div>
         </div>
       </main>
+
+      {/* Profile Modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
     </div>
   );
 };

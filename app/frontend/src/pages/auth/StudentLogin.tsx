@@ -221,9 +221,6 @@ export default function StudentLogin() {
                         <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
                           Remember me
                         </label>
-                        <Link to="/forgot-password" className="text-blue-600 hover:text-blue-500 text-right ml-auto text-sm">
-                          Forgot password?
-                        </Link>
                       </div>
                       <div>
                         <button 

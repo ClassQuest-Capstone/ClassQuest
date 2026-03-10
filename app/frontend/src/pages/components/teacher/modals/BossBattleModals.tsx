@@ -225,7 +225,7 @@ export const BossAssignModal: React.FC<BossAssignModalProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+            {/*<div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Countdown Duration (seconds) <span className="text-red-500">*</span></label>
               <select className={inputBox} value={bossAssignCountdownSeconds} onChange={(e) => onCountdownSecondsChange(Number(e.target.value))}>
                 <option value="0">Select duration</option>
@@ -233,7 +233,7 @@ export const BossAssignModal: React.FC<BossAssignModalProps> = ({
                 <option value="5">5 seconds</option>
                 <option value="10">10 seconds</option>
               </select>
-            </div>
+            </div>*/}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Question Time Limit (seconds)</label>
               <input 

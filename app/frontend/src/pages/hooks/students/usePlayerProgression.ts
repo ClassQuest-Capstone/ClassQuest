@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { getPlayerState, upsertPlayerState, type PlayerState } from "../../../api/playerStates.js";
 import { getStudentProfile, type StudentProfile } from "../../../api/studentProfiles.js";
+import { claimStudentReward, listStudentRewardClaimsByStudent } from "../../../api/studentRewardClaims/client.js";
+import { listStudentRewardMilestones } from "../../../api/rewardMilestones/client.js";
 
 // Types
 export interface PlayerProfile {
@@ -14,7 +16,7 @@ export interface PlayerProfile {
   hearts: number;
   maxHearts: number;
   unlockedRewards: number[]; // reward levels
-  purchasedRewards: number[];
+  claimedRewards: number[]; // reward levels that student has claimed
   equippedItems: Record<string, string | null>;
   lastHeartRegenAt?: number; // timestamp of last heart regeneration
 }
@@ -23,9 +25,8 @@ export interface Reward {
   level: number;
   title: string;
   description: string;
-  cost: number;
   unlocked: boolean;
-  purchased: boolean;
+  claimed: boolean;
 }
 
 // Constants
@@ -39,50 +40,43 @@ export const REWARD_MILESTONES: Reward[] = [
     level: 5,
     title: "Rare helmet",
     description: "Unlock a rare helmet for your avatar",
-    cost: 350,
     unlocked: false,
-    purchased: false,
+    claimed: false,
   },
   {
     level: 10,
     title: "Rare armor set",
     description: "Unlock a rare armor set for your avatar",
-    cost: 750,
     unlocked: false,
-    purchased: false,
+    claimed: false,
   },
   {
     level: 15,
     title: "Epic background",
     description: "Unlock an epic background for your avatar",
-    cost: 900,
     unlocked: false,
-    purchased: false,
+    claimed: false,
   },
   {
     level: 20,
     title: "Legendary helmet",
     description: "Unlock a legendary helmet for your avatar",
-    cost: 1250,
     unlocked: false,
-    purchased: false,
+    claimed: false,
   },
-
   {
     level: 25,
     title: "Legendary armor set",
     description: "Unlock a legendary armor set for your avatar",
-    cost: 2500,
     unlocked: false,
-    purchased: false,
+    claimed: false,
   },
   {
     level: 30,
     title: "Mythic Pet",
     description: "Unlock a mythic companion",
-    cost: 5000,
     unlocked: false,
-    purchased: false,
+    claimed: false,
   },
 ];
 
@@ -145,7 +139,7 @@ export const usePlayerProgression = (
     hearts: 0,
     maxHearts: 5,
     unlockedRewards: [],
-    purchasedRewards: [],
+    claimedRewards: [],
     equippedItems: {},
     lastHeartRegenAt: Date.now(),
   });
@@ -208,9 +202,10 @@ export const usePlayerProgression = (
   };
 
   /**
-   * Purchase a reward with gold
+   * Claim a reward when student reaches the unlock level
+   * Calls backend API to register the claimed reward
    */
-  const purchaseReward = useCallback(
+  const claimReward = useCallback(
     async (rewardLevel: number) => {
       setLoading(true);
       setError(null);
@@ -223,25 +218,41 @@ export const usePlayerProgression = (
         }
 
         if (!profile.unlockedRewards.includes(rewardLevel)) {
-          throw new Error("Reward not unlocked");
+          throw new Error("Reward not yet unlocked by level");
         }
 
-        if (profile.purchasedRewards.includes(rewardLevel)) {
-          throw new Error("Reward already purchased");
+        if (profile.claimedRewards.includes(rewardLevel)) {
+          throw new Error("Reward already claimed");
         }
 
-        if (profile.gold < reward.cost) {
-          throw new Error("Not enough gold");
+        // Fetch reward milestones from backend to get the actual reward ID
+        const rewardsResponse = await listStudentRewardMilestones(classId, { studentId });
+        
+        // Find the reward by unlock level (student endpoint filters active rewards)
+        const backendReward = rewardsResponse.rewards?.find(
+          (r) => r.unlock_level === rewardLevel
+        );
+        
+        console.log("[claimReward] Found backend reward:", backendReward);
+        
+        if (!backendReward) {
+          console.error("[claimReward] Available rewards from backend:", rewardsResponse.rewards?.map(r => ({ level: r.unlock_level, title: r.title })));
+          throw new Error("Reward not found in backend");
         }
 
+        // Call backend API to claim the reward
+        await claimStudentReward(backendReward.reward_id, {
+          student_id: studentId,
+          class_id: classId,
+        });
+        
         const updatedProfile: PlayerProfile = {
           ...profile,
-          gold: profile.gold - reward.cost,
-          purchasedRewards: [...profile.purchasedRewards, rewardLevel],
+          claimedRewards: [...profile.claimedRewards, rewardLevel],
         };
 
         setProfile(updatedProfile);
-        return { success: true, goldRemaining: updatedProfile.gold };
+        return { success: true, rewardClaimed: true };
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
         setError(message);
@@ -250,19 +261,19 @@ export const usePlayerProgression = (
         setLoading(false);
       }
     },
-    [profile]
+    [profile, classId, studentId]
   );
 
   /**
-   * Get rewards with unlocked/purchased status
+   * Get rewards with unlocked/claimed status
    */
   const getRewardsWithStatus = useCallback((): Reward[] => {
     return REWARD_MILESTONES.map((reward) => ({
       ...reward,
       unlocked: profile.unlockedRewards.includes(reward.level),
-      purchased: profile.purchasedRewards.includes(reward.level),
+      claimed: profile.claimedRewards.includes(reward.level),
     }));
-  }, [profile.unlockedRewards, profile.purchasedRewards]);
+  }, [profile.unlockedRewards, profile.claimedRewards]);
 
   /**
    * Get current XP progress for level bar (total_xp_earned used for level calculation, current_xp used for progress within level)
@@ -470,6 +481,17 @@ export const usePlayerProgression = (
         const newLevel = getLevelFromXP(playerState.total_xp_earned);
         const newUnlockedRewards = getUnlockedRewardsForLevel(newLevel);
 
+        // Fetch claimed rewards from backend
+        let claimedRewardsLevels: number[] = [];
+        try {
+          const claimedClaims = await listStudentRewardClaimsByStudent(classId, studentId, "CLAIMED");
+          claimedRewardsLevels = claimedClaims
+            .map(claim => claim.unlocked_at_level)
+            .filter((level): level is number => level !== null && level !== undefined);
+        } catch (err) {
+          console.warn("Failed to fetch claimed rewards, proceeding with empty list:", err);
+        }
+
         // Use localStorage to persist last regen time across page refreshes
         const savedLastRegenAt = localStorage.getItem(`cq_lastHeartRegenAt_${studentId}_${classId}`);
         const lastRegenAt = savedLastRegenAt ? parseInt(savedLastRegenAt, 10) : Date.now();
@@ -485,7 +507,7 @@ export const usePlayerProgression = (
           hearts: playerState.hearts,
           maxHearts: playerState.max_hearts,
           unlockedRewards: newUnlockedRewards,
-          purchasedRewards: [],
+          claimedRewards: claimedRewardsLevels,
           equippedItems: {},
           lastHeartRegenAt: lastRegenAt,
         });
@@ -510,7 +532,7 @@ export const usePlayerProgression = (
     loading,
     error,
     gainXP,
-    purchaseReward,
+    claimReward,
     getRewardsWithStatus,
     getXPProgress,
     getMilestoneProgress,

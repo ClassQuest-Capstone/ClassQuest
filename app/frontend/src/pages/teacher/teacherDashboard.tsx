@@ -11,6 +11,7 @@ import { TutorialOverlay } from "../components/tutorial/overlay.js";
 import { ensureClassExists } from "../../utils/classStore.js";
 import ActivityCard from "../features/teacher/ActivityCard.js";
 import { useTeacherActivity } from "../hooks/teacher/useTeacherActivity.js";
+import ProfileModal from "../features/teacher/ProfileModal.js";
 
 type TeacherUser = {
   id: string;
@@ -18,6 +19,12 @@ type TeacherUser = {
   displayName?: string;
   email?: string;
   classCode?: string;
+};
+
+type SidebarLink = {
+  icon: string;
+  label: string;
+  href: string | null;
 };
 
 function generateClassCode(length: number = 6) {
@@ -31,6 +38,7 @@ function generateClassCode(length: number = 6) {
 
 const TeacherDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [stats, setStats] = useState<TeacherStats>({
     activeStudents: 0,
     activeSubjects: 0,
@@ -116,13 +124,13 @@ const TeacherDashboard = () => {
     return () => clearTimeout(timer);
   }, [loading, stats]);
 
-  const sidebarLinks = [
+  const sidebarLinks: SidebarLink[] = [
     { icon: "home", label: "Dashboard", href: "/teacher/dashboard" },
     { icon: "book", label: "Classes", href: "/classes" },
     { icon: "briefcase", label: "Quest Management", href: "/subjects" },
     { icon: "clock", label: "Activity", href: "/Activity" }, // matches app.tsx
     { icon: "shield", label: "Guilds", href: "/teacherGuilds" },
-    { icon: "user", label: "Profile", href: "/profile" },
+    //{/* icon: "user", label: "Profile", href: null*/ },
   ];
 
   return (
@@ -164,7 +172,7 @@ const TeacherDashboard = () => {
                       ? "rewards-panel"
                       : undefined;
 
-                  return (
+                  return link.href ? (
                     <a
                       key={index}
                       id={linkId}
@@ -174,13 +182,29 @@ const TeacherDashboard = () => {
                       <i data-feather={link.icon} className="mr-3 h-6 w-6 text-blue-200"></i>
                       {link.label}
                     </a>
+                  ) : (
+                    <button
+                      key={index}
+                      id={linkId}
+                      onClick={() => {
+                        setIsProfileModalOpen(true);
+                        setSidebarOpen(false);
+                      }}
+                      className="w-full group flex items-center px-2 py-2 text-base font-medium rounded-md text-blue-100 hover:text-white hover:bg-blue-600"
+                    >
+                      <i data-feather={link.icon} className="mr-3 h-6 w-6 text-blue-200"></i>
+                      {link.label}
+                    </button>
                   );
                 })}
               </nav>
             </div>
 
             <div className="shrink-0 flex border-t border-blue-800 p-4">
-              <a href="/profile" className="shrink-0 group block">
+              <button
+                onClick={() => setIsProfileModalOpen(true)}
+                className="shrink-0 group block w-full"
+              >
                 <div className="flex items-center">
                   <img
                     className="inline-block h-8 w-10 rounded-full"
@@ -188,7 +212,7 @@ const TeacherDashboard = () => {
                     alt="Profile"
                   />
                 </div>
-              </a>
+              </button>
             </div>
           </div>
         </div>
@@ -213,7 +237,7 @@ const TeacherDashboard = () => {
                       ? "rewards-panel"
                       : undefined;
 
-                  return (
+                  return link.href ? (
                     <a
                       key={index}
                       id={linkId}
@@ -223,12 +247,25 @@ const TeacherDashboard = () => {
                       <i data-feather={link.icon} className="mr-3 h-6 w-6 text-blue-200"></i>
                       {link.label}
                     </a>
+                  ) : (
+                    <button
+                      key={index}
+                      id={linkId}
+                      onClick={() => setIsProfileModalOpen(true)}
+                      className="w-full group flex items-center px-2 py-2 text-base font-medium rounded-md text-blue-100 hover:text-white hover:bg-blue-600"
+                    >
+                      <i data-feather={link.icon} className="mr-3 h-6 w-6 text-blue-200"></i>
+                      {link.label}
+                    </button>
                   );
                 })}
               </nav>
 
               <div className="shrink-0 flex border-t border-blue-800 p-4">
-                <a href="/profile" className="shrink-0 group block w-full">
+                <button
+                  onClick={() => setIsProfileModalOpen(true)}
+                  className="shrink-0 group block w-full"
+                >
                   <div className="flex items-center">
                     <div>
                       <img
@@ -239,7 +276,7 @@ const TeacherDashboard = () => {
                       <p className="text-white"> {teacher?.displayName} </p>
                     </div>
                   </div>
-                </a>
+                </button>
               </div>
             </div>
           </div>
@@ -270,6 +307,7 @@ const TeacherDashboard = () => {
                 localStorage.removeItem("cq_currentUser");
                 navigate("/TeacherLogin");
               }}
+              onProfileClick={() => setIsProfileModalOpen(true)}
             />
           </div>
 
@@ -350,6 +388,12 @@ const TeacherDashboard = () => {
 
           </main>
         </div>
+
+        {/* Profile Modal */}
+        <ProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+        />
       </TutorialProvider>
     </div>
   );

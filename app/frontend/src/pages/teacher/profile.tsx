@@ -2,6 +2,9 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
+import ProfileModal from "../features/teacher/ProfileModal.js";
+
+// TODO: this page will be used for stylized profile management, character selection/customization, and other user-specific settings in the future. For now it just has a placeholder and the edit profile modal form.
 
 type TeacherUser = {
   id: string;
@@ -19,6 +22,7 @@ const Profile = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setIsLoading] = useState(false);
   const [teacher, setTeacher] = useState<TeacherUser | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
   // Form states for profile editing
   const [formData, setFormData] = useState({
@@ -144,13 +148,14 @@ const Profile = () => {
               <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Activity</Link>
               <Link to="/teacherGuilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Guilds</Link>
               <Link to="/profile" className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900">Profile</Link>
-              <DropDownProfile
-                                    username={teacher?.displayName || "user"}
-                                    onLogout={() => {
-                                      localStorage.removeItem("cq_currentUser");
-                                      navigate("/TeacherLogin");
-                                    }}
-                                  />
+               <DropDownProfile
+                                      username={teacher?.displayName || "user"}
+                                      onLogout={() => {
+                                        localStorage.removeItem("cq_currentUser");
+                                        navigate("/TeacherLogin");
+                                      }}
+                                      onProfileClick={() => setIsProfileModalOpen(true)}
+                                    />
             </div>
           </div>
         </div>
@@ -330,7 +335,13 @@ const Profile = () => {
           </div>
         </div>
       )} 
+{/* Profile Modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
 
+      
       </div>
       </main>
     </div>

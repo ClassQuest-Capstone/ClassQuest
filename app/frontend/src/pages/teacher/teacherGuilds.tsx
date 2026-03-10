@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import { fetchAuthSession } from "aws-amplify/auth";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
+import ProfileModal from "../features/teacher/ProfileModal.js";
 import { getTeacherProfile } from "../../api/teacherProfiles.js";
 import { listClassesByTeacher, type ClassItem } from "../../api/classes.js";
 import { createGuild, listGuildsByClass, type Guild } from "../../api/guilds.js";
@@ -140,6 +141,7 @@ const TeacherGuilds = () => {
   const [isCreateGuildOpen, setIsCreateGuildOpen] = useState(false);
   const [guildName, setGuildName] = useState("");
   const [isCreatingGuild, setIsCreatingGuild] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const selectedClass = useMemo(
     () => classes.find((c) => c.class_id === selectedClassId) || null,
@@ -495,14 +497,14 @@ const TeacherGuilds = () => {
               >
                 Guilds
               </Link>
-              <Link to="/profile" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Profile</Link>
                <DropDownProfile
-                                                  username={teacher?.displayName || "user"}
-                                                  onLogout={() => {
-                                                    localStorage.removeItem("cq_currentUser");
-                                                    navigate("/TeacherLogin");
-                                                  }}
-                                                />
+                                      username={teacher?.displayName || "user"}
+                                      onLogout={() => {
+                                        localStorage.removeItem("cq_currentUser");
+                                        navigate("/TeacherLogin");
+                                      }}
+                                      onProfileClick={() => setIsProfileModalOpen(true)}
+                                    />
             </div>
 
             <div className="-mr-2 flex items-center md:hidden">
@@ -855,6 +857,12 @@ const TeacherGuilds = () => {
           </div>
         </div>
       )}
+
+      {/* Profile Modal */}
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
     </div>
   );
 };

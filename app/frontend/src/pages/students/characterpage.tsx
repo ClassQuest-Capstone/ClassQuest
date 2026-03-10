@@ -266,7 +266,7 @@ const CharacterPage: React.FC = () => {
   const {
     profile,
     gainXP,
-    purchaseReward,
+    claimReward,
     getRewardsWithStatus,
     getXPProgress,
     getMilestoneProgress,
@@ -1394,38 +1394,30 @@ const CharacterPage: React.FC = () => {
                                 r.unlocked ? "text-black/70" : "text-gray-400"
                               }`}
                             >
-                              {r.purchased
-                                ? "Purchased"
-                                : r.unlocked
-                                ? `${r.cost} gold`
-                                : "Locked"}
+                              {r.claimed ? "Claimed" : r.unlocked ? "Ready" : "Locked"}
                             </span>
 
                             <button
                               className={`px-3 py-1 rounded-full text-xs font-bold transition ${
-                                r.unlocked && !r.purchased
+                                r.unlocked && !r.claimed
                                   ? "bg-black text-yellow-300 hover:opacity-90 cursor-pointer"
-                                  : r.purchased
+                                  : r.claimed
                                   ? "bg-green-700 text-white cursor-default"
                                   : "bg-gray-700 text-gray-300 cursor-not-allowed"
                               }`}
-                              disabled={!r.unlocked || r.purchased}
+                              disabled={!r.unlocked || r.claimed}
                               onClick={() => {
-                                if (
-                                  r.unlocked &&
-                                  !r.purchased &&
-                                  profile.gold >= r.cost
-                                ) {
-                                  purchaseReward(r.level).catch((err: any) =>
-                                    console.error("Purchase failed:", err)
+                                if (r.unlocked && !r.claimed) {
+                                  claimReward(r.level).catch((err: any) =>
+                                    console.error("Claim failed:", err)
                                   );
                                 }
                               }}
                             >
-                              {r.purchased
+                              {r.claimed
                                 ? "Owned"
                                 : r.unlocked
-                                ? "Purchase"
+                                ? "Claim"
                                 : "Reach Level"}
                             </button>
                           </div>
