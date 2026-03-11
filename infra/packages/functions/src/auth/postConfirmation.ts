@@ -12,7 +12,8 @@ const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 export const handler = async (event: PostConfirmationTriggerEvent) => {
     const userPoolId = event.userPoolId;
     const groupStudents = process.env.GROUP_STUDENTS!;
-    const groupTeachersPending = process.env.GROUP_TEACHERS_PENDING!;
+    // Change back later to pending group during prod
+    //const groupTeachersPending = process.env.GROUP_TEACHERS_PENDING!; 
     const usersTable = process.env.USERS_TABLE_NAME!;
 
     const username = event.userName;
@@ -29,8 +30,14 @@ export const handler = async (event: PostConfirmationTriggerEvent) => {
         throw new Error("Missing custom:role attribute");
     }
 
+    // Development only: send teachers directly to Teachers group
+    // Change back to TeachersPending for prod
+    //const targetGroup =
+    //    role === "TEACHER" ? groupTeachersPending : groupStudents;
+    const groupTeachers = process.env.GROUP_TEACHERS!;
     const targetGroup =
-        role === "TEACHER" ? groupTeachersPending : groupStudents;
+        role === "TEACHER" ? groupTeachers : groupStudents;
+
 
     console.log("[postConfirmation] Assigning user to group", {
         username,

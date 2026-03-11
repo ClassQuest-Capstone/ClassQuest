@@ -138,6 +138,13 @@ export function QuestApiStack(ctx: StackContext, props: QuestApiStackProps) {
         "GET /classes/{class_id}/boss-battle-instances": { method: "GET", path: "/classes/{class_id}/boss-battle-instances" },
         "GET /boss-battle-templates/{boss_template_id}/boss-battle-instances": { method: "GET", path: "/boss-battle-templates/{boss_template_id}/boss-battle-instances" },
         "PATCH /boss-battle-instances/{boss_instance_id}": { method: "PATCH", path: "/boss-battle-instances/{boss_instance_id}" },
+        "POST /boss-battle-instances/{boss_instance_id}/start": { method: "POST", path: "/boss-battle-instances/{boss_instance_id}/start" },
+        "POST /boss-battle-instances/{boss_instance_id}/countdown": { method: "POST", path: "/boss-battle-instances/{boss_instance_id}/countdown" },
+        "POST /boss-battle-instances/{boss_instance_id}/start-question": { method: "POST", path: "/boss-battle-instances/{boss_instance_id}/start-question" },
+        "POST /boss-battle-instances/{boss_instance_id}/submit-answer": { method: "POST", path: "/boss-battle-instances/{boss_instance_id}/submit-answer" },
+        "POST /boss-battle-instances/{boss_instance_id}/resolve-question": { method: "POST", path: "/boss-battle-instances/{boss_instance_id}/resolve-question" },
+        "POST /boss-battle-instances/{boss_instance_id}/advance-question": { method: "POST", path: "/boss-battle-instances/{boss_instance_id}/advance-question" },
+        "POST /boss-battle-instances/{boss_instance_id}/finish": { method: "POST", path: "/boss-battle-instances/{boss_instance_id}/finish" },
 
         // BossBattleParticipants
         "POST /boss-battle-instances/{boss_instance_id}/participants/join": { method: "POST", path: "/boss-battle-instances/{boss_instance_id}/participants/join" },

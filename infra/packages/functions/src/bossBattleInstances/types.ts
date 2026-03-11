@@ -124,6 +124,16 @@ export type BossBattleInstanceItem = {
     outcome?: BattleOutcome;
     fail_reason?: FailReason;
 
+    // Answer-gating runtime state (reset each StartQuestion)
+    required_answer_count?: number;
+    received_answer_count?: number;
+    ready_to_resolve?: boolean;
+
+    // Per-guild answer-gating maps for RANDOMIZED_PER_GUILD
+    per_guild_required_answer_count?: Record<string, number>;
+    per_guild_received_answer_count?: Record<string, number>;
+    per_guild_ready_to_resolve?: Record<string, boolean>;
+
     // Audit
     created_at: string;
     updated_at: string;

@@ -66,6 +66,13 @@ import { handler as bbiGet }                   from "../bossBattleInstances/get.
 import { handler as bbiListByClass }           from "../bossBattleInstances/list-by-class.js";
 import { handler as bbiListByTemplate }        from "../bossBattleInstances/list-by-template.js";
 import { handler as bbiUpdate }                from "../bossBattleInstances/update.js";
+import { handler as bbiStart }                 from "../bossBattleInstances/start-battle.js";
+import { handler as bbiCountdown }             from "../bossBattleInstances/start-countdown.js";
+import { handler as bbiStartQuestion }         from "../bossBattleInstances/start-question.js";
+import { handler as bbiSubmitAnswer }          from "../bossBattleInstances/submit-answer.js";
+import { handler as bbiResolveQuestion }       from "../bossBattleInstances/resolve-question.js";
+import { handler as bbiAdvanceQuestion }       from "../bossBattleInstances/advance-question.js";
+import { handler as bbiFinishBattle }          from "../bossBattleInstances/finish-battle.js";
 
 // BossBattleParticipants
 import { handler as bbpJoin }                  from "../bossBattleParticipants/join.js";
@@ -157,6 +164,13 @@ const ROUTES: Record<string, (event: any) => Promise<any>> = {
     "GET /classes/{class_id}/boss-battle-instances":                                                                                         bbiListByClass,
     "GET /boss-battle-templates/{boss_template_id}/boss-battle-instances":                                                                   bbiListByTemplate,
     "PATCH /boss-battle-instances/{boss_instance_id}":                                                                                       bbiUpdate,
+    "POST /boss-battle-instances/{boss_instance_id}/start":                                                                                  bbiStart,
+    "POST /boss-battle-instances/{boss_instance_id}/countdown":                                                                              bbiCountdown,
+    "POST /boss-battle-instances/{boss_instance_id}/start-question":                                                                         bbiStartQuestion,
+    "POST /boss-battle-instances/{boss_instance_id}/submit-answer":                                                                          bbiSubmitAnswer,
+    "POST /boss-battle-instances/{boss_instance_id}/resolve-question":                                                                       bbiResolveQuestion,
+    "POST /boss-battle-instances/{boss_instance_id}/advance-question":                                                                       bbiAdvanceQuestion,
+    "POST /boss-battle-instances/{boss_instance_id}/finish":                                                                                 bbiFinishBattle,
 
     // BossBattleParticipants
     "POST /boss-battle-instances/{boss_instance_id}/participants/join":                                                                      bbpJoin,
