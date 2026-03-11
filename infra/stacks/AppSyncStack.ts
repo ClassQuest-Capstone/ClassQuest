@@ -1,7 +1,8 @@
-import { StackContext } from "sst/constructs";
+import { StackContext, Function } from "sst/constructs";
 import * as appsync from "aws-cdk-lib/aws-appsync";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as cognito from "aws-cdk-lib/aws-cognito";
+import * as iam from "aws-cdk-lib/aws-iam";
 import * as cdk from "aws-cdk-lib";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -13,31 +14,43 @@ const _dirname = path.dirname(fileURLToPath(import.meta.url));
 
 type AppSyncStackProps = {
     tableNames: {
+        // Phase 2 read queries
         bossBattleInstancesTable: string;
         bossBattleParticipantsTable: string;
         bossQuestionsTable: string;
+        // Phase 3 mutation resolver — all tables the lifecycle handlers touch
+        bossBattleTemplatesTable: string;
+        bossBattleQuestionPlansTable: string;
+        bossBattleSnapshotsTable: string;
+        bossAnswerAttemptsTable: string;
+        bossResultsTable: string;
+        playerStatesTable: string;
+        rewardTransactionsTable: string;
     };
     tableArns: {
         bossBattleInstancesTable: string;
         bossBattleParticipantsTable: string;
         bossQuestionsTable: string;
+        bossBattleTemplatesTable: string;
+        bossBattleQuestionPlansTable: string;
+        bossBattleSnapshotsTable: string;
+        bossAnswerAttemptsTable: string;
+        bossResultsTable: string;
+        playerStatesTable: string;
+        rewardTransactionsTable: string;
     };
     userPoolId: string;
 };
 
 /**
- * AppSyncStack — adds an AppSync GraphQL API as the realtime delivery layer
- * for the Boss Battle system.
+ * AppSyncStack — AppSync GraphQL API as the realtime delivery layer for Boss Battles.
  *
- * Phase 2: full read model + subscription skeleton.
- *   - All 4 MVP queries wired with direct DDB resolvers
- *   - getActiveBossQuestion strips correct_answer for Students group (JS resolver)
- *   - onBattleStateChanged + onRosterChanged subscriptions open WebSocket connections
- *   - publishBattleStateChanged + publishRosterChanged wired to NONE data source
- *     (no events fire until Phase 3 wires the mutation resolver Lambda)
- *
- * This stack does NOT modify any existing Lambda handlers or REST routes.
- * All REST endpoints in QuestApiStack remain active in parallel.
+ * Phase 3: full mutation surface + subscription publishing.
+ *   - mutation-resolver Lambda: dispatches all 11 lifecycle mutations to existing
+ *     handler logic; calls publish-event.ts after each success
+ *   - publishBattleStateChanged / publishRosterChanged fire subscription events
+ *     to all connected WebSocket clients
+ *   - REST routes in QuestApiStack remain active in parallel throughout Phase 3–4
  */
 export function AppSyncStack(ctx: StackContext, props: AppSyncStackProps) {
     const { stack } = ctx;
@@ -49,7 +62,10 @@ export function AppSyncStack(ctx: StackContext, props: AppSyncStackProps) {
         props.userPoolId
     );
 
-    // Create the AppSync GraphQL API
+    // ──────────────────────────────────────────────────────────────────────────
+    // AppSync GraphQL API
+    // ──────────────────────────────────────────────────────────────────────────
+
     const graphqlApi = new appsync.GraphqlApi(stack, "BossBattleApi", {
         name: `${stack.stackName}-BossBattleGraphQL`,
         definition: appsync.Definition.fromFile(
@@ -61,9 +77,9 @@ export function AppSyncStack(ctx: StackContext, props: AppSyncStackProps) {
                 authorizationType: appsync.AuthorizationType.USER_POOL,
                 userPoolConfig: { userPool },
             },
-            // Secondary: API_KEY — required for WebSocket subscription handshake
             additionalAuthorizationModes: [
                 {
+                    // API_KEY — required for WebSocket subscription handshake
                     authorizationType: appsync.AuthorizationType.API_KEY,
                     apiKeyConfig: {
                         description: "Boss Battle AppSync API Key",
@@ -76,7 +92,6 @@ export function AppSyncStack(ctx: StackContext, props: AppSyncStackProps) {
                 },
             ],
         },
-        // Log resolver errors to CloudWatch (not all fields — keeps costs down)
         logConfig: {
             fieldLogLevel: appsync.FieldLogLevel.ERROR,
             excludeVerboseContent: true,
@@ -84,61 +99,96 @@ export function AppSyncStack(ctx: StackContext, props: AppSyncStackProps) {
     });
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Data sources
+    // DynamoDB data sources (read model — Phases 1–2)
     // ──────────────────────────────────────────────────────────────────────────
 
-    // BossBattleInstances — GetItem + Query (by PK and GSI1)
-    const bossBattleInstancesTable = dynamodb.Table.fromTableArn(
-        stack,
-        "BossBattleInstancesRef",
-        props.tableArns.bossBattleInstancesTable
-    );
     const bbiDS = graphqlApi.addDynamoDbDataSource(
         "BossBattleInstancesDS",
-        bossBattleInstancesTable
+        dynamodb.Table.fromTableArn(stack, "BossBattleInstancesRef", props.tableArns.bossBattleInstancesTable)
     );
 
-    // BossBattleParticipants — Query by PK (boss_instance_id)
-    const bossBattleParticipantsTable = dynamodb.Table.fromTableArn(
-        stack,
-        "BossBattleParticipantsRef",
-        props.tableArns.bossBattleParticipantsTable
-    );
     const bbpDS = graphqlApi.addDynamoDbDataSource(
         "BossBattleParticipantsDS",
-        bossBattleParticipantsTable
+        dynamodb.Table.fromTableArn(stack, "BossBattleParticipantsRef", props.tableArns.bossBattleParticipantsTable)
     );
 
-    // BossQuestions — GetItem by PK (question_id); JS resolver filters correct_answer for Students
-    const bossQuestionsTable = dynamodb.Table.fromTableArn(
-        stack,
-        "BossQuestionsRef",
-        props.tableArns.bossQuestionsTable
-    );
     const bqDS = graphqlApi.addDynamoDbDataSource(
         "BossQuestionsDS",
-        bossQuestionsTable
+        dynamodb.Table.fromTableArn(stack, "BossQuestionsRef", props.tableArns.bossQuestionsTable)
     );
 
-    // NONE data source — used for subscription filter resolvers and publish mutation passthroughs
+    // NONE data source — subscription filter resolvers + publish mutation passthroughs
     const noneDS = graphqlApi.addNoneDataSource("NoneDS");
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Query resolvers
+    // Mutation resolver Lambda (Phase 3)
     // ──────────────────────────────────────────────────────────────────────────
 
-    // getBossBattleInstance — GetItem by PK (boss_instance_id)
+    const allTableArns = Object.values(props.tableArns);
+
+    const mutationResolverFn = new Function(stack, "BossMutationResolver", {
+        handler: "packages/functions/src/boss-appsync-resolvers/mutation-resolver.handler",
+        environment: {
+            BOSS_BATTLE_INSTANCES_TABLE_NAME:    props.tableNames.bossBattleInstancesTable,
+            BOSS_BATTLE_PARTICIPANTS_TABLE_NAME: props.tableNames.bossBattleParticipantsTable,
+            BOSS_QUESTIONS_TABLE_NAME:           props.tableNames.bossQuestionsTable,
+            BOSS_BATTLE_TEMPLATES_TABLE_NAME:    props.tableNames.bossBattleTemplatesTable,
+            BOSS_BATTLE_QUESTION_PLANS_TABLE_NAME: props.tableNames.bossBattleQuestionPlansTable,
+            BOSS_BATTLE_SNAPSHOTS_TABLE_NAME:    props.tableNames.bossBattleSnapshotsTable,
+            BOSS_ANSWER_ATTEMPTS_TABLE_NAME:     props.tableNames.bossAnswerAttemptsTable,
+            BOSS_RESULTS_TABLE_NAME:             props.tableNames.bossResultsTable,
+            PLAYER_STATES_TABLE_NAME:            props.tableNames.playerStatesTable,
+            REWARD_TRANSACTIONS_TABLE_NAME:      props.tableNames.rewardTransactionsTable,
+            // AppSync URL is set after the API is created — injected below
+            APPSYNC_API_URL:                     graphqlApi.graphqlUrl,
+        },
+        timeout: 30,
+        memorySize: 512,
+    });
+
+    // DynamoDB permissions for all boss battle tables
+    mutationResolverFn.attachPermissions([
+        new iam.PolicyStatement({
+            actions: [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Query",
+                "dynamodb:Scan",
+            ],
+            resources: [
+                ...allTableArns,
+                ...allTableArns.map((arn) => `${arn}/index/*`),
+            ],
+        }),
+        // Permission to call the internal publishBattleStateChanged / publishRosterChanged mutations
+        new iam.PolicyStatement({
+            actions: ["appsync:GraphQL"],
+            resources: [`${graphqlApi.arn}/types/Mutation/*`],
+        }),
+    ]);
+
+    // Lambda data source for all 11 lifecycle mutations
+    const mutationDS = graphqlApi.addLambdaDataSource(
+        "MutationResolverDS",
+        mutationResolverFn
+    );
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Query resolvers (Phases 1–2)
+    // ──────────────────────────────────────────────────────────────────────────
+
     bbiDS.createResolver("GetBossBattleInstanceResolver", {
         typeName: "Query",
         fieldName: "getBossBattleInstance",
         requestMappingTemplate: appsync.MappingTemplate.dynamoDbGetItem(
-            "boss_instance_id", // DynamoDB partition key attribute name
-            "bossInstanceId"    // GraphQL argument name
+            "boss_instance_id",
+            "bossInstanceId"
         ),
         responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultItem(),
     });
 
-    // listBossBattleInstancesByClass — GSI1 Query (class_id PK, created_at SK, ascending)
     bbiDS.createResolver("ListBossBattleInstancesByClassResolver", {
         typeName: "Query",
         fieldName: "listBossBattleInstancesByClass",
@@ -149,7 +199,6 @@ export function AppSyncStack(ctx: StackContext, props: AppSyncStackProps) {
         responseMappingTemplate: appsync.MappingTemplate.dynamoDbResultList(),
     });
 
-    // getBossBattleParticipants — Query on primary index by boss_instance_id PK
     bbpDS.createResolver("GetBossBattleParticipantsResolver", {
         typeName: "Query",
         fieldName: "getBossBattleParticipants",
@@ -196,8 +245,32 @@ export function response(ctx) {
     });
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Mutation resolvers — internal publish mutations (NONE data source passthrough)
-    // Phase 3 will add the Lambda mutation resolver that calls these via SigV4 HTTP.
+    // Mutation resolvers — lifecycle mutations wired to mutation resolver Lambda
+    // ──────────────────────────────────────────────────────────────────────────
+
+    const lifecycleMutations = [
+        "startBattle",
+        "startCountdown",
+        "startQuestion",
+        "submitAnswer",
+        "resolveQuestion",
+        "advanceQuestion",
+        "finishBattle",
+        "joinBattle",
+        "spectateBattle",
+        "leaveBattle",
+        "kickParticipant",
+    ] as const;
+
+    for (const fieldName of lifecycleMutations) {
+        mutationDS.createResolver(`${capitalize(fieldName)}MutationResolver`, {
+            typeName: "Mutation",
+            fieldName,
+        });
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Internal publish mutations — NONE data source (passthrough to subscriptions)
     // ──────────────────────────────────────────────────────────────────────────
 
     noneDS.createResolver("PublishBattleStateChangedResolver", {
@@ -210,7 +283,7 @@ export function request(ctx) {
 }
 
 export function response(ctx) {
-  // Return the input directly — AppSync uses this to trigger onBattleStateChanged subscriptions.
+  // Return input directly — AppSync uses this to trigger onBattleStateChanged subscriptions.
   return ctx.args.input;
 }
         `),
@@ -226,7 +299,6 @@ export function request(ctx) {
 }
 
 export function response(ctx) {
-  // Return the roster payload — triggers onRosterChanged subscriptions.
   return {
     boss_instance_id: ctx.args.bossInstanceId,
     participants: ctx.args.participants,
@@ -236,9 +308,7 @@ export function response(ctx) {
     });
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Subscription resolvers — JS enhanced filtering by bossInstanceId
-    // WebSocket connections open here; events fire in Phase 3 once the Lambda
-    // mutation resolver calls publishBattleStateChanged / publishRosterChanged.
+    // Subscription resolvers — enhanced filtering by bossInstanceId (Phase 2)
     // ──────────────────────────────────────────────────────────────────────────
 
     noneDS.createResolver("OnBattleStateChangedResolver", {
@@ -249,8 +319,6 @@ export function response(ctx) {
 import { extensions } from "@aws-appsync/utils";
 
 export function request(ctx) {
-  // Apply enhanced subscription filter so only events matching this bossInstanceId
-  // are delivered to this subscriber.
   extensions.setSubscriptionFilter(
     util.transform.toSubscriptionFilter({
       filterGroup: [
@@ -314,11 +382,20 @@ export function response(ctx) {
     stack.addOutputs({
         AppSyncApiUrl: graphqlApi.graphqlUrl,
         AppSyncApiKey: graphqlApi.apiKey ?? "(no key)",
+        AppSyncApiArn: graphqlApi.arn,
     });
 
     return {
-        graphqlUrl: graphqlApi.graphqlUrl,
-        apiKey: graphqlApi.apiKey,
+        graphqlUrl:    graphqlApi.graphqlUrl,
+        apiKey:        graphqlApi.apiKey,
         graphqlApiArn: graphqlApi.arn,
     };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────────────────────────────────────
+
+function capitalize(s: string): string {
+    return s.charAt(0).toUpperCase() + s.slice(1);
 }

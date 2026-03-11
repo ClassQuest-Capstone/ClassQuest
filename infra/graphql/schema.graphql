@@ -127,6 +127,46 @@ type RosterChangedEvent {
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Mutation result types
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Generic result for lifecycle mutations (startBattle, startCountdown, etc.).
+# Subscription event carries the full state update — the mutation result just
+# signals success/failure.
+type BossBattleActionResult {
+  success: Boolean!
+  statusCode: Int!
+  message: String
+  error: String
+}
+
+# submitAnswer needs synchronous per-student feedback (is_correct, frozen_until).
+# The subscription carries quorum counter updates for the teacher monitor.
+type SubmitAnswerResult {
+  success: Boolean!
+  is_correct: Boolean
+  elapsed_seconds: Float
+  effective_time_limit_seconds: Float
+  speed_multiplier: Float
+  damage_to_boss: Int
+  hearts_delta_student: Int
+  hearts_delta_guild_total: Int
+  frozen_until: String
+  received_answer_count: Int
+  required_answer_count: Int
+  ready_to_resolve: Boolean
+  error: String
+}
+
+# Result for join/spectate/leave/kick mutations.
+type ParticipantActionResult {
+  success: Boolean!
+  state: String
+  message: String
+  error: String
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Input types (used by internal publish mutations)
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -189,8 +229,30 @@ type Query {
 # ──────────────────────────────────────────────────────────────────────────────
 
 type Mutation {
-  # @aws_iam — callable only by the mutation resolver Lambda's IAM role, never by frontend.
-  # Phase 3 wires the SigV4 publish call from mutation-resolver.ts into this mutation.
+  # ── Teacher-only lifecycle mutations — proxied to existing Lambda handlers ──
+
+  startBattle(bossInstanceId: ID!): BossBattleActionResult
+  startCountdown(bossInstanceId: ID!): BossBattleActionResult
+  startQuestion(bossInstanceId: ID!): BossBattleActionResult
+  resolveQuestion(bossInstanceId: ID!): BossBattleActionResult
+  advanceQuestion(bossInstanceId: ID!): BossBattleActionResult
+  finishBattle(bossInstanceId: ID!): BossBattleActionResult
+
+  # ── Student-only mutation — synchronous is_correct feedback required ─────
+
+  # answerRaw: AWSJSON-encoded object, e.g. {"value":"A"} for MCQ.
+  submitAnswer(bossInstanceId: ID!, answerRaw: AWSJSON!): SubmitAnswerResult
+
+  # ── Participant roster mutations ─────────────────────────────────────────
+
+  joinBattle(bossInstanceId: ID!, guildId: ID!): ParticipantActionResult
+  spectateBattle(bossInstanceId: ID!): ParticipantActionResult
+  leaveBattle(bossInstanceId: ID!): ParticipantActionResult
+  kickParticipant(bossInstanceId: ID!, studentId: ID!, reason: String): ParticipantActionResult
+
+  # ── Internal publish mutations — @aws_iam only, never called by frontend ─
+
+  # Called by the mutation resolver Lambda after each successful state change.
   publishBattleStateChanged(input: BossBattleStateEventInput!): BossBattleStateEvent
     @aws_iam
 

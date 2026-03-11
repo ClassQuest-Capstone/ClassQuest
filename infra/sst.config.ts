@@ -126,14 +126,30 @@ export default {
         function ClassQuestAppSyncStack(ctx: StackContext) {
             return AppSyncStack(ctx, {
                 tableNames: {
-                    bossBattleInstancesTable: dataStackOutputs.tableNames.bossBattleInstancesTable,
-                    bossBattleParticipantsTable: dataStackOutputs.tableNames.bossBattleParticipantsTable,
-                    bossQuestionsTable: dataStackOutputs.tableNames.bossQuestionsTable,
+                    // Phase 2 read model
+                    bossBattleInstancesTable:       dataStackOutputs.tableNames.bossBattleInstancesTable,
+                    bossBattleParticipantsTable:    dataStackOutputs.tableNames.bossBattleParticipantsTable,
+                    bossQuestionsTable:             dataStackOutputs.tableNames.bossQuestionsTable,
+                    // Phase 3 mutation resolver — all tables lifecycle handlers touch
+                    bossBattleTemplatesTable:       dataStackOutputs.tableNames.bossBattleTemplatesTable,
+                    bossBattleQuestionPlansTable:   dataStackOutputs.tableNames.bossBattleQuestionPlansTable,
+                    bossBattleSnapshotsTable:       dataStackOutputs.tableNames.bossBattleSnapshotsTable,
+                    bossAnswerAttemptsTable:        dataStackOutputs.tableNames.bossAnswerAttemptsTable,
+                    bossResultsTable:               dataStackOutputs.tableNames.bossResultsTable,
+                    playerStatesTable:              dataStackOutputs.tableNames.playerStatesTable,
+                    rewardTransactionsTable:        dataStackOutputs.tableNames.rewardTransactionsTable,
                 },
                 tableArns: {
-                    bossBattleInstancesTable: dataStackOutputs.tableArns.bossBattleInstancesTable,
-                    bossBattleParticipantsTable: dataStackOutputs.tableArns.bossBattleParticipantsTable,
-                    bossQuestionsTable: dataStackOutputs.tableArns.bossQuestionsTable,
+                    bossBattleInstancesTable:       dataStackOutputs.tableArns.bossBattleInstancesTable,
+                    bossBattleParticipantsTable:    dataStackOutputs.tableArns.bossBattleParticipantsTable,
+                    bossQuestionsTable:             dataStackOutputs.tableArns.bossQuestionsTable,
+                    bossBattleTemplatesTable:       dataStackOutputs.tableArns.bossBattleTemplatesTable,
+                    bossBattleQuestionPlansTable:   dataStackOutputs.tableArns.bossBattleQuestionPlansTable,
+                    bossBattleSnapshotsTable:       dataStackOutputs.tableArns.bossBattleSnapshotsTable,
+                    bossAnswerAttemptsTable:        dataStackOutputs.tableArns.bossAnswerAttemptsTable,
+                    bossResultsTable:               dataStackOutputs.tableArns.bossResultsTable,
+                    playerStatesTable:              dataStackOutputs.tableArns.playerStatesTable,
+                    rewardTransactionsTable:        dataStackOutputs.tableArns.rewardTransactionsTable,
                 },
                 userPoolId: authStackOutputs.userPoolId,
             });
