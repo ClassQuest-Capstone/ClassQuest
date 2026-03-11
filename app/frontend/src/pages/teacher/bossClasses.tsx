@@ -303,6 +303,18 @@ const BossClasses = () => {
     }
   };
 
+  // Filter boss instances to only show active/in-progress battles
+  const ALLOWED_STATUSES = ["ACTIVE", "LOBBY", "COUNTDOWN", "QUESTION_ACTIVE", "RESOLVING", "INTERMISSION"];
+  const filteredBossInstances = bossInstances.filter((inst) => {
+    const status = getBossStatus(inst);
+    const bossTemplateId = getBossTemplateIdFromInstance(inst);
+    // Show if status is allowed AND the template still exists
+    const templateExists = bossTemplates.some(
+      (t: any) => safeStr((t as any).boss_template_id) === bossTemplateId
+    );
+    return ALLOWED_STATUSES.includes(status) && templateExists;
+  });
+
   useEffect(() => {
     feather.replace();
   });
@@ -454,16 +466,16 @@ const BossClasses = () => {
         )}
 
         {/* Empty State */}
-        {!bossLoading && bossInstances.length === 0 && (
+        {!bossLoading && filteredBossInstances.length === 0 && (
           <div className="bg-white rounded-xl shadow-md p-6 text-center text-gray-700">
-            <p>No boss battles assigned to this class yet.</p>
+            <p>No active boss battles assigned to this class.</p>
           </div>
         )}
 
         {/* Boss Battles Grid */}
-        {!bossLoading && bossInstances.length > 0 && (
+        {!bossLoading && filteredBossInstances.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {bossInstances.map((inst) => {
+            {filteredBossInstances.map((inst) => {
               const bossTemplateId = getBossTemplateIdFromInstance(inst);
               const tmpl = bossTemplates.find(
                 (t: any) => safeStr((t as any).boss_template_id) === bossTemplateId

@@ -42,7 +42,9 @@ export type JoinParticipantInput = {
     guild_id: string;
 };
 
-// Input for updating anti-spam fields
+// Input for updating anti-spam fields.
+// Internal use only — consumed by updateAntiSpamFields() repo helper,
+// which is called by the SubmitBossAnswer service. Not part of any public API.
 export type UpdateAntiSpamFieldsInput = {
     last_submit_at?: string;
     frozen_until?: string;

@@ -1,0 +1,69 @@
+# ClassQuest Boss Battle — GraphQL Schema
+# Phase 1: BossBattleInstance type + getBossBattleInstance query only.
+# Phase 2 will add remaining types, all queries, and subscription definitions.
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Types
+# ──────────────────────────────────────────────────────────────────────────────
+
+type BossBattleInstance {
+  boss_instance_id: ID!
+  class_id: ID!
+  boss_template_id: ID!
+  created_by_teacher_id: ID!
+
+  # Lifecycle state
+  status: String!
+  mode_type: String!
+  question_selection_mode: String
+  outcome: String
+  fail_reason: String
+
+  # Boss HP
+  current_boss_hp: Int
+  initial_boss_hp: Int
+
+  # Active question state
+  active_question_id: ID
+  active_guild_id: ID
+  question_started_at: String
+  question_ends_at: String
+
+  # Countdown / intermission timing
+  countdown_end_at: String
+  countdown_seconds: Int
+  intermission_ends_at: String
+
+  # Answer-gating quorum counters
+  received_answer_count: Int
+  required_answer_count: Int
+  ready_to_resolve: Boolean
+
+  # Per-guild answer gating (RANDOMIZED_PER_GUILD) — nullable until mode is complete
+  per_guild_received_answer_count: AWSJSON
+  per_guild_required_answer_count: AWSJSON
+  per_guild_ready_to_resolve: AWSJSON
+
+  # Per-guild active question tracking (RANDOMIZED_PER_GUILD) — nullable until mode is complete
+  per_guild_active_question_id: AWSJSON
+
+  # Plan references
+  question_plan_id: ID
+  guild_question_plan_id: ID
+  participants_snapshot_id: ID
+
+  # Timestamps
+  lobby_opened_at: String
+  completed_at: String
+  created_at: String
+  updated_at: String
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Queries
+# ──────────────────────────────────────────────────────────────────────────────
+
+type Query {
+  # Phase 1: single instance lookup by PK — direct DDB GetItem resolver.
+  getBossBattleInstance(bossInstanceId: ID!): BossBattleInstance
+}

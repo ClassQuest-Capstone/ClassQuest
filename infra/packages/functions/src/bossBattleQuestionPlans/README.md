@@ -234,7 +234,9 @@ ConditionExpression: "attribute_not_exists(question_plan_id)"
 - Retry calls will fail with `ConditionalCheckFailedException`
 - Prevents race conditions during countdown start
 
-## API Endpoints
+## Public API Endpoints
+
+Only one endpoint is routed in QuestApiStack and dispatched via the quest-router Lambda. This is the **only** publicly exposed HTTP operation for this module.
 
 ### GET /boss-battle-question-plans/{plan_id}
 
@@ -288,6 +290,16 @@ GET /boss-battle-question-plans/01HQXYZ...
   "seed": "abc123-uuid"
 }
 ```
+
+## Internal Repository/Service Operations
+
+The following functions in `repo.ts` are **not** exposed as HTTP endpoints. They are called by boss battle orchestration services only.
+
+| Function | Called By | Purpose |
+|----------|-----------|---------|
+| `createQuestionPlanForInstance(input)` | `bossBattleInstances/start-countdown.ts` | Generates the deterministic question plan at countdown start; internal orchestration helper, not a standalone API |
+| `listPlansByInstance(bossInstanceId)` | (debugging/admin tooling only) | Queries GSI1 to list all plans for a battle; internal debug helper with no public route |
+| `updateInstanceWithPlan(...)` (unexported) | `createQuestionPlanForInstance()` internally | Conditionally writes `question_plan_id` and initializes question indexes on the battle instance; not exported or routed |
 
 ## Integration Example
 

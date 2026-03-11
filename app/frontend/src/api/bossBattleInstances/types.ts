@@ -76,6 +76,13 @@ export type BossBattleInstance = {
     turn_policy?: TurnPolicy;
     outcome?: BattleOutcome;
     fail_reason?: FailReason;
+    // Answer-gating runtime state (reset each StartQuestion)
+    required_answer_count?: number;
+    received_answer_count?: number;
+    ready_to_resolve?: boolean;
+    per_guild_required_answer_count?: Record<string, number>;
+    per_guild_received_answer_count?: Record<string, number>;
+    per_guild_ready_to_resolve?: Record<string, boolean>;
     created_at: string;
     updated_at: string;
 };
@@ -122,4 +129,56 @@ export type UpdateBossBattleInstanceInput = Partial<{
 export type PaginatedBossBattleInstances = {
     items: BossBattleInstance[];
     cursor?: string;
+};
+
+export type SubmitBossAnswerPayload = {
+    student_id: string;
+    answer_raw: Record<string, unknown>;
+};
+
+export type FinishBattleResponse = {
+    boss_instance_id: string;
+    status: BossBattleStatus;
+    outcome: "WIN" | "FAIL" | null;
+    fail_reason: "ALL_GUILDS_DOWN" | "OUT_OF_QUESTIONS" | "ABORTED_BY_TEACHER" | null;
+    completed_at: string;
+    results_written: boolean;
+};
+
+export type AdvanceQuestionResponse = {
+    boss_instance_id: string;
+    status: BossBattleStatus;
+    current_question_index: number;
+    per_guild_question_index: Record<string, number> | null;
+    outcome: "WIN" | "FAIL" | null;
+    fail_reason: "OUT_OF_QUESTIONS" | null;
+    has_more_questions: boolean;
+};
+
+export type ResolveQuestionResponse = {
+    boss_instance_id: string;
+    question_id: string;
+    total_attempts: number;
+    total_damage_to_boss: number;
+    new_boss_hp: number;
+    status: BossBattleStatus;
+    outcome: "WIN" | "FAIL" | null;
+    fail_reason: "ALL_GUILDS_DOWN" | null;
+    downed_students_count: number;
+    affected_guilds_count: number;
+};
+
+export type SubmitBossAnswerResponse = {
+    is_correct: boolean;
+    answered_at: string;
+    elapsed_seconds: number;
+    effective_time_limit_seconds: number | null;
+    speed_multiplier: number;
+    damage_to_boss: number;
+    hearts_delta_student: number;
+    hearts_delta_guild_total: number;
+    frozen_until: string | null;
+    received_answer_count: number;
+    required_answer_count: number;
+    ready_to_resolve: boolean;
 };

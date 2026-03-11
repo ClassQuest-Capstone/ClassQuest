@@ -4,6 +4,11 @@ import type {
     CreateBossBattleInstanceInput,
     UpdateBossBattleInstanceInput,
     PaginatedBossBattleInstances,
+    SubmitBossAnswerPayload,
+    SubmitBossAnswerResponse,
+    ResolveQuestionResponse,
+    AdvanceQuestionResponse,
+    FinishBattleResponse,
 } from "./types.js";
 
 /**
@@ -89,4 +94,108 @@ export function updateBossBattleInstance(
         method: "PATCH",
         body: JSON.stringify(updates),
     });
+}
+
+/**
+ * Open the battle lobby — transitions status from DRAFT to LOBBY.
+ * POST /boss-battle-instances/{boss_instance_id}/start
+ *
+ * Use this instead of the generic PATCH for the DRAFT -> LOBBY lifecycle step.
+ */
+export function startBossBattleInstance(bossInstanceId: string) {
+    return api<BossBattleInstance>(
+        `/boss-battle-instances/${encodeURIComponent(bossInstanceId)}/start`,
+        { method: "POST" }
+    );
+}
+
+/**
+ * Freeze the lobby and start the countdown — transitions status from LOBBY to COUNTDOWN.
+ * POST /boss-battle-instances/{boss_instance_id}/countdown
+ *
+ * Snapshots JOINED participants, generates the deterministic question plan, and
+ * sets countdown_end_at. Use this instead of the generic PATCH for the
+ * LOBBY -> COUNTDOWN lifecycle step.
+ */
+export function startBossBattleCountdown(bossInstanceId: string) {
+    return api<BossBattleInstance>(
+        `/boss-battle-instances/${encodeURIComponent(bossInstanceId)}/countdown`,
+        { method: "POST" }
+    );
+}
+
+/**
+ * Activate the current planned question — transitions status to QUESTION_ACTIVE.
+ * POST /boss-battle-instances/{boss_instance_id}/start-question
+ *
+ * Allowed from COUNTDOWN or INTERMISSION. Sets active_question_id, question_started_at,
+ * and question_ends_at (if timed). Use this instead of the generic PATCH for the
+ * COUNTDOWN/INTERMISSION -> QUESTION_ACTIVE lifecycle step.
+ */
+export function startBossBattleQuestion(bossInstanceId: string) {
+    return api<BossBattleInstance>(
+        `/boss-battle-instances/${encodeURIComponent(bossInstanceId)}/start-question`,
+        { method: "POST" }
+    );
+}
+
+/**
+ * Submit a student answer during QUESTION_ACTIVE.
+ * POST /boss-battle-instances/{boss_instance_id}/submit-answer
+ *
+ * TODO: derive student_id from authenticated token instead of request body
+ */
+/**
+ * Resolve the active question — applies damage, penalties, and transitions battle state.
+ * POST /boss-battle-instances/{boss_instance_id}/resolve-question
+ *
+ * Teacher/admin only.
+ * TODO: restrict this endpoint to teacher/admin users
+ */
+/**
+ * Advance to the next question after a question has been resolved.
+ * POST /boss-battle-instances/{boss_instance_id}/advance-question
+ *
+ * Teacher/admin only.
+ * TODO: restrict this endpoint to teacher/admin users
+ */
+export function advanceBossBattleToNextQuestion(bossInstanceId: string) {
+    return api<AdvanceQuestionResponse>(
+        `/boss-battle-instances/${encodeURIComponent(bossInstanceId)}/advance-question`,
+        { method: "POST" }
+    );
+}
+
+export function resolveBossBattleQuestion(bossInstanceId: string) {
+    return api<ResolveQuestionResponse>(
+        `/boss-battle-instances/${encodeURIComponent(bossInstanceId)}/resolve-question`,
+        { method: "POST" }
+    );
+}
+
+/**
+ * Finish the boss battle — finalizes outcome and writes BossResults.
+ * POST /boss-battle-instances/{boss_instance_id}/finish
+ *
+ * Teacher/admin only.
+ * TODO: restrict this endpoint to teacher/admin users
+ */
+export function finishBossBattle(bossInstanceId: string) {
+    return api<FinishBattleResponse>(
+        `/boss-battle-instances/${encodeURIComponent(bossInstanceId)}/finish`,
+        { method: "POST" }
+    );
+}
+
+export function submitBossBattleAnswer(
+    bossInstanceId: string,
+    payload: SubmitBossAnswerPayload
+) {
+    return api<SubmitBossAnswerResponse>(
+        `/boss-battle-instances/${encodeURIComponent(bossInstanceId)}/submit-answer`,
+        {
+            method: "POST",
+            body: JSON.stringify(payload),
+        }
+    );
 }

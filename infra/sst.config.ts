@@ -31,6 +31,7 @@ import { TeacherApiStack } from "./stacks/TeacherApiStack";
 import { StudentApiStack } from "./stacks/StudentApiStack";
 import { QuestApiStack } from "./stacks/QuestApiStack";
 import { AutomationStack } from "./stacks/AutomationStack";
+import { AppSyncStack } from "./stacks/AppSyncStack";
 
 export default {
     config() {
@@ -120,5 +121,19 @@ export default {
             });
         }
         app.stack(ClassQuestAutomationStack);
+
+        // 8. AppSyncStack - AppSync GraphQL API for realtime boss battle updates (depends on Data, Auth)
+        function ClassQuestAppSyncStack(ctx: StackContext) {
+            return AppSyncStack(ctx, {
+                tableNames: {
+                    bossBattleInstancesTable: dataStackOutputs.tableNames.bossBattleInstancesTable,
+                },
+                tableArns: {
+                    bossBattleInstancesTable: dataStackOutputs.tableArns.bossBattleInstancesTable,
+                },
+                userPoolId: authStackOutputs.userPoolId,
+            });
+        }
+        app.stack(ClassQuestAppSyncStack);
     },
 } satisfies SSTConfig;

@@ -89,21 +89,25 @@ BossAnswerAttempts is an **append-only**, immutable combat log that stores every
 
 ## Access Patterns
 
-### 1. Query attempts for a battle (teacher live feed)
+### 1. Query attempts for a battle — PUBLIC ROUTED API
 **Query GSI1:** PK = boss_instance_id, sorted by answered_at
+**Handler:** `list-by-battle.ts` → `GET /boss-battle-instances/{boss_instance_id}/attempts`
 **Use Case:** Real-time battle dashboard, teacher monitoring
 
-### 2. Query attempts for a student (profile/history)
+### 2. Query attempts for a student — PUBLIC ROUTED API
 **Query GSI2:** PK = student_id, sorted by answered_at
+**Handler:** `list-by-student.ts` → `GET /students/{student_id}/bossAttempts`
 **Use Case:** Student achievement history, analytics
 
-### 3. Query attempts for a specific battle question (resolve/aggregation)
+### 3. Query attempts for a specific battle question — INTERNAL ONLY
 **Query PK:** boss_attempt_pk = `BI#<battle>#Q#<question>`, sorted by attempt_sk
-**Use Case:** Aggregating damage dealt to boss, counting correct answers, determining battle outcome
+**Function:** `listAttemptsByBattleQuestion()` (not routed)
+**Use Case:** Called by `resolve-question.ts` to aggregate damage and penalties when resolving a question
 
-### 4. Query attempts for a student in a specific battle (teacher drilldown)
+### 4. Query attempts for a student in a specific battle — INTERNAL ONLY
 **Query GSI3:** PK = gsi3_pk (boss_instance_id#student_id), sorted by gsi3_sk
-**Use Case:** Teacher reviewing specific student's performance in a battle
+**Function:** `listAttemptsByBattleStudent()` (not routed)
+**Use Case:** Available for server-side teacher drilldown services; no public route exists yet
 
 ## Append-Only Design
 
@@ -119,7 +123,9 @@ BossAnswerAttempts is an **append-only**, immutable combat log that stores every
 - If needed, deterministic ID can be incorporated into attempt_sk suffix
 - UUID collision is astronomically unlikely
 
-## API Endpoints
+## Public API Endpoints
+
+The following 2 endpoints are routed in QuestApiStack and dispatched via the quest-router Lambda. These are the **only** publicly exposed HTTP operations for this module.
 
 ### 1. List Attempts by Battle
 **GET** `/boss-battle-instances/{boss_instance_id}/attempts`
@@ -180,6 +186,17 @@ BossAnswerAttempts is an **append-only**, immutable combat log that stores every
   "count": 1
 }
 ```
+
+## Internal Repository Operations
+
+The following functions in `repo.ts` are **not** exposed as HTTP endpoints. They are called by other server-side services as part of boss battle orchestration.
+
+| Function | Called By | Purpose |
+|----------|-----------|---------|
+| `createBossAnswerAttempt(input)` | `bossBattleInstances/submit-answer.ts` | Appends an attempt record after the orchestration handler grades the answer. Submission must always go through SubmitBossAnswer, never via a standalone create endpoint. |
+| `getStudentAttemptForQuestion(instanceId, questionId, studentId)` | `bossBattleInstances/submit-answer.ts` | Detects duplicate submissions before writing a new attempt |
+| `listAttemptsByBattleQuestion(instanceId, questionId)` | `bossBattleInstances/resolve-question.ts` | Aggregates all attempts for a question to compute total damage and heart penalties during resolution |
+| `listAttemptsByBattleStudent(instanceId, studentId)` | (reserved for server-side teacher/admin services) | Queries GSI3 for per-student drilldown within a battle; no public route exists |
 
 ## Validation Rules
 

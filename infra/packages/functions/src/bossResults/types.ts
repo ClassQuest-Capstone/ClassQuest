@@ -86,7 +86,7 @@ export type BossResultGuildRow = {
     guild_members_downed: number;
 
     // GSI2 keys (class history) - no GSI1 for guild rows
-    class_id: string;
+    //class_id: string;
     gsi2_sk: string;                  // completed_at#boss_instance_id
 
     // Optional

@@ -160,7 +160,11 @@ export async function getSnapshot(snapshotId: string): Promise<BossBattleSnapsho
 }
 
 /**
- * List snapshots by battle instance (GSI1) - for debugging
+ * List snapshots by battle instance (GSI1).
+ *
+ * Internal debugging/helper operation; not exposed as a routed API.
+ * Available for server-side tooling and debugging only. Do not wire as a
+ * public route without adding a dedicated handler and auth enforcement.
  */
 export async function listSnapshotsByInstance(
     bossInstanceId: string,

@@ -47,8 +47,9 @@ Each entry in `joined_students` array:
 
 ## Access Patterns
 
-### 1. Create snapshot at countdown start
+### 1. Create snapshot at countdown start — PUBLIC ROUTED API
 **Function:** `createParticipantsSnapshot()`
+**Handler:** `create-snapshot.ts` → `POST /boss-battle-instances/{boss_instance_id}/snapshots/participants`
 **Steps:**
 1. Load BossBattleInstance (require status == LOBBY or COUNTDOWN)
 2. Query BossBattleParticipants where state=JOINED
@@ -58,14 +59,15 @@ Each entry in `joined_students` array:
 
 **Use Case:** Freeze roster when battle countdown begins
 
-### 2. Read snapshot by ID
+### 2. Read snapshot by ID — PUBLIC ROUTED API
 **Function:** `getSnapshot(snapshot_id)`
+**Handler:** `get-snapshot.ts` → `GET /boss-battle-snapshots/{snapshot_id}`
 **Use Case:** Retrieve frozen roster for scoring, results computation
 
-### 3. List snapshots by battle (debugging)
-**Function:** `listSnapshotsByInstance(boss_instance_id)`
+### 3. List snapshots by battle — INTERNAL ONLY (debugging)
+**Function:** `listSnapshotsByInstance(boss_instance_id)` (not routed)
 **GSI:** GSI1
-**Use Case:** Debug view showing all snapshots for a battle
+**Use Case:** Internal debug view; no public route exists for this operation
 
 ## Snapshot Creation Logic
 
@@ -123,7 +125,9 @@ Each entry in `joined_students` array:
 - Battle status not LOBBY/COUNTDOWN → throw error
 - Snapshot already exists (condition fails) → throw "already exists"
 
-## API Endpoints
+## Public API Endpoints
+
+The following 2 endpoints are routed in QuestApiStack and dispatched via the quest-router Lambda. These are the **only** publicly exposed HTTP operations for this module.
 
 ### 1. Create Participants Snapshot
 **POST** `/boss-battle-instances/{boss_instance_id}/snapshots/participants`
@@ -194,6 +198,14 @@ Each entry in `joined_students` array:
   "error": "Snapshot not found"
 }
 ```
+
+## Internal Repository Operations
+
+The following functions in `repo.ts` are **not** exposed as HTTP endpoints.
+
+| Function | Called By | Purpose |
+|----------|-----------|---------|
+| `listSnapshotsByInstance(bossInstanceId)` | (debugging/admin tooling only) | Queries GSI1 to list all snapshots for a battle; internal debug helper with no public route |
 
 ## Validation Rules
 

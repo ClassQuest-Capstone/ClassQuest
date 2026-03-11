@@ -4,7 +4,7 @@
  */
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, PutCommand, QueryCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { BossAnswerAttemptItem, CreateBossAnswerAttemptInput } from "./types.js";
 import {
     buildBossAttemptPk,
@@ -20,7 +20,11 @@ const ddb = DynamoDBDocumentClient.from(client);
 const TABLE = process.env.BOSS_ANSWER_ATTEMPTS_TABLE_NAME!;
 
 /**
- * Create a new boss answer attempt (append-only)
+ * Create a new boss answer attempt (append-only).
+ *
+ * Internal operation only. Boss answer submission must go through boss battle
+ * orchestration (SubmitBossAnswer handler), not a standalone BossAnswerAttempts
+ * create endpoint. This function is called by submit-answer.ts after grading.
  */
 export async function createBossAnswerAttempt(
     input: CreateBossAnswerAttemptInput
@@ -143,8 +147,11 @@ export async function listAttemptsByStudent(
 }
 
 /**
- * List attempts by battle + student (GSI3)
- * Teacher drilldown for specific student in a battle
+ * List attempts by battle + student (GSI3).
+ *
+ * Internal repository helper; not exposed as an HTTP endpoint.
+ * Available for server-side teacher drilldown services. Do not wire as a
+ * public route without adding a dedicated handler and auth enforcement.
  */
 export async function listAttemptsByBattleStudent(
     bossInstanceId: string,
@@ -183,8 +190,41 @@ export async function listAttemptsByBattleStudent(
 }
 
 /**
- * List attempts for a specific battle question (PK query)
- * Used for resolve/aggregation
+ * Check whether a specific student already has an attempt for a question.
+ * Queries the main PK (BI#<instance>#Q#<question>) with a student_id filter.
+ * Returns the first matching item or null.
+ *
+ * Internal repository helper; not exposed as an HTTP endpoint.
+ * Called by submit-answer.ts for duplicate-submission detection before writing
+ * a new attempt.
+ */
+export async function getStudentAttemptForQuestion(
+    bossInstanceId: string,
+    questionId: string,
+    studentId: string
+): Promise<BossAnswerAttemptItem | null> {
+    const result = await ddb.send(
+        new QueryCommand({
+            TableName: TABLE,
+            KeyConditionExpression: "boss_attempt_pk = :pk",
+            FilterExpression: "student_id = :student_id",
+            ExpressionAttributeValues: {
+                ":pk": buildBossAttemptPk(bossInstanceId, questionId),
+                ":student_id": studentId,
+            },
+            Limit: 1,
+        })
+    );
+    const items = (result.Items as BossAnswerAttemptItem[]) || [];
+    return items.length > 0 ? items[0] : null;
+}
+
+/**
+ * List attempts for a specific battle question (PK query).
+ *
+ * Internal repository helper; not exposed as an HTTP endpoint.
+ * Called by resolve-question.ts to aggregate all attempts for a question
+ * before computing damage dealt to the boss and applying penalties.
  */
 export async function listAttemptsByBattleQuestion(
     bossInstanceId: string,
