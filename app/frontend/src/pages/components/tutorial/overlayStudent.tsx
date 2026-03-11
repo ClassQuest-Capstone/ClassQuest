@@ -1,6 +1,6 @@
 import React from "react";
-import { useTutorial } from "./contextStudent";
-import { HealerSprite } from "./tutorialSpriteStudent";
+import { useTutorial } from "./contextStudent.js";
+import { HealerSprite } from "./tutorialSpriteStudent.js";
 import "./styles/tutorial.css";
 
 /**
@@ -31,14 +31,14 @@ export const TutorialOverlay: React.FC = () => {
           targetId: "nav-tab",
           title: "Navigation tabs",
           text:
-            "Use these buttons to cehck out your guild activities, class leaderboards, and shop",
+            "Use these buttons to check out your guild activities, class leaderboards, and shop",
         };
       case "Guilds":
         return {
           targetId: "guilds",
           title: "Gold & Guilds",
           text:
-            "These are your current gold amount and guilds you are part of. Join a guild to take on new quests and challenges with your friends",
+            "These are your current XP(Experience points), gold amount, and guilds you are part of. Join a guild to take on boss battles with your friends",
         };
       case "Equipment":
         return {
@@ -61,7 +61,7 @@ export const TutorialOverlay: React.FC = () => {
         text:
           "Here is where all your collected items are stored. You can equip them from here",
       };
-      case "Stats":
+      /*case "Stats":
         return {
           targetId: "stats",
           title: "Stats",
@@ -74,13 +74,20 @@ export const TutorialOverlay: React.FC = () => {
           title: "Skills",
           text:
             "View your current skills and abilities. level up to unlock new skills",
+        };*/
+      case "hearts":
+        return {
+          targetId: "hearts",
+          title: "Hearts",
+          text:
+            "Use these hearts to restore your character's HP & participate in boss battles",
         };
       case "Footer":
         return {
           targetId: "footer",
           title: "Quests and Rewards",
           text:
-            "Use these tabs to view Active quests, Quests based on subjects, and claim your rewards as you level up",
+            "Use these tabs to view Active quests, claim your rewards as you level up, and view your hearts refresh timer",
         };
       default:
         return null;

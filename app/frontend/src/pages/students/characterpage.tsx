@@ -932,7 +932,7 @@ const CharacterPage: React.FC = () => {
             <div className="bg-gray-800 bg-opacity-80 rounded-lg p-6 mt-6 ">
               <div className="w-full max-w-6xl mx-auto px-4">
                 {/* Quick Hearts Display */}
-                <div className="flex items-center justify-center gap-2 mb-6 p-4 ">
+                <div id="hearts" className="flex items-center justify-center gap-2 mb-6 p-4 ">
                   <span className="text-xl font-bold text-red-500">Hearts available:</span>
                   <div className="flex gap-1">
                     {[...Array(profile.maxHearts)].map((_, i) => (

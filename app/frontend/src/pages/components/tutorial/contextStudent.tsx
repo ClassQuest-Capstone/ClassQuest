@@ -6,8 +6,7 @@ type TutorialStepId =
   | "Equipment"
   | "Appearance"
   | "Inventory"
-  | "Stats"
-  | "Skills"
+  | "hearts"
   | "Footer"
   | "done";
 
@@ -28,8 +27,7 @@ const steps: TutorialStepId[] = [
   "Equipment",
   "Appearance",
   "Inventory",
-  "Stats",
-  "Skills",
+  "hearts",
   "Footer",
   "done",
 ];

@@ -84,11 +84,12 @@ Current TODO:
 4. adding quests to students side (DONE)
 5. adding quests to teachers side (DONE)
 6. adding students to classes alongside their xp, gold and level to make this editable(DONE)
-7. adding rewards to classes & creating custom rewards for classes 
-8. Boss Battle students side (Almost DONE)
-9. Leaderboards teachers side (DONE)
-10. Leader boards students side (DONE)
-11. Student's shop 
+7. Boss Battle students side (Almost DONE)
+8. Leaderboards teachers side (DONE)
+9. Leader boards students side (DONE)
+10. Student's shop 
+11. Teacher's shop
+12. Student's rewards (DONE)
 
 
 Dynamic (TODO:)
@@ -149,7 +150,7 @@ TODO: fix students quests so that it allows saves only 1 attempt per question (D
 
 TODO: check date so that quest only shows up on the date its assigned if it date is not reached it stays as draft until the start date is reached (DONE)
 
-TODO: Remove archived quests from ClassQuest.tsx (Almost DONE)
+TODO: Remove archived quests from ClassQuest.tsx (DONE)
 
 TODO: Connect template to class and have it show up under class/boss-battles (DONE)
 
@@ -159,10 +160,9 @@ TODO: Boss battle implementation for teachers & students side (IN PROGRESS) Boss
 
 TODO: count down on boss battle when its scheduled (DONE)
 
-TODO: Assist alvin with boss battle and correct minor errors in student tutorial, editing quest question 
+TODO: Assist alvin with boss battle and correct minor errors in student tutorial, editing quest question (DONE)
 
-TODO: launch logic for boss battle
-students load on waiting screen awaiting teachers to click start (DONE)
+TODO: launch logic for boss battle students load on waiting screen awaiting teachers to click start (DONE)
 
 TODO: Students join waiting room, each guild should only show active players (only ones with rewards) this should happen when the click join fighr on guilds page using modal then on modal when teacher clicks start battle it auto directs to bossfight page. (DONE)
 
@@ -174,7 +174,13 @@ TODO: once claimed button should remain as owned (DONE)
 
 TODO: teacher inclass rewards for shop & add to students shop modify UI (DONE)
 
-TODO:each vote on answers 
+TODO: each vote on answers  (DONE)
+
+TODO: Soft delete boss battle tempplate (DONE)
+
+TODO: tool tip to inidicate answers quest question creation (DONE)
+
+TODO: Error with modifying questions from quest template (DONE)
 
 TODO: make shop items avaliable to students and not avaliable button to launch to shop?
 

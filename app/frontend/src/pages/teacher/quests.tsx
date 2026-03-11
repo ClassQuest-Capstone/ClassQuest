@@ -83,6 +83,9 @@ const Quests = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const questDataFromModal = location.state?.questData as QuestData | undefined;
+  const editModeQuestions = location.state?.questions as any[] | undefined;
+  const editModeQuestId = location.state?.questId as string | undefined;
+  const isEditMode = location.state?.editMode === true;
 
   const questionTypes: QuestionType[] = ["Multiple Choice", "True/False", "Short Answer", "Matching"];
 
@@ -184,7 +187,6 @@ const Quests = () => {
           // MUST be valid numbers
           base_xp_reward: baseXP,
           base_gold_reward: baseGold,
-
           is_shared_publicly: false,
           type: questType,
           grade,
@@ -205,6 +207,66 @@ const Quests = () => {
 
     initializeQuestTemplate();
   }, [questTemplateId, questDataFromModal]);
+
+  // Load questions from edit mode (From QuestionsListModal)
+  useEffect(() => {
+    if (isEditMode && editModeQuestId && editModeQuestions && editModeQuestions.length > 0) {
+      setQuestTemplateId(editModeQuestId);
+      
+      // Convert API questions to internal Question format
+      const convertedQuestions: Question[] = editModeQuestions.map((q: any) => ({
+        id: q.question_id,
+        type: mapFormatToType(q.question_format),
+        title: q.prompt,
+        difficulty: q.difficulty || "Medium",
+        xpValue: q.base_xp || 10,
+        questionText: q.prompt,
+        answerOptions: q.options ? normalizeOptions(q.options) : undefined,
+        correctAnswer: q.correct_answer,
+        explanation: q.explanation || "",
+        hint: q.hint || "",
+        tags: q.subject || "",
+        timeLimit: q.time_limit_seconds || 120,
+      }));
+      
+      setQuestions(convertedQuestions);
+      setIsCreating(false);
+    }
+  }, [isEditMode, editModeQuestId, editModeQuestions]);
+
+  // Helper function to convert question format to type
+  const mapFormatToType = (format: string): QuestionType => {
+    const formatMap: { [key: string]: QuestionType } = {
+      MCQ_SINGLE: "Multiple Choice",
+      MCQ_MULTI: "Multiple Choice",
+      TRUE_FALSE: "True/False",
+      SHORT_ANSWER: "Short Answer",
+      MATCHING: "Matching",
+    };
+    return formatMap[format] || "Multiple Choice";
+  };
+
+  // Helper function to normalize options
+  const normalizeOptions = (options: any): AnswerOption[] => {
+    if (Array.isArray(options)) {
+      if (options.length === 0) return [];
+      if (typeof options[0] === "string") {
+        return options.map((text: string, idx: number) => ({
+          id: String(idx),
+          text: text,
+          isCorrect: false,
+        }));
+      }
+      if (typeof options[0] === "object") {
+        return options.map((opt: any, idx: number) => ({
+          id: String(idx),
+          text: opt.text || opt.label || opt.value || "",
+          isCorrect: opt.isCorrect || false,
+        }));
+      }
+    }
+    return [];
+  };
 
   useEffect(() => {
     feather.replace();
@@ -714,6 +776,13 @@ const Quests = () => {
                           + Add Option
                         </button>
                       </div>
+                      {/* Tooltip showing correct answer */}
+                      <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
+                        <p className="text-sm text-blue-700">
+                          <span className="font-medium"> Correct Answer:</span>{" "}
+                          {answerOptions.find(opt => opt.isCorrect)?.text || "Select one option below"}
+                        </p>
+                      </div>
                       <div className="space-y-3">
                         {answerOptions.map((option, index) => (
                           <div key={option.id} className="flex items-center gap-3">
@@ -721,7 +790,7 @@ const Quests = () => {
                               type="radio"
                               checked={option.isCorrect}
                               onChange={() => handleCorrectAnswerChange(option.id)}
-                              className="h-4 w-4"
+                              className="h-4 w-4 cursor-pointer"
                             />
                             <input
                               type="text"
@@ -730,6 +799,9 @@ const Quests = () => {
                               onChange={(e) => handleOptionChange(option.id, e.target.value)}
                               placeholder={`Option ${index + 1}`}
                             />
+                            {option.isCorrect && (
+                              <span className="text-green-500 font-medium text-sm whitespace-nowrap">✓ Correct</span>
+                            )}
                             {answerOptions.length > 2 && (
                               <button onClick={() => handleRemoveOption(option.id)} className="text-red-500 hover:text-red-700">
                                 <i data-feather="x"></i>

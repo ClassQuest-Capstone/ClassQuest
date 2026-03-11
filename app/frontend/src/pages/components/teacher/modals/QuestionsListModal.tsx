@@ -1,12 +1,14 @@
-import React from "react";
-import { QuestQuestion } from "../../../../api/questQuestions.js";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { QuestQuestion, listQuestQuestions } from "../../../../api/questQuestions.js";
 
 interface QuestionsListModalProps {
   isOpen: boolean;
   questionsList: QuestQuestion[];
   inputBox: string;
+  questId?: string;
   onClose: () => void;
-  onEditClick: (question: QuestQuestion) => void;
+  onEditClick?: (question: QuestQuestion) => void;
   onDeleteClick: (question: QuestQuestion) => void;
 }
 
@@ -14,10 +16,42 @@ export const QuestionsListModal: React.FC<QuestionsListModalProps> = ({
   isOpen,
   questionsList,
   inputBox,
+  questId,
   onClose,
   onEditClick,
   onDeleteClick,
 }) => {
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleEditAllQuestions = async () => {
+    if (!questId) {
+      console.error("Quest ID is required to edit questions");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Fetch all questions for this quest template
+      const response = await listQuestQuestions(questId);
+      const allQuestions = response.items || [];
+
+      navigate('/quests', {
+        state: {
+          questions: allQuestions,
+          questId,
+          editMode: true,
+        },
+      });
+      onClose();
+    } catch (error) {
+      console.error("Failed to fetch questions:", error);
+      alert("Failed to load questions. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -41,6 +75,23 @@ export const QuestionsListModal: React.FC<QuestionsListModalProps> = ({
             </div>
           ) : (
             <div className="space-y-4">
+              <div className="flex gap-2 mt-3 pt-3 ">
+               <button
+                      className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white px-3 py-2 rounded text-xs flex items-center justify-center gap-1"
+                      onClick={handleEditAllQuestions}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <>
+                           Loading...
+                        </>
+                      ) : (
+                        <>
+                          <i data-feather="edit" className="w-3 h-3"></i> Edit Quest Questions
+                        </>
+                      )}
+                    </button>
+              </div>
               {questionsList.map((q: QuestQuestion, idx: number) => (
                 <div key={q.question_id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                   <div className="flex justify-between items-start mb-2">
@@ -66,12 +117,6 @@ export const QuestionsListModal: React.FC<QuestionsListModalProps> = ({
                   
                   {/* Action buttons */}
                   <div className="flex gap-2 mt-3 pt-3 border-t border-gray-300">
-                    <button
-                      className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded text-xs flex items-center justify-center gap-1"
-                      onClick={() => onEditClick(q)}
-                    >
-                      <i data-feather="edit" className="w-3 h-3"></i> Edit
-                    </button>
                     <button
                       className="flex-1 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded text-xs flex items-center justify-center gap-1"
                       onClick={() => onDeleteClick(q)}

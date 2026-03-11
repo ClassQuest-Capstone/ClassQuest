@@ -37,6 +37,7 @@ import {
   createBossBattleTemplate,
   listBossBattleTemplatesByOwner,
   listPublicBossBattleTemplates,
+  softDeleteBossBattleTemplate,
 } from "../../api/bossBattleTemplates/client.js";
 import type { BossBattleTemplate as BossBattleTemplate } from "../../api/bossBattleTemplates/types.js";
 import { createBossBattleInstance as createBossBattleInstanceApi, listBossBattleInstancesByTemplate as listBossBattleInstancesByTemplateApi, updateBossBattleInstance as updateBossBattleInstanceApi, } from "../../api/bossBattleInstances/client.js";
@@ -312,6 +313,7 @@ const Subjects = () => {
     questionEditLoading,
     questionEditError,
     editFormState,
+    questTemplateId,
     openQuestionsEditor,
     closeQuestionsEditor,
     openQuestionEditModal,
@@ -808,7 +810,7 @@ const Subjects = () => {
     }
   };
 
-  // Boss: delete template (soft-delete) TODO:
+  // Boss: soft-delete template
   const deleteBossTemplate = async (t: BossBattleTemplate) => {
     const id = safeStr((t as any).boss_template_id);
     const title = safeStr((t as any).title);
@@ -816,7 +818,8 @@ const Subjects = () => {
     if (!window.confirm(`Delete "${title}"?`)) return;
 
     try {
-      await updateBossTemplateStatusBestEffort(id, "DELETED");
+      // Use soft-delete API endpoint
+      await softDeleteBossBattleTemplate(id, teacher?.id || "");
 
       // Remove from templates list
       setBossTemplates((prev) => prev.filter((x) => safeStr((x as any).boss_template_id) !== id));
@@ -1906,6 +1909,7 @@ const Subjects = () => {
         isOpen={questionsModalOpen}
         questionsList={questionsList}
         inputBox={inputBox}
+        questId={questTemplateId}
         onClose={closeQuestionsEditor}
         onEditClick={openQuestionEditModal}
         onDeleteClick={deleteQuestion}

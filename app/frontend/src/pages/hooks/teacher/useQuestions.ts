@@ -21,6 +21,7 @@ interface UseQuestionsReturn {
   questionEditModalOpen: boolean;
   
   // Data states
+  questTemplateId: string;
   questionsList: QuestQuestion[];
   editingQuestion: QuestQuestion | null;
   questionEditLoading: boolean;
@@ -49,6 +50,7 @@ export const useQuestions = (): UseQuestionsReturn => {
   const [questionEditModalOpen, setQuestionEditModalOpen] = useState(false);
   
   // Data states
+  const [questTemplateId, setQuestTemplateId] = useState<string>("");
   const [questionsList, setQuestionsList] = useState<QuestQuestion[]>([]);
   const [editingQuestion, setEditingQuestion] = useState<QuestQuestion | null>(null);
   const [questionEditLoading, setQuestionEditLoading] = useState(false);
@@ -99,6 +101,7 @@ export const useQuestions = (): UseQuestionsReturn => {
 
   const openQuestionsEditor = useCallback(async (templateId: string) => {
     try {
+      setQuestTemplateId(templateId);
       const res = await listQuestQuestions(templateId);
       setQuestionsList((res as any).items ?? []);
       setQuestionsModalOpen(true);
@@ -111,6 +114,7 @@ export const useQuestions = (): UseQuestionsReturn => {
   const closeQuestionsEditor = useCallback(() => {
     setQuestionsModalOpen(false);
     setQuestionsList([]);
+    setQuestTemplateId("");
   }, []);
 
   const openQuestionEditModal = useCallback((question: QuestQuestion) => {
@@ -161,8 +165,7 @@ export const useQuestions = (): UseQuestionsReturn => {
       let correctData: any = null;
       let optionsData: any = undefined;
 
-      // TODO: fix change these fields to be proper form inputs instead of JSON
-      // Parse options JSON if provided
+     /*
       if (editFormState.optionsJson.trim()) {
         try {
           optionsData = JSON.parse(editFormState.optionsJson);
@@ -178,7 +181,7 @@ export const useQuestions = (): UseQuestionsReturn => {
         } catch (e) {
           throw new Error("Invalid JSON format for correct answer");
         }
-      }
+      }*/
 
       const updateData: any = {
         prompt: editFormState.prompt,
@@ -237,6 +240,7 @@ export const useQuestions = (): UseQuestionsReturn => {
     questionEditLoading,
     questionEditError,
     editFormState,
+    questTemplateId,
     openQuestionsEditor,
     closeQuestionsEditor,
     openQuestionEditModal,
