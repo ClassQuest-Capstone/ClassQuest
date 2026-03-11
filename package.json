@@ -4,7 +4,7 @@
   "description": "> *Turning classrooms into adventures.*",
   "main": "index.js",
   "scripts": {
-    "test": "vitest run --config infra/packages/functions/vitest.config.ts",
+    "test": "vitest run --config infra/packages/functions/vitest.config.mts",
     "dev": "sst dev --config infra/sst.config.ts",
     "deploy": "sst deploy --config infra/sst.config.ts",
     "remove": "sst remove --config infra/sst.config.ts"
