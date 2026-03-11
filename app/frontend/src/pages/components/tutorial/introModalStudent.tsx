@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useTutorial } from "./contextStudent.js";
 import { HealerSprite } from "./tutorialSpriteStudent.js";
+import { fetchAuthSession } from "aws-amplify/auth";
 import "./styles/intro.css";
 
 /**
@@ -15,12 +16,30 @@ export const TutorialIntroModal: React.FC = () => {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    // Check if this is the user's first time
-    const hasSeenIntroModal = localStorage.getItem("cq_hasSeenIntroModal");
-    if (!hasSeenIntroModal) {
-      setOpen(true);
-      localStorage.setItem("cq_hasSeenIntroModal", "true");
-    }
+    const initializeModal = async () => {
+      try {
+        // Get current user's ID
+        const session = await fetchAuthSession();
+        const userId = String(session.tokens?.idToken?.payload?.sub || "");
+        
+        if (!userId) {
+          // User not authenticated, don't show modal
+          return;
+        }
+
+        // Check if THIS user has seen the intro modal
+        const userModalKey = `cq_hasSeenIntroModal_${userId}`;
+        const hasSeenIntroModal = localStorage.getItem(userModalKey);
+        if (!hasSeenIntroModal) {
+          setOpen(true);
+          localStorage.setItem(userModalKey, "true");
+        }
+      } catch (err) {
+        console.error("Failed to initialize tutorial modal:", err);
+      }
+    };
+
+    initializeModal();
   }, []);
 
   if (!open) return null;
@@ -30,8 +49,10 @@ export const TutorialIntroModal: React.FC = () => {
  */
   const handleStart = () => {
   setOpen(false);
+  startTutorial();
+};
 
-  const waitForDashboard = () => {
+ /* const waitForDashboard = () => {
     const el = document.getElementById("Active-tab");
     if (el) {
       startTutorial();
@@ -41,7 +62,7 @@ export const TutorialIntroModal: React.FC = () => {
   };
 
   waitForDashboard();
-};
+};*/
 
 
   const handleClose = () => setOpen(false);

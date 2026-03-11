@@ -45,7 +45,7 @@ export const TutorialOverlay: React.FC = () => {
         targetId: "Top-students",
         title: "Students ",
         text:
-          "View and manage your students, and track thier progress",
+          "View and manage your top performing students, and track their progress",
       };
       case "nav":
         return {
