@@ -13,14 +13,19 @@
 
 import { SignatureV4 } from "@smithy/signature-v4";
 import { Sha256 } from "@aws-crypto/sha256-js";
-import { fromNodeProviderChain } from "@aws-sdk/credential-provider-node";
 
 // Populated by AppSyncStack via Lambda environment variables
 const APPSYNC_URL = process.env.APPSYNC_API_URL!;
 const AWS_REGION  = process.env.AWS_REGION ?? "ca-central-1";
 
+// Lambda always injects AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_SESSION_TOKEN.
+// Reading lazily (async fn) ensures the session token is fresh on every call.
 const signer = new SignatureV4({
-    credentials: fromNodeProviderChain(),
+    credentials: async () => ({
+        accessKeyId:     process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        sessionToken:    process.env.AWS_SESSION_TOKEN,
+    }),
     region: AWS_REGION,
     service: "appsync",
     sha256: Sha256,
