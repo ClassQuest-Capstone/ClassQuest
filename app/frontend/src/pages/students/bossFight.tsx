@@ -1,5 +1,5 @@
 // src/pages/students/bossFight.tsx
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import feather from "feather-icons";
 
@@ -27,6 +27,7 @@ import { getBossQuestion } from "../../api/bossQuestions/client.js";
 import type { BossQuestion } from "../../api/bossQuestions/types.js";
 
 import { getStudentProfile } from "../../api/studentProfiles.js";
+import { useBattleSubscription, useRosterSubscription } from "../../hooks/useBattleSubscription.ts";
 
 type StudentUser = {
   id: string;
@@ -271,6 +272,10 @@ const BossFight: React.FC = () => {
   const [bossResults, setBossResults] = useState<BossResultsResponse | null>(null);
 
   const { profile } = usePlayerProgression(studentId || "", classId || "");
+
+  const { battleState } = useBattleSubscription(instance?.boss_instance_id ?? undefined);
+  const { rosterEvent } = useRosterSubscription(instance?.boss_instance_id ?? undefined);
+  const prevActiveQuestionIdRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (student?.classId) {
@@ -543,14 +548,28 @@ const BossFight: React.FC = () => {
   ]);
 
   useEffect(() => {
-    if (!instance) return;
+    if (!battleState) return;
+    setInstance((prev) => {
+      if (!prev) return prev;
+      return { ...prev, ...battleState } as unknown as BossBattleInstance;
+    });
+    const newQId = battleState.active_question_id ?? null;
+    if (newQId !== prevActiveQuestionIdRef.current) {
+      prevActiveQuestionIdRef.current = newQId;
+      if (newQId) {
+        getBossQuestion(newQId)
+          .then((q) => setQuestion(q))
+          .catch(() => setQuestion(null));
+      } else {
+        setQuestion(null);
+      }
+    }
+  }, [battleState]);
 
-    const poll = window.setInterval(() => {
-      loadInstance();
-    }, 2500);
-
-    return () => window.clearInterval(poll);
-  }, [instance?.boss_instance_id, loadInstance, instance]);
+  useEffect(() => {
+    if (!rosterEvent) return;
+    setParticipants(rosterEvent.participants as any);
+  }, [rosterEvent]);
 
   useEffect(() => {
     if (!instance) return;

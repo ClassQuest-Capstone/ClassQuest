@@ -29,6 +29,7 @@ import type { BossAnswerAttempt } from "../../api/bossAnswerAttempts/types.js";
 
 import { listGuildsByClass, type Guild } from "../../api/guilds.js";
 import { getStudentProfile } from "../../api/studentProfiles.js";
+import { useBattleSubscription, useRosterSubscription } from "../../hooks/useBattleSubscription.ts";
 
 type TeacherUser = {
   id: string;
@@ -224,6 +225,10 @@ export default function BossBattleMonitorTeacher() {
 
   const [transitioning, setTransitioning] = useState(false);
   const transitionLockRef = useRef(false);
+
+  const { battleState } = useBattleSubscription(bossInstanceId);
+  const { rosterEvent } = useRosterSubscription(bossInstanceId);
+  const prevActiveQuestionIdRef = useRef<string | null | undefined>(undefined);
 
   const refresh = useCallback(async () => {
     try {
@@ -442,12 +447,28 @@ export default function BossBattleMonitorTeacher() {
   }, [refresh]);
 
   useEffect(() => {
-    const id = window.setInterval(() => {
-      refresh();
-    }, 3000);
+    if (!battleState) return;
+    setInstance((prev) => {
+      if (!prev) return prev;
+      return { ...prev, ...battleState } as unknown as BossBattleInstance;
+    });
+    const newQId = battleState.active_question_id ?? null;
+    if (newQId !== prevActiveQuestionIdRef.current) {
+      prevActiveQuestionIdRef.current = newQId;
+      if (newQId) {
+        getBossQuestion(newQId)
+          .then((q) => setQuestion(q))
+          .catch(() => setQuestion(null));
+      } else {
+        setQuestion(null);
+      }
+    }
+  }, [battleState]);
 
-    return () => window.clearInterval(id);
-  }, [refresh]);
+  useEffect(() => {
+    if (!rosterEvent) return;
+    setParticipants(rosterEvent.participants as any);
+  }, [rosterEvent]);
 
   useEffect(() => {
     maybeAdvanceBattleState();

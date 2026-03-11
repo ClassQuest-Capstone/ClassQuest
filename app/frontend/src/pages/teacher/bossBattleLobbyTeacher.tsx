@@ -21,6 +21,8 @@ import {
   type BossBattleParticipant,
 } from "../../api/bossBattleParticipants/client.js";
 
+import { useBattleSubscription, useRosterSubscription } from "../../hooks/useBattleSubscription.ts";
+
 type TeacherUser = {
   id: string;
   role: "teacher";
@@ -170,6 +172,9 @@ export default function BossBattleLobbyTeacher() {
   const [nameMap, setNameMap] = useState<StudentNameMap>({});
   const [countdownLeft, setCountdownLeft] = useState(0);
 
+  const { battleState } = useBattleSubscription(bossInstanceId);
+  const { rosterEvent } = useRosterSubscription(bossInstanceId);
+
   const refresh = useCallback(async () => {
     if (!bossInstanceId) {
       setError("Missing bossInstanceId in the URL.");
@@ -226,6 +231,19 @@ export default function BossBattleLobbyTeacher() {
       mounted = false;
     };
   }, [refresh]);
+
+  useEffect(() => {
+    if (!battleState) return;
+    setInstance((prev) => {
+      if (!prev) return prev;
+      return { ...prev, ...battleState } as unknown as BossBattleInstance;
+    });
+  }, [battleState]);
+
+  useEffect(() => {
+    if (!rosterEvent) return;
+    setParticipants(rosterEvent.participants as any);
+  }, [rosterEvent]);
 
   useEffect(() => {
     feather.replace();

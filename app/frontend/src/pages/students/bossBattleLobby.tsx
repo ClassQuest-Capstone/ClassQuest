@@ -40,6 +40,8 @@ import {
 } from "../../api/bossBattleParticipants/client.js";
 import type { BossBattleParticipant } from "../../api/bossBattleParticipants/types.js";
 
+import { useBattleSubscription, useRosterSubscription } from "../../hooks/useBattleSubscription.ts";
+
 // --------------------
 // Student helper
 // --------------------
@@ -175,6 +177,9 @@ export default function BossBattleLobbyStudent() {
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [nameMap, setNameMap] = useState<StudentNameMap>({});
   const [countdownLeft, setCountdownLeft] = useState(0);
+
+  const { battleState } = useBattleSubscription(bossInstanceId);
+  const { rosterEvent } = useRosterSubscription(bossInstanceId);
 
   // gold display
   const { profile } = usePlayerProgression(studentId || "", classId || "");
@@ -314,18 +319,20 @@ export default function BossBattleLobbyStudent() {
     refresh();
   }, [refresh]);
 
-  // faster polling during countdown
+  // merge subscription state events into instance
   useEffect(() => {
-    if (!bossInstanceId) return;
+    if (!battleState) return;
+    setInstance((prev) => {
+      if (!prev) return prev;
+      return { ...prev, ...battleState } as unknown as BossBattleInstance;
+    });
+  }, [battleState]);
 
-    const ms = instance?.status === "COUNTDOWN" ? 1000 : 3000;
-
-    const id = window.setInterval(() => {
-      refresh();
-    }, ms);
-
-    return () => window.clearInterval(id);
-  }, [bossInstanceId, instance?.status, refresh]);
+  // merge roster events into participants
+  useEffect(() => {
+    if (!rosterEvent) return;
+    setParticipants(rosterEvent.participants as any);
+  }, [rosterEvent]);
 
   // local countdown tick
   useEffect(() => {
