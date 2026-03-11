@@ -4,9 +4,8 @@
  * Uses Amplify v6 generateClient() which reads from the API.GraphQL config
  * set in aws-exports.ts (populated when VITE_APPSYNC_API_URL is present).
  *
- * Phase 1: exports the client + a typed getBossBattleInstance helper.
- * Phase 2+: queries, mutations, and subscription helpers will be added in
- *            separate queries.ts / mutations.ts / subscriptions.ts files.
+ * Phase 2: exports typed helpers for all 4 MVP queries.
+ * Phase 3+: mutation helpers will be added in mutations.ts.
  *
  * Usage:
  *   import { getBossBattleInstanceGql } from "@/api/bossBattle/graphqlClient";
@@ -14,8 +13,17 @@
  */
 
 import { generateClient } from "aws-amplify/api";
-import { GET_BOSS_BATTLE_INSTANCE } from "./queries.ts";
-import type { BossBattleInstanceGql } from "./types.ts";
+import {
+    GET_BOSS_BATTLE_INSTANCE,
+    LIST_BOSS_BATTLE_INSTANCES_BY_CLASS,
+    GET_BOSS_BATTLE_PARTICIPANTS,
+    GET_ACTIVE_BOSS_QUESTION,
+} from "./queries.ts";
+import type {
+    BossBattleInstanceGql,
+    BossBattleParticipantGql,
+    BossQuestionGql,
+} from "./types.ts";
 
 // Singleton Amplify GraphQL client — reads API.GraphQL config from aws-exports.ts
 export const graphqlClient = generateClient();
@@ -32,4 +40,47 @@ export async function getBossBattleInstanceGql(
         variables: { bossInstanceId },
     });
     return (result.data as any)?.getBossBattleInstance ?? null;
+}
+
+/**
+ * List all BossBattleInstances for a class via GSI1 query.
+ * Returns an empty array if no instances exist.
+ */
+export async function listBossBattleInstancesByClassGql(
+    classId: string
+): Promise<BossBattleInstanceGql[]> {
+    const result = await graphqlClient.graphql({
+        query: LIST_BOSS_BATTLE_INSTANCES_BY_CLASS,
+        variables: { classId },
+    });
+    return (result.data as any)?.listBossBattleInstancesByClass ?? [];
+}
+
+/**
+ * List all participants for a boss battle instance.
+ * Returns an empty array if no participants exist.
+ */
+export async function getBossBattleParticipantsGql(
+    bossInstanceId: string
+): Promise<BossBattleParticipantGql[]> {
+    const result = await graphqlClient.graphql({
+        query: GET_BOSS_BATTLE_PARTICIPANTS,
+        variables: { bossInstanceId },
+    });
+    return (result.data as any)?.getBossBattleParticipants ?? [];
+}
+
+/**
+ * Fetch a single BossQuestion by ID.
+ * correct_answer will be null for Students group callers (filtered by resolver).
+ * Returns null if the question does not exist.
+ */
+export async function getActiveBossQuestionGql(
+    questionId: string
+): Promise<BossQuestionGql | null> {
+    const result = await graphqlClient.graphql({
+        query: GET_ACTIVE_BOSS_QUESTION,
+        variables: { questionId },
+    });
+    return (result.data as any)?.getActiveBossQuestion ?? null;
 }

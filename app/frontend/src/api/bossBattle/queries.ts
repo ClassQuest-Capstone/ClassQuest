@@ -1,8 +1,7 @@
 /**
  * GraphQL query strings for the Boss Battle AppSync API.
  *
- * Phase 1: getBossBattleInstance only.
- * Phase 2 will add listBossBattleInstancesByClass, getBossBattleParticipants,
+ * Phase 2: added listBossBattleInstancesByClass, getBossBattleParticipants,
  * and getActiveBossQuestion.
  */
 
@@ -39,6 +38,68 @@ export const GET_BOSS_BATTLE_INSTANCE = /* GraphQL */ `
       participants_snapshot_id
       lobby_opened_at
       completed_at
+      created_at
+      updated_at
+    }
+  }
+`;
+
+export const LIST_BOSS_BATTLE_INSTANCES_BY_CLASS = /* GraphQL */ `
+  query ListBossBattleInstancesByClass($classId: ID!) {
+    listBossBattleInstancesByClass(classId: $classId) {
+      boss_instance_id
+      class_id
+      boss_template_id
+      created_by_teacher_id
+      status
+      mode_type
+      outcome
+      fail_reason
+      current_boss_hp
+      initial_boss_hp
+      countdown_end_at
+      completed_at
+      created_at
+      updated_at
+    }
+  }
+`;
+
+export const GET_BOSS_BATTLE_PARTICIPANTS = /* GraphQL */ `
+  query GetBossBattleParticipants($bossInstanceId: ID!) {
+    getBossBattleParticipants(bossInstanceId: $bossInstanceId) {
+      boss_instance_id
+      student_id
+      class_id
+      guild_id
+      state
+      joined_at
+      updated_at
+      last_submit_at
+      frozen_until
+      is_downed
+      downed_at
+      kick_reason
+    }
+  }
+`;
+
+export const GET_ACTIVE_BOSS_QUESTION = /* GraphQL */ `
+  query GetActiveBossQuestion($questionId: ID!) {
+    getActiveBossQuestion(questionId: $questionId) {
+      question_id
+      boss_template_id
+      order_index
+      order_key
+      question_text
+      question_type
+      options
+      correct_answer
+      damage_to_boss_on_correct
+      damage_to_guild_on_incorrect
+      max_points
+      auto_gradable
+      time_limit_seconds
       created_at
       updated_at
     }

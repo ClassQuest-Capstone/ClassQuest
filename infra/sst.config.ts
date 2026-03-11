@@ -127,9 +127,13 @@ export default {
             return AppSyncStack(ctx, {
                 tableNames: {
                     bossBattleInstancesTable: dataStackOutputs.tableNames.bossBattleInstancesTable,
+                    bossBattleParticipantsTable: dataStackOutputs.tableNames.bossBattleParticipantsTable,
+                    bossQuestionsTable: dataStackOutputs.tableNames.bossQuestionsTable,
                 },
                 tableArns: {
                     bossBattleInstancesTable: dataStackOutputs.tableArns.bossBattleInstancesTable,
+                    bossBattleParticipantsTable: dataStackOutputs.tableArns.bossBattleParticipantsTable,
+                    bossQuestionsTable: dataStackOutputs.tableArns.bossQuestionsTable,
                 },
                 userPoolId: authStackOutputs.userPoolId,
             });
