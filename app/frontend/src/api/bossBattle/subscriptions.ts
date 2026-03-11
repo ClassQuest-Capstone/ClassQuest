@@ -1,9 +1,8 @@
 /**
  * GraphQL subscription strings for the Boss Battle AppSync realtime layer.
  *
- * Phase 2: subscription strings defined; WebSocket connections open successfully.
- * Events will fire in Phase 3 once mutation-resolver.ts calls publishBattleStateChanged
- * / publishRosterChanged via SigV4 HTTP after each successful lifecycle mutation.
+ * Phase 2: onBattleStateChanged, onRosterChanged.
+ * Phase 5: onAnswerSubmitted added for teacher monitor per-student answer feedback.
  */
 
 /**
@@ -60,6 +59,24 @@ export const ON_ROSTER_CHANGED = /* GraphQL */ `
         downed_at
         kick_reason
       }
+    }
+  }
+`;
+
+/**
+ * Phase 5: Subscribes to per-student answer submissions for a specific boss battle.
+ * Primarily consumed by the teacher monitor to show live quorum progress.
+ */
+export const ON_ANSWER_SUBMITTED = /* GraphQL */ `
+  subscription OnAnswerSubmitted($bossInstanceId: ID!) {
+    onAnswerSubmitted(bossInstanceId: $bossInstanceId) {
+      boss_instance_id
+      student_id
+      is_correct
+      received_answer_count
+      required_answer_count
+      ready_to_resolve
+      updated_at
     }
   }
 `;

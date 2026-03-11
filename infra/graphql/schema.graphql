@@ -126,6 +126,18 @@ type RosterChangedEvent {
   participants: [BossBattleParticipant!]!
 }
 
+# Fired after each submitAnswer — per-student feedback for teacher monitor.
+# Phase 5: onAnswerSubmitted subscription for teacher monitor quorum tracking.
+type AnswerSubmittedEvent {
+  boss_instance_id: ID!
+  student_id: ID!
+  is_correct: Boolean!
+  received_answer_count: Int
+  required_answer_count: Int
+  ready_to_resolve: Boolean
+  updated_at: String
+}
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Mutation result types
 # ──────────────────────────────────────────────────────────────────────────────
@@ -261,6 +273,18 @@ type Mutation {
     participants: [BossBattleParticipantInput!]!
   ): RosterChangedEvent
     @aws_iam
+
+  # Called by mutation resolver Lambda after each successful submitAnswer.
+  publishAnswerSubmitted(
+    bossInstanceId: ID!
+    studentId: ID!
+    isCorrect: Boolean!
+    receivedAnswerCount: Int
+    requiredAnswerCount: Int
+    readyToResolve: Boolean
+    updatedAt: String
+  ): AnswerSubmittedEvent
+    @aws_iam
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -276,4 +300,9 @@ type Subscription {
   # Filtered by bossInstanceId — delivers only roster events for the subscribed battle.
   onRosterChanged(bossInstanceId: ID!): RosterChangedEvent
     @aws_subscribe(mutations: ["publishRosterChanged"])
+
+  # Teacher monitor: per-student answer feedback. Filtered by bossInstanceId.
+  # Phase 5: allows teacher to see live quorum progress without full state refresh.
+  onAnswerSubmitted(bossInstanceId: ID!): AnswerSubmittedEvent
+    @aws_subscribe(mutations: ["publishAnswerSubmitted"])
 }

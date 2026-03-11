@@ -121,3 +121,17 @@ export interface RosterChangedEvent {
     boss_instance_id: string;
     participants: BossBattleParticipantGql[];
 }
+
+/**
+ * Phase 5: Payload delivered by onAnswerSubmitted subscription after each submitAnswer.
+ * Used by the teacher monitor for live per-student answer feedback.
+ */
+export interface AnswerSubmittedEvent {
+    boss_instance_id: string;
+    student_id: string;
+    is_correct: boolean;
+    received_answer_count: number | null;
+    required_answer_count: number | null;
+    ready_to_resolve: boolean | null;
+    updated_at: string | null;
+}

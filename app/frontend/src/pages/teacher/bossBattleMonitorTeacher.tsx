@@ -29,7 +29,11 @@ import type { BossAnswerAttempt } from "../../api/bossAnswerAttempts/types.js";
 
 import { listGuildsByClass, type Guild } from "../../api/guilds.js";
 import { getStudentProfile } from "../../api/studentProfiles.js";
-import { useBattleSubscription, useRosterSubscription } from "../../hooks/useBattleSubscription.ts";
+import {
+  useBattleSubscription,
+  useRosterSubscription,
+  useAnswerSubmittedSubscription,
+} from "../../hooks/useBattleSubscription.ts";
 
 type TeacherUser = {
   id: string;
@@ -226,9 +230,11 @@ export default function BossBattleMonitorTeacher() {
   const [transitioning, setTransitioning] = useState(false);
   const transitionLockRef = useRef(false);
 
-  const { battleState } = useBattleSubscription(bossInstanceId);
+  const { battleState, connectionStatus } = useBattleSubscription(bossInstanceId);
   const { rosterEvent } = useRosterSubscription(bossInstanceId);
+  const { answerEvent } = useAnswerSubmittedSubscription(bossInstanceId);
   const prevActiveQuestionIdRef = useRef<string | null | undefined>(undefined);
+  const prevReadyToResolveRef = useRef<boolean | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -470,6 +476,19 @@ export default function BossBattleMonitorTeacher() {
     setParticipants(rosterEvent.participants as any);
   }, [rosterEvent]);
 
+  // Phase 5: when ready_to_resolve flips true, refresh attempts so the teacher
+  // sees the latest answer breakdown without waiting for the next manual refresh.
+  useEffect(() => {
+    if (!answerEvent) return;
+    const nowReady = answerEvent.ready_to_resolve;
+    if (nowReady && !prevReadyToResolveRef.current) {
+      listBossAnswerAttemptsByBattle(bossInstanceId, { limit: 500 })
+        .then((res) => setAttempts(res.items || []))
+        .catch(() => {});
+    }
+    prevReadyToResolveRef.current = nowReady ?? null;
+  }, [answerEvent, bossInstanceId]);
+
   useEffect(() => {
     maybeAdvanceBattleState();
   }, [maybeAdvanceBattleState]);
@@ -649,6 +668,13 @@ export default function BossBattleMonitorTeacher() {
             ) : null}
           </div>
         </div>
+
+        {connectionStatus === "reconnecting" && (
+          <div className="bg-yellow-500/20 border border-yellow-500/40 text-yellow-100 rounded-xl p-3 mb-4 flex items-center gap-2 text-sm">
+            <i data-feather="wifi-off" className="w-4 h-4" />
+            <span>Realtime connection lost — reconnecting...</span>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-500/20 border border-red-500/40 text-red-100 rounded-xl p-4 mb-6">

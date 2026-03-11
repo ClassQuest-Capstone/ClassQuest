@@ -36,8 +36,10 @@ import { listParticipants }                  from "../bossBattleParticipants/rep
 import {
     publishBattleStateChanged,
     publishRosterChanged,
+    publishAnswerSubmitted,
     type BossBattleStateEventPayload,
     type BossBattleParticipantPayload,
+    type AnswerSubmittedPayload,
 } from "./publish-event.js";
 
 import type { BossBattleInstanceItem }    from "../bossBattleInstances/types.js";
@@ -117,7 +119,10 @@ export const handler = async (event: any): Promise<any> => {
             const ev = makeBossEvent(args.bossInstanceId, body, jwtClaims);
             const res = await submitAnswerHandler(ev);
             if (res.statusCode === 200) {
-                // Publish updated quorum counters so teacher monitor updates in real time
+                const parsed = safeParseJson(res.body);
+                // Phase 5: publish per-student answer event for teacher monitor
+                await publishAnswer(args.bossInstanceId, sub, parsed);
+                // Publish full state update (quorum counters) for all subscribers
                 await publishState(args.bossInstanceId);
             }
             return toSubmitResult(res);
@@ -282,6 +287,28 @@ async function publishRoster(bossInstanceId: string): Promise<void> {
     }
 }
 
+// Phase 5: publish per-student answer submission event for teacher monitor.
+async function publishAnswer(
+    bossInstanceId: string,
+    studentId: string,
+    handlerBody: Record<string, any>
+): Promise<void> {
+    try {
+        const payload: AnswerSubmittedPayload = {
+            boss_instance_id:       bossInstanceId,
+            student_id:             studentId,
+            is_correct:             Boolean(handlerBody.is_correct),
+            received_answer_count:  handlerBody.received_answer_count ?? null,
+            required_answer_count:  handlerBody.required_answer_count ?? null,
+            ready_to_resolve:       handlerBody.ready_to_resolve ?? null,
+            updated_at:             new Date().toISOString(),
+        };
+        await publishAnswerSubmitted(payload);
+    } catch (err) {
+        console.error("[mutation-resolver] publishAnswer error (non-fatal)", { bossInstanceId, studentId, err });
+    }
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Payload mappers — DDB items → subscription event payloads
 // ──────────────────────────────────────────────────────────────────────────────
@@ -301,7 +328,11 @@ function instanceToStatePayload(instance: BossBattleInstanceItem): BossBattleSta
         received_answer_count:  instance.received_answer_count ?? null,
         required_answer_count:  instance.required_answer_count ?? null,
         ready_to_resolve:       instance.ready_to_resolve ?? null,
-        per_guild_active_question_id: null, // Phase 5: RANDOMIZED_PER_GUILD support
+        // per_guild_active_question_id: null until RANDOMIZED_PER_GUILD handler TODOs
+        // in start-question.ts are resolved (each guild needs its own active question ID).
+        // per_guild_question_index (guild→index) is present but is not the same as
+        // guild→question_id; resolving requires a question plan lookup per guild.
+        per_guild_active_question_id: null,
         outcome:                instance.outcome ?? null,
         fail_reason:            instance.fail_reason ?? null,
         completed_at:           instance.completed_at ?? null,

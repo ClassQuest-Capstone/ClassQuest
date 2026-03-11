@@ -3,6 +3,7 @@ import * as appsync from "aws-cdk-lib/aws-appsync";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
 import * as cdk from "aws-cdk-lib";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -162,7 +163,8 @@ export function AppSyncStack(ctx: StackContext, props: AppSyncStackProps) {
                 ...allTableArns.map((arn) => `${arn}/index/*`),
             ],
         }),
-        // Permission to call the internal publishBattleStateChanged / publishRosterChanged mutations
+        // Permission to call internal publish mutations (publishBattleStateChanged,
+        // publishRosterChanged, publishAnswerSubmitted)
         new iam.PolicyStatement({
             actions: ["appsync:GraphQL"],
             resources: [`${graphqlApi.arn}/types/Mutation/*`],
@@ -174,6 +176,18 @@ export function AppSyncStack(ctx: StackContext, props: AppSyncStackProps) {
         "MutationResolverDS",
         mutationResolverFn
     );
+
+    // Phase 5: CloudWatch alarm — alert on mutation resolver Lambda errors
+    new cloudwatch.Alarm(stack, "BossMutationResolverErrorAlarm", {
+        metric: (mutationResolverFn as any).metricErrors({
+            period: cdk.Duration.minutes(5),
+            statistic: "Sum",
+        }),
+        threshold: 1,
+        evaluationPeriods: 1,
+        alarmDescription: "Boss Battle mutation resolver Lambda errors (Phase 5 observability)",
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
 
     // ──────────────────────────────────────────────────────────────────────────
     // Query resolvers (Phases 1–2)
@@ -311,6 +325,15 @@ export function response(ctx) {
     // Subscription resolvers — enhanced filtering by bossInstanceId (Phase 2)
     // ──────────────────────────────────────────────────────────────────────────
 
+    // Phase 5: enrollment verification helper embedded in each subscription resolver.
+    // Rejects the WebSocket subscription if the caller lacks a recognised Cognito group.
+    const enrollmentCheckSnippet = `
+  const groups = (ctx.identity && ctx.identity.claims && ctx.identity.claims["cognito:groups"]) || [];
+  if (!groups.includes("Teachers") && !groups.includes("TeachersPending") && !groups.includes("Students")) {
+    util.error("Unauthorized: must be a Teacher or Student to subscribe", "Unauthorized");
+  }
+`;
+
     noneDS.createResolver("OnBattleStateChangedResolver", {
         typeName: "Subscription",
         fieldName: "onBattleStateChanged",
@@ -319,6 +342,7 @@ export function response(ctx) {
 import { extensions } from "@aws-appsync/utils";
 
 export function request(ctx) {
+${enrollmentCheckSnippet}
   extensions.setSubscriptionFilter(
     util.transform.toSubscriptionFilter({
       filterGroup: [
@@ -351,6 +375,65 @@ export function response(ctx) {
 import { extensions } from "@aws-appsync/utils";
 
 export function request(ctx) {
+${enrollmentCheckSnippet}
+  extensions.setSubscriptionFilter(
+    util.transform.toSubscriptionFilter({
+      filterGroup: [
+        {
+          filters: [
+            {
+              fieldName: "boss_instance_id",
+              operator: "eq",
+              value: ctx.args.bossInstanceId,
+            },
+          ],
+        },
+      ],
+    })
+  );
+  return {};
+}
+
+export function response(ctx) {
+  return ctx.result;
+}
+        `),
+    });
+
+    // Phase 5: publishAnswerSubmitted — internal NONE resolver for per-student answer events.
+    noneDS.createResolver("PublishAnswerSubmittedResolver", {
+        typeName: "Mutation",
+        fieldName: "publishAnswerSubmitted",
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+        code: appsync.Code.fromInline(`
+export function request(ctx) {
+  return { payload: null };
+}
+
+export function response(ctx) {
+  return {
+    boss_instance_id: ctx.args.bossInstanceId,
+    student_id: ctx.args.studentId,
+    is_correct: ctx.args.isCorrect,
+    received_answer_count: ctx.args.receivedAnswerCount,
+    required_answer_count: ctx.args.requiredAnswerCount,
+    ready_to_resolve: ctx.args.readyToResolve,
+    updated_at: ctx.args.updatedAt,
+  };
+}
+        `),
+    });
+
+    // Phase 5: onAnswerSubmitted subscription — filtered by bossInstanceId, Teachers/Students only.
+    noneDS.createResolver("OnAnswerSubmittedResolver", {
+        typeName: "Subscription",
+        fieldName: "onAnswerSubmitted",
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+        code: appsync.Code.fromInline(`
+import { extensions } from "@aws-appsync/utils";
+
+export function request(ctx) {
+${enrollmentCheckSnippet}
   extensions.setSubscriptionFilter(
     util.transform.toSubscriptionFilter({
       filterGroup: [
