@@ -26,6 +26,16 @@ vi.mock("@aws-sdk/lib-dynamodb", () => ({
 }));
 
 // ---------------------------------------------------------------------------
+// Mock auto-resolve (prevents DynamoDB side-effects in submit tests;
+// auto-resolve behaviour tested separately in the dedicated describe block below)
+// ---------------------------------------------------------------------------
+const mockTryAutoResolve = vi.fn();
+
+vi.mock("../auto-resolve.js", () => ({
+    tryAutoResolveBossQuestion: mockTryAutoResolve,
+}));
+
+// ---------------------------------------------------------------------------
 // Module reference
 // ---------------------------------------------------------------------------
 let submitAnswerHandler: (typeof import("../submit-answer.ts"))["handler"];
@@ -157,6 +167,8 @@ function mockHappyPath(
 
 beforeEach(() => {
     mockSend.mockReset();
+    // Default: auto-resolve succeeds (safe default; overridden per test in dedicated suite)
+    mockTryAutoResolve.mockResolvedValue({ auto_resolve_status: "resolved" });
 });
 
 // ---------------------------------------------------------------------------
@@ -814,5 +826,306 @@ describe("answer-gating quorum counters", () => {
         expect(res.statusCode).toBe(409);
         // Only 4 mockSend calls — incrementAnswerCount never reached
         expect(mockSend).toHaveBeenCalledTimes(4);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// 15. Auto-resolve path (A–G from spec)
+// ---------------------------------------------------------------------------
+describe("auto-resolve path", () => {
+    /** Shared helper: happy-path mocks for quorum tests.
+     *  Returns updated instance attrs that callers can override. */
+    function mockForQuorum(
+        instance: Record<string, any>,
+        quorumAttrs: Record<string, any>
+    ) {
+        mockSend
+            .mockResolvedValueOnce({ Item: instance })
+            .mockResolvedValueOnce({ Item: makeQuestion() })
+            .mockResolvedValueOnce({ Item: makeParticipant() })
+            .mockResolvedValueOnce({ Items: [] })        // no duplicate
+            .mockResolvedValueOnce({})                   // createBossAnswerAttempt
+            .mockResolvedValueOnce({})                   // updateAntiSpamFields
+            .mockResolvedValueOnce({ Attributes: { ...instance, ...quorumAttrs } }); // incrementAnswerCount
+    }
+
+    // -------------------------------------------------------------------------
+    // A) Submit without quorum → auto_resolve_status = "not_needed"
+    // -------------------------------------------------------------------------
+    it("A) submit without quorum — does not attempt auto-resolve", async () => {
+        mockTryAutoResolve.mockReset(); // ensure it hasn't been called
+
+        mockForQuorum(makeInstance(), {
+            received_answer_count: 1,
+            required_answer_count: 3,
+            ready_to_resolve: false,
+        });
+
+        const res = await submitAnswerHandler(makeEvent());
+        expect(res.statusCode).toBe(200);
+
+        const body = JSON.parse(res.body);
+        expect(body.ready_to_resolve).toBe(false);
+        expect(body.quorum_reached).toBe(false);
+        expect(body.auto_resolve_attempted).toBe(false);
+        expect(body.auto_resolve_status).toBe("not_needed");
+        expect(mockTryAutoResolve).not.toHaveBeenCalled();
+        // DynamoDB calls: 7 (no setReadyToResolve, no auto-resolve DB calls)
+        expect(mockSend).toHaveBeenCalledTimes(7);
+    });
+
+    // -------------------------------------------------------------------------
+    // B) Submit that reaches quorum (untimed) → auto-resolve attempted and succeeds
+    // -------------------------------------------------------------------------
+    it("B) submit reaches quorum — auto-resolve attempted and succeeds", async () => {
+        mockTryAutoResolve.mockResolvedValue({ auto_resolve_status: "resolved" });
+
+        mockSend
+            .mockResolvedValueOnce({ Item: makeInstance({ question_ends_at: undefined }) }) // untimed
+            .mockResolvedValueOnce({ Item: makeQuestion() })
+            .mockResolvedValueOnce({ Item: makeParticipant() })
+            .mockResolvedValueOnce({ Items: [] })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Attributes: {
+                ...makeInstance({ question_ends_at: undefined }),
+                received_answer_count: 3,
+                required_answer_count: 3,
+                ready_to_resolve: false,
+            }})
+            .mockResolvedValueOnce({}); // setReadyToResolve
+
+        const res = await submitAnswerHandler(makeEvent());
+        expect(res.statusCode).toBe(200);
+
+        const body = JSON.parse(res.body);
+        expect(body.ready_to_resolve).toBe(true);
+        expect(body.quorum_reached).toBe(true);
+        expect(body.auto_resolve_attempted).toBe(true);
+        expect(body.auto_resolve_succeeded).toBe(true);
+        expect(body.auto_resolve_status).toBe("resolved");
+
+        expect(mockTryAutoResolve).toHaveBeenCalledOnce();
+        expect(mockTryAutoResolve).toHaveBeenCalledWith(
+            "inst-1",
+            expect.objectContaining({
+                active_question_id: "q-1",
+                student_id: "student-1",
+            })
+        );
+    });
+
+    // -------------------------------------------------------------------------
+    // C) Timed question, all answers received before timer expires → auto-resolve
+    // -------------------------------------------------------------------------
+    it("C) timed question — auto-resolve fires before timer expiry when quorum met", async () => {
+        mockTryAutoResolve.mockResolvedValue({ auto_resolve_status: "resolved" });
+
+        const futureEndsAt = new Date(Date.now() + 20000).toISOString(); // 20s in future
+        mockSend
+            .mockResolvedValueOnce({ Item: makeInstance({ question_ends_at: futureEndsAt }) })
+            .mockResolvedValueOnce({ Item: makeQuestion() })
+            .mockResolvedValueOnce({ Item: makeParticipant() })
+            .mockResolvedValueOnce({ Items: [] })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Attributes: {
+                ...makeInstance({ question_ends_at: futureEndsAt }),
+                received_answer_count: 2,
+                required_answer_count: 2,
+                ready_to_resolve: false,
+            }})
+            .mockResolvedValueOnce({}); // setReadyToResolve
+
+        const res = await submitAnswerHandler(makeEvent());
+        expect(res.statusCode).toBe(200);
+
+        const body = JSON.parse(res.body);
+        expect(body.ready_to_resolve).toBe(true);
+        expect(body.auto_resolve_status).toBe("resolved");
+        expect(mockTryAutoResolve).toHaveBeenCalledOnce();
+    });
+
+    // -------------------------------------------------------------------------
+    // D) Untimed question → auto-resolve immediately when quorum reached
+    // -------------------------------------------------------------------------
+    it("D) untimed question — auto-resolve immediately when quorum reached", async () => {
+        mockTryAutoResolve.mockResolvedValue({ auto_resolve_status: "resolved" });
+
+        mockSend
+            .mockResolvedValueOnce({ Item: makeInstance({ question_ends_at: undefined }) })
+            .mockResolvedValueOnce({ Item: makeQuestion({ time_limit_seconds: undefined }) })
+            .mockResolvedValueOnce({ Item: makeParticipant() })
+            .mockResolvedValueOnce({ Items: [] })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Attributes: {
+                ...makeInstance({ question_ends_at: undefined }),
+                received_answer_count: 1,
+                required_answer_count: 1,
+                ready_to_resolve: false,
+            }})
+            .mockResolvedValueOnce({}); // setReadyToResolve
+
+        const res = await submitAnswerHandler(makeEvent());
+        expect(res.statusCode).toBe(200);
+
+        const body = JSON.parse(res.body);
+        expect(body.quorum_reached).toBe(true);
+        expect(body.auto_resolve_attempted).toBe(true);
+        expect(body.auto_resolve_status).toBe("resolved");
+        expect(mockTryAutoResolve).toHaveBeenCalledOnce();
+    });
+
+    // -------------------------------------------------------------------------
+    // E) Race condition: two concurrent last-answers; second sees "already_resolved"
+    // -------------------------------------------------------------------------
+    it("E) race condition — already_resolved is treated as success, not an error", async () => {
+        // Simulate the scenario where another concurrent request resolved first.
+        // tryAutoResolveBossQuestion returns already_resolved (ConditionalCheckFailedException swallowed internally).
+        mockTryAutoResolve.mockResolvedValue({ auto_resolve_status: "already_resolved" });
+
+        mockSend
+            .mockResolvedValueOnce({ Item: makeInstance() })
+            .mockResolvedValueOnce({ Item: makeQuestion() })
+            .mockResolvedValueOnce({ Item: makeParticipant() })
+            .mockResolvedValueOnce({ Items: [] })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Attributes: {
+                ...makeInstance(),
+                received_answer_count: 3,
+                required_answer_count: 3,
+                ready_to_resolve: true, // already set by concurrent request
+            }});
+        // No setReadyToResolve call because ready_to_resolve was already true on updatedInstance
+
+        const res = await submitAnswerHandler(makeEvent());
+        // Submit response must still be 200 — the race is a safe no-op
+        expect(res.statusCode).toBe(200);
+
+        const body = JSON.parse(res.body);
+        expect(body.ready_to_resolve).toBe(true);
+        expect(body.auto_resolve_attempted).toBe(true);
+        expect(body.auto_resolve_succeeded).toBe(false);
+        expect(body.auto_resolve_status).toBe("already_resolved");
+    });
+
+    // -------------------------------------------------------------------------
+    // E2) Race condition: instance not yet ready_to_resolve from DynamoDB (pre-flight skips)
+    // -------------------------------------------------------------------------
+    it("E2) race condition — skipped_not_ready maps to not_needed in response", async () => {
+        mockTryAutoResolve.mockResolvedValue({ auto_resolve_status: "skipped_not_ready" });
+
+        mockSend
+            .mockResolvedValueOnce({ Item: makeInstance() })
+            .mockResolvedValueOnce({ Item: makeQuestion() })
+            .mockResolvedValueOnce({ Item: makeParticipant() })
+            .mockResolvedValueOnce({ Items: [] })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Attributes: {
+                ...makeInstance(),
+                received_answer_count: 3,
+                required_answer_count: 3,
+                ready_to_resolve: true,
+            }});
+
+        const res = await submitAnswerHandler(makeEvent());
+        expect(res.statusCode).toBe(200);
+
+        const body = JSON.parse(res.body);
+        // skipped_not_ready → front-end-visible status is "not_needed"
+        expect(body.auto_resolve_status).toBe("not_needed");
+        expect(body.auto_resolve_succeeded).toBe(false);
+    });
+
+    // -------------------------------------------------------------------------
+    // F) Unexpected auto-resolve failure → submit still returns 200
+    // -------------------------------------------------------------------------
+    it("F) unexpected auto-resolve failure — submit succeeds, status is failed", async () => {
+        mockTryAutoResolve.mockResolvedValue({ auto_resolve_status: "failed", error: "DynamoDB timeout" });
+
+        mockSend
+            .mockResolvedValueOnce({ Item: makeInstance() })
+            .mockResolvedValueOnce({ Item: makeQuestion() })
+            .mockResolvedValueOnce({ Item: makeParticipant() })
+            .mockResolvedValueOnce({ Items: [] })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Attributes: {
+                ...makeInstance(),
+                received_answer_count: 3,
+                required_answer_count: 3,
+                ready_to_resolve: true,
+            }});
+
+        const res = await submitAnswerHandler(makeEvent());
+        // Answer submission persisted — must not fail due to auto-resolve failure
+        expect(res.statusCode).toBe(200);
+
+        const body = JSON.parse(res.body);
+        expect(body.auto_resolve_status).toBe("failed");
+        expect(body.auto_resolve_succeeded).toBe(false);
+        expect(body.is_correct).toBeDefined(); // core submit data still present
+    });
+
+    // -------------------------------------------------------------------------
+    // G) RANDOMIZED_PER_GUILD — auto-resolve fires on per-guild quorum and does not crash
+    // -------------------------------------------------------------------------
+    it("G) RANDOMIZED_PER_GUILD — auto-resolve attempted when guild quorum met", async () => {
+        mockTryAutoResolve.mockResolvedValue({ auto_resolve_status: "resolved" });
+
+        mockSend
+            .mockResolvedValueOnce({ Item: makeInstance({ mode_type: "RANDOMIZED_PER_GUILD" }) })
+            .mockResolvedValueOnce({ Item: makeQuestion() })
+            .mockResolvedValueOnce({ Item: makeParticipant({ guild_id: "guild-1" }) })
+            .mockResolvedValueOnce({ Items: [] })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Attributes: {
+                ...makeInstance({ mode_type: "RANDOMIZED_PER_GUILD" }),
+                per_guild_required_answer_count: { "guild-1": 2 },
+                per_guild_received_answer_count: { "guild-1": 2 },
+                ready_to_resolve: false,
+            }})
+            .mockResolvedValueOnce({}); // setReadyToResolve
+
+        const res = await submitAnswerHandler(makeEvent());
+        expect(res.statusCode).toBe(200);
+
+        const body = JSON.parse(res.body);
+        expect(body.ready_to_resolve).toBe(true);
+        expect(body.auto_resolve_status).toBe("resolved");
+        // tryAutoResolveBossQuestion is called — per-guild readiness routes through the shared path
+        // TODO: fully support auto-resolve for independent per-guild question readiness
+        //       once RANDOMIZED_PER_GUILD active-question tracking is complete
+        expect(mockTryAutoResolve).toHaveBeenCalledOnce();
+    });
+
+    // -------------------------------------------------------------------------
+    // G2) RANDOMIZED_PER_GUILD — no crash when guild quorum not yet met
+    // -------------------------------------------------------------------------
+    it("G2) RANDOMIZED_PER_GUILD — does not crash when guild quorum not yet met", async () => {
+        mockTryAutoResolve.mockReset();
+
+        mockSend
+            .mockResolvedValueOnce({ Item: makeInstance({ mode_type: "RANDOMIZED_PER_GUILD" }) })
+            .mockResolvedValueOnce({ Item: makeQuestion() })
+            .mockResolvedValueOnce({ Item: makeParticipant({ guild_id: "guild-1" }) })
+            .mockResolvedValueOnce({ Items: [] })
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({})
+            .mockResolvedValueOnce({ Attributes: {
+                ...makeInstance({ mode_type: "RANDOMIZED_PER_GUILD" }),
+                per_guild_required_answer_count: { "guild-1": 3 },
+                per_guild_received_answer_count: { "guild-1": 1 }, // not yet met
+                ready_to_resolve: false,
+            }});
+
+        const res = await submitAnswerHandler(makeEvent());
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).auto_resolve_status).toBe("not_needed");
+        expect(mockTryAutoResolve).not.toHaveBeenCalled();
     });
 });

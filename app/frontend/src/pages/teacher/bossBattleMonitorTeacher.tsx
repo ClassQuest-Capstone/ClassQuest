@@ -533,6 +533,27 @@ export default function BossBattleMonitorTeacher() {
   const spectateCount = participants.filter((p) => p.state === "SPECTATE").length;
   const downedCount = participants.filter((p) => p.is_downed).length;
 
+  const INITIAL_HEARTS = 3;
+  const guildHpMap = useMemo(() => {
+    const map = new Map<string, { current: number; max: number }>();
+    const byGuild = new Map<string, string[]>();
+    for (const p of participants) {
+      if (!byGuild.has(p.guild_id)) byGuild.set(p.guild_id, []);
+      byGuild.get(p.guild_id)!.push(p.student_id);
+    }
+    for (const [guildId, studentIds] of byGuild) {
+      const max = studentIds.length * INITIAL_HEARTS;
+      let lost = 0;
+      for (const sid of studentIds) {
+        lost += attempts
+          .filter((a) => a.student_id === sid)
+          .reduce((sum, a) => sum + (a.hearts_lost || 0), 0);
+      }
+      map.set(guildId, { current: Math.max(0, max - lost), max });
+    }
+    return map;
+  }, [participants, attempts]);
+
   const initialHp = instance?.initial_boss_hp ?? 0;
   const currentHp = instance?.current_boss_hp ?? 0;
   const hpPercent =
@@ -578,7 +599,7 @@ export default function BossBattleMonitorTeacher() {
                 Classes
               </Link>
 
-              <DropDownProfile />
+              {/* <DropDownProfile /> */}
             </div>
           </div>
         </div>
@@ -997,13 +1018,55 @@ export default function BossBattleMonitorTeacher() {
                   No participants found.
                 </div>
               ) : (
-                groupedRows.map(([guildName, rows]) => (
+                groupedRows.map(([guildName, rows]) => {
+                  const guildId = rows[0]?.guildId ?? "";
+                  const isActiveTurn =
+                    instance.mode_type === "TURN_BASED_GUILD" &&
+                    instance.active_guild_id === guildId;
+                  const perGuildQIndex =
+                    instance.mode_type === "RANDOMIZED_PER_GUILD" && guildId
+                      ? (instance.per_guild_question_index?.[guildId] ?? 0)
+                      : null;
+                  const guildHp = guildId ? guildHpMap.get(guildId) : null;
+
+                  return (
                   <div key={guildName} className="bg-white rounded-xl shadow-md overflow-hidden">
-                    <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-5 text-white">
-                      <h3 className="text-xl font-bold">{guildName}</h3>
-                      <p className="text-white/80 text-sm mt-1">
-                        Students: {rows.length}
-                      </p>
+                    <div className={`bg-gradient-to-r ${isActiveTurn ? "from-yellow-500 to-amber-600" : "from-blue-500 to-indigo-600"} p-5 text-white`}>
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-xl font-bold">{guildName}</h3>
+                            {isActiveTurn && (
+                              <span className="bg-white text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                                ACTIVE TURN
+                              </span>
+                            )}
+                            {perGuildQIndex !== null && (
+                              <span className="bg-white/20 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+                                Q{perGuildQIndex + 1}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-white/80 text-sm mt-1">
+                            Students: {rows.length}
+                          </p>
+                        </div>
+
+                        {guildHp && guildHp.max > 0 && (
+                          <div className="min-w-[140px]">
+                            <div className="flex items-center justify-between text-xs text-white/80 mb-1">
+                              <span>Guild HP</span>
+                              <span>{guildHp.current}/{guildHp.max}</span>
+                            </div>
+                            <div className="w-full bg-white/20 rounded-full h-2">
+                              <div
+                                className="bg-red-400 h-full rounded-full transition-all duration-300"
+                                style={{ width: `${(guildHp.current / guildHp.max) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="overflow-x-auto">
@@ -1074,7 +1137,8 @@ export default function BossBattleMonitorTeacher() {
                       </table>
                     </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           </>

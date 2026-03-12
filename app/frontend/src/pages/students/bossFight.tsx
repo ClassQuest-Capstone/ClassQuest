@@ -23,7 +23,7 @@ import type { BossBattleParticipant } from "../../api/bossBattleParticipants/typ
 import { getBossBattleTemplate } from "../../api/bossBattleTemplates/client.js";
 import type { BossBattleTemplate } from "../../api/bossBattleTemplates/types.js";
 
-import { getBossQuestion } from "../../api/bossQuestions/client.js";
+import { getBossQuestion, listBossQuestionsByTemplate } from "../../api/bossQuestions/client.js";
 import type { BossQuestion } from "../../api/bossQuestions/types.js";
 
 import { getStudentProfile } from "../../api/studentProfiles.js";
@@ -333,6 +333,10 @@ const BossFight: React.FC = () => {
   const [questionTimeLeft, setQuestionTimeLeft] = useState<number | null>(null);
   const [intermissionLeft, setIntermissionLeft] = useState<number | null>(null);
 
+  const [allQuestions, setAllQuestions] = useState<BossQuestion[]>([]);
+  const [localHeartsLost, setLocalHeartsLost] = useState(0);
+  const lastSubmitAtRef = useRef<number>(0);
+
   const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
 
   const [showResultModal, setShowResultModal] = useState(false);
@@ -372,6 +376,7 @@ const BossFight: React.FC = () => {
     submitting,
     showResultModal,
     loadingResults,
+    localHeartsLost,
   ]);
 
   useEffect(() => {
@@ -564,7 +569,18 @@ const BossFight: React.FC = () => {
         setTemplate(null);
       }
 
-      if (fresh.active_question_id) {
+      if (fresh.mode_type === "RANDOMIZED_PER_GUILD" && fresh.boss_template_id) {
+        try {
+          const qRes = await listBossQuestionsByTemplate(fresh.boss_template_id, { limit: 200 });
+          const sorted = (qRes.items || []).sort((a, b) => a.order_index - b.order_index);
+          setAllQuestions(sorted);
+          // The per-guild question derivation effect will set the displayed question
+        } catch (error) {
+          console.error("Failed to load questions for RANDOMIZED_PER_GUILD:", error);
+          setAllQuestions([]);
+          setQuestion(null);
+        }
+      } else if (fresh.active_question_id) {
         try {
           const q = await getBossQuestion(fresh.active_question_id);
           setQuestion(q);
@@ -621,6 +637,9 @@ const BossFight: React.FC = () => {
       if (!prev) return prev;
       return { ...prev, ...battleState } as unknown as BossBattleInstance;
     });
+    // RANDOMIZED_PER_GUILD: question is derived by a separate effect from allQuestions + per_guild_question_index
+    if (instance?.mode_type === "RANDOMIZED_PER_GUILD") return;
+
     const newQId = battleState.active_question_id ?? null;
     if (newQId !== prevActiveQuestionIdRef.current) {
       prevActiveQuestionIdRef.current = newQId;
@@ -632,12 +651,21 @@ const BossFight: React.FC = () => {
         setQuestion(null);
       }
     }
-  }, [battleState]);
+  }, [battleState, instance?.mode_type]);
 
   useEffect(() => {
     if (!rosterEvent) return;
     setParticipants(rosterEvent.participants as any);
   }, [rosterEvent]);
+
+  // Derive displayed question from per_guild_question_index for RANDOMIZED_PER_GUILD mode
+  useEffect(() => {
+    if (instance?.mode_type !== "RANDOMIZED_PER_GUILD") return;
+    if (allQuestions.length === 0) return;
+    if (!myParticipant?.guild_id) return;
+    const idx = instance.per_guild_question_index?.[myParticipant.guild_id] ?? 0;
+    setQuestion(allQuestions[idx] ?? null);
+  }, [instance?.mode_type, instance?.per_guild_question_index, myParticipant?.guild_id, allQuestions]);
 
   useEffect(() => {
     if (!instance) return;
@@ -774,6 +802,11 @@ const BossFight: React.FC = () => {
     if (!instance || !question || !studentId || !myParticipant) return;
     if (!canAnswer || submitting || !selectedAnswer) return;
 
+    // Anti-spam: enforce minimum interval between submissions
+    const antiSpamMs = instance.anti_spam_min_submit_interval_ms ?? 1500;
+    if (Date.now() - lastSubmitAtRef.current < antiSpamMs) return;
+    lastSubmitAtRef.current = Date.now();
+
     setSubmitting(true);
 
     try {
@@ -795,6 +828,9 @@ const BossFight: React.FC = () => {
         ]);
       } else {
         const heartsLost = Math.abs(result.hearts_delta_student ?? 0);
+        if (heartsLost > 0) {
+          setLocalHeartsLost((prev) => prev + heartsLost);
+        }
         const frozenMsg = result.frozen_until ? ` Frozen for ${instance.freeze_on_wrong_seconds}s.` : "";
         setBattleLog((prev) => [
           ...prev,
@@ -1216,6 +1252,19 @@ const BossFight: React.FC = () => {
               ) : (
                 <span className="px-3 py-1 rounded-full bg-amber-900/80 border border-amber-500 text-amber-200 text-xs font-semibold">
                   Not in roster
+                </span>
+              )}
+
+              {myParticipant && myParticipant.state === "JOINED" && (
+                <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-red-900/80 border border-red-500 text-xs font-semibold">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={`inline-block w-3 h-3 rounded-full ${
+                        i < Math.max(0, 3 - localHeartsLost) ? "bg-red-400" : "bg-gray-600"
+                      }`}
+                    />
+                  ))}
                 </span>
               )}
             </div>

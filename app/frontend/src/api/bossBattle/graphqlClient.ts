@@ -12,6 +12,12 @@
  *   const instance = await getBossBattleInstanceGql("boss-instance-id-here");
  */
 
+// Ensure Amplify.configure() runs before generateClient() is called.
+// graphqlClient.ts is evaluated at module load time (top-level singleton),
+// which happens before index.tsx's body executes. This import guarantees
+// the correct initialization order regardless of how the module graph resolves.
+import "../../lib/amplifyConfig.ts";
+
 import { generateClient } from "aws-amplify/api";
 import {
     GET_BOSS_BATTLE_INSTANCE,

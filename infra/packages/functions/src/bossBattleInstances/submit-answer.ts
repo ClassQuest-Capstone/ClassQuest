@@ -8,6 +8,7 @@ import {
     getStudentAttemptForQuestion,
 } from "../bossAnswerAttempts/repo.js";
 import type { BossQuestionItem } from "../bossQuestions/types.js";
+import { tryAutoResolveBossQuestion } from "./auto-resolve.js";
 
 /**
  * POST /boss-battle-instances/{boss_instance_id}/submit-answer
@@ -310,6 +311,30 @@ export const handler = async (event: any) => {
             }
         }
 
+        // Optional auto-resolve path: when all required answers are received, attempt to resolve immediately.
+        // Safe because ResolveQuestion is idempotent.
+        //
+        // Expected race scenario: two students submit the last required answers near-simultaneously.
+        // Both may detect quorum (ready_to_resolve = true) and both enter this path.
+        // Only one resolveQuestionCore call will win the DynamoDB conditional write (status == QUESTION_ACTIVE guard).
+        // The other receives ConditionalCheckFailedException → auto_resolve_status = "already_resolved" → not an error.
+        let auto_resolve_status: "not_needed" | "resolved" | "already_resolved" | "failed" = "not_needed";
+
+        if (ready_to_resolve) {
+            // TODO: RANDOMIZED_PER_GUILD auto-resolve should be triggered per-guild once per-guild
+            // active-question tracking is complete. Currently uses the shared readiness path.
+            const autoResult = await tryAutoResolveBossQuestion(boss_instance_id, {
+                active_question_id: instance.active_question_id,
+                required_answer_count: updatedInstance.required_answer_count ?? 0,
+                received_answer_count: updatedInstance.received_answer_count ?? 0,
+                student_id,
+            });
+            auto_resolve_status =
+                autoResult.auto_resolve_status === "skipped_not_ready"
+                    ? "not_needed"
+                    : autoResult.auto_resolve_status;
+        }
+
         return {
             statusCode: 200,
             body: JSON.stringify({
@@ -325,6 +350,10 @@ export const handler = async (event: any) => {
                 received_answer_count: updatedInstance.received_answer_count ?? 0,
                 required_answer_count: updatedInstance.required_answer_count ?? 0,
                 ready_to_resolve,
+                quorum_reached: ready_to_resolve,
+                auto_resolve_attempted: ready_to_resolve,
+                auto_resolve_succeeded: auto_resolve_status === "resolved",
+                auto_resolve_status,
             }),
         };
     } catch (error: any) {
