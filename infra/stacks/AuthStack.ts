@@ -86,8 +86,10 @@ export function AuthStack(ctx: StackContext, props: AuthStackProps) {
         handler: "packages/functions/src/auth/postConfirmation.handler",
         environment: {
             GROUP_STUDENTS: GROUPS.Students,
+            GROUP_TEACHERS: GROUPS.Teachers,
             GROUP_TEACHERS_PENDING: GROUPS.TeachersPending,
             USERS_TABLE_NAME: usersTableName,
+            //USER_POOL_ID: userPool.userPoolId,
         },
         permissions: [
             // Allow writing to Users table

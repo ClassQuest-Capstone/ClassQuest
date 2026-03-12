@@ -1,3 +1,7 @@
+// TODO: validate if email exists before creating a teacher account and sending an invite email instead of creating a new account.
+// This will prevent duplicate accounts for the same email and ensure that teachers receive the necessary information to access their profiles.
+
+
 import { putTeacherProfile } from "./repo";
 
 export const handler = async (event: any) => {
