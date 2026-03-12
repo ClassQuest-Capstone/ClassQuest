@@ -154,9 +154,9 @@ TODO: Remove archived quests from ClassQuest.tsx (DONE)
 
 TODO: Connect template to class and have it show up under class/boss-battles (DONE)
 
-TODO: modify boss battle section in class.tsx to follow  implementation logic 
+TODO: modify boss battle section in class.tsx to follow implementation logic (DONE)
 
-TODO: Boss battle implementation for teachers & students side (IN PROGRESS) Boss battle participants should be used as students wait room grouped by guild
+TODO: Boss battle implementation for teachers & students side Boss battle participants should be used as students wait room grouped by guild (DONE)
 
 TODO: count down on boss battle when its scheduled (DONE)
 
@@ -183,6 +183,15 @@ TODO: tool tip to inidicate answers quest question creation (DONE)
 TODO: Error with modifying questions from quest template (DONE)
 
 TODO: make shop items avaliable to students and not avaliable button to launch to shop?
+
+TODO: revisit heart logic to work with student's score (DONE) 
+
+**heart logic Quest** (DONE)
+1) if score < 50% students loose 1 heart
+
+2) if at 0 heart && score < 50% Quest Completion XP is halved
+
+TODO: shop listing listing is an instance of items table will be controlled by teacher from item shop page but item should be created from sma epage but displayed on students shop page. sprite _path is the image uplaod.
 
 view guilds perfromance at end like kahoot 
 

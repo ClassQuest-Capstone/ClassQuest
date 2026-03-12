@@ -289,9 +289,9 @@ export default function Home() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
               { title: 'Product', links: ['Features'] },
-              { title: 'Resources', links: ['Documentation', 'Support'] },
+              { title: 'Resources', links: ['Documentation'] },
               { title: 'Company', links: ['About'] },
-              { title: 'Legal', links: ['Privacy', 'Terms'] }
+              { title: 'Legal', links: ['Privacy'] }
             ].map((section, idx) => (
               <div key={idx}>
                 <h3 className="text-sm font-semibold text-white tracking-wider uppercase">{section.title}</h3>

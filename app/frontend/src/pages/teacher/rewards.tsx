@@ -12,6 +12,17 @@ type TeacherUser = {
   classCode?: string;
 };
 
+type Tab = "Shop Items" | "Student Requests";
+
+type StudentRequest = {
+  id: string;
+  studentName: string;
+  itemName: string;
+  itemPrice: number;
+  requestDate: string;
+  status: "pending" | "approved" | "rejected";
+};
+
 const rewards = () => {
     const navigate = useNavigate();
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -22,6 +33,59 @@ const rewards = () => {
     const [shopImage, setShopImage] = useState<File | null>(null);
     const [shopLevel, setShopLevel] = useState("");
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<Tab>("Shop Items");
+    const [studentRequests, setStudentRequests] = useState<StudentRequest[]>([
+      // Mock data - replace with API call
+      {
+        id: "1",
+        studentName: "John Doe",
+        itemName: "5mins Phone Time",
+        itemPrice: 100,
+        requestDate: "2024-03-10",
+        status: "pending"
+      },
+      {
+        id: "2",
+        studentName: "Jane Smith",
+        itemName: "Extra Break",
+        itemPrice: 250,
+        requestDate: "2024-03-10",
+        status: "pending"
+      },
+      {
+        id: "3",
+        studentName: "Bob Johnson",
+        itemName: "5mins Phone Time",
+        itemPrice: 100,
+        requestDate: "2024-03-09",
+        status: "approved"
+      }
+    ]);
+
+    const tabClass = (tab: Tab) =>
+    `py-4 px-1 text-center border-b-2 font-bold text-xl ${
+      activeTab === tab
+        ? "border-yellow-500 text-yellow-300"
+        : "border-transparent text-white hover:text-gray-700 hover:border-gray-300"
+    }`;
+
+    const handleApproveRequest = (requestId: string) => {
+      setStudentRequests(prev =>
+        prev.map(req =>
+          req.id === requestId ? { ...req, status: "approved" } : req
+        )
+      );
+      // TODO: Send approval to API
+    };
+
+    const handleRejectRequest = (requestId: string) => {
+      setStudentRequests(prev =>
+        prev.map(req =>
+          req.id === requestId ? { ...req, status: "rejected" } : req
+        )
+      );
+      // TODO: Send rejection to API
+    };
 
     useEffect(() => {
         feather.replace();
@@ -118,7 +182,21 @@ const rewards = () => {
                         <i data-feather="plus" className="mr-2"></i> Create Items
                     </button>
                     </div>
+                     {/* Tabs */}
+                    <div className="mb-6 flex justify-center ">
+                      <nav className="flex space-x-8 ">
+                        <button className={tabClass("Shop Items")} onClick={() => setActiveTab("Shop Items")}>
+                          Shop Items
+                        </button>
+                        <button className={tabClass("Student Requests")} onClick={() => setActiveTab("Student Requests")}>
+                          Student Requests
+                        </button>
+                      </nav>
+                    </div>
+
                     {/** Categories*/}
+            {activeTab === "Shop Items" && (
+              <>
                     <div className="mb-8">
                       <div className="grid grid-cols-1 gap-4 text-white">
                           
@@ -135,8 +213,7 @@ const rewards = () => {
                           </div>
                       </div>
                     </div>
-                    {/** Rewards table */}
-                    <div className="bg-white rounded-xl shadow-lg p-6 text-gray-900">
+                <div className="bg-white rounded-xl shadow-lg p-6 text-gray-900">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold">All Shop Items</h2>
                 {/*<div className="relative">
@@ -159,26 +236,80 @@ const rewards = () => {
                     <tbody className="bg-white divide-y divide-gray-200"></tbody>
                 </table>
              </div>
-             {/* Save changes button with warning */}
-          {/*<div className="mt-6 flex flex-wrap gap-4 items-center">
-            <button
-              disabled={!unsavedChanges || saving}
-              onClick={handleSaveChanges}
-              className={`px-6 py-2 rounded-md text-white font-medium transition-colors ${
-                unsavedChanges
-                  ? "bg-green-600 hover:bg-green-700 cursor-pointer"
-                  : "bg-gray-400 cursor-not-allowed"
-              }`}
-            >
-              {saving ? "Saving..." : "Save Changes"}
-            </button>
-            {unsavedChanges && (
-              <span className="text-sm text-orange-600 font-medium">
-                You have unsaved changes
-              </span>
-            )}
-           </div>*/}
-            </div>
+                </div>
+              </>
+             )}
+             {activeTab === "Student Requests" && (
+              <div className="bg-white rounded-xl shadow-lg p-6 text-gray-900">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold">Student Requests</h2>
+                </div>
+
+                {studentRequests.filter(req => req.status === "pending").length === 0 ? (
+                  <div className="text-center py-12">
+                    <i data-feather="inbox" className="w-16 h-16 mx-auto text-gray-400 mb-4"></i>
+                    <p className="text-gray-500 text-lg">No pending requests</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {studentRequests.map((request) => (
+                      <div
+                        key={request.id}
+                        className={`border rounded-lg p-4 flex justify-between items-center ${
+                          request.status === "pending"
+                            ? "border-yellow-300 bg-yellow-50"
+                            : request.status === "approved"
+                            ? "border-green-300 bg-green-50"
+                            : "border-red-300 bg-red-50"
+                        }`}
+                      >
+                        <div className="flex-1">
+                          <h3 className="font-bold text-gray-900">{request.studentName}</h3>
+                          <p className="text-gray-700">{request.itemName}</p>
+                          <div className="flex gap-4 mt-2 text-sm text-gray-600">
+                            <span className="font-medium">{request.itemPrice} Gold</span>
+                            <span>{request.requestDate}</span>
+                          </div>
+                          <div className="mt-2">
+                            <span
+                              className={`text-xs font-bold px-2 py-1 rounded-full ${
+                                request.status === "pending"
+                                  ? "bg-yellow-200 text-yellow-800"
+                                  : request.status === "approved"
+                                  ? "bg-green-200 text-green-800"
+                                  : "bg-red-200 text-red-800"
+                              }`}
+                            >
+                              {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                            </span>
+                          </div>
+                        </div>
+                        {request.status === "pending" && (
+                          <div className="flex flex-col sm:flex-row gap-2 mt-4 sm:mt-0 sm:ml-4 w-full sm:w-auto">
+                            <button
+                              onClick={() => handleApproveRequest(request.id)}
+                              className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm flex-1 sm:flex-none"
+                            >
+                              <i data-feather="check" className="w-4 h-4"></i>
+                              <span className="hidden sm:inline">Approve</span>
+                              <span className="sm:hidden">Approve</span>
+                            </button>
+                            <button
+                              onClick={() => handleRejectRequest(request.id)}
+                              className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm flex-1 sm:flex-none"
+                            >
+                              <i data-feather="x" className="w-4 h-4"></i>
+                              <span className="hidden sm:inline">Reject</span>
+                              <span className="sm:hidden">Reject</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+             )}
           </main>
           {/* Modal */}
           {isModalOpen && (

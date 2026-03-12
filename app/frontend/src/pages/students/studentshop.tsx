@@ -23,6 +23,15 @@ function getCurrentStudent(): StudentUser | null {
   return null;
 }
 
+// Determine rarity tier based on gold price
+function getRarityTier(price: number) {
+  if (price >= 900) return { tier: "Legendary", border: "border-yellow-400", gradient: "from-yellow-900/70 to-orange-900/70", badge: "bg-yellow-400 text-yellow-900", glow: "hover:shadow-yellow-500/50" };
+  if (price >= 500) return { tier: "Epic", border: "border-purple-500", gradient: "from-purple-900/70 to-pink-900/70", badge: "bg-purple-400 text-white", glow: "hover:shadow-purple-500/50" };
+  if (price >= 300) return { tier: "Rare", border: "border-blue-400", gradient: "from-blue-900/80 to-cyan-900/80", badge: "bg-blue-400 text-white", glow: "hover:shadow-blue-500/50" };
+  if (price >= 160) return { tier: "Uncommon", border: "border-green-400", gradient: "from-green-900/70 to-emerald-900/70", badge: "bg-green-400 text-green-900", glow: "hover:shadow-green-500/50" };
+  return { tier: "Common", border: "border-gray-300", gradient: "from-gray-500/70 to-gray-600/70", badge: "bg-gray-300 text-gray-700", glow: "hover:shadow-gray-400/50" };
+}
+
 const StudentShop: React.FC = () => {
   const student = useMemo(() => getCurrentStudent(), []);
   const studentId = student?.id ?? null;
@@ -149,7 +158,7 @@ const StudentShop: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-white">ClassQuest Shop</h1>
+            <h1 className="text-3xl font-bold text-green-500">ClassQuest Shop</h1>
             <p className="text-gray-200">
               Spend your hard-earned gold on awesome items!
             </p>
@@ -166,179 +175,133 @@ const StudentShop: React.FC = () => {
           </div>
         </div>
 
-        {/* CATEGORY BUTTONS */}
-        <div className="flex space-x-2 mb-6 overflow-x-auto pb-2">
-          <button className="whitespace-nowrap px-4 py-2 bg-blue-600 text-white rounded-full">
-            All Items
-          </button>
-          <button className="whitespace-nowrap px-4 py-2 bg-blue-600 hover:bg-gray-300 rounded-full">
-            Avatar Items
-          </button>
-          <button className="whitespace-nowrap px-4 py-2 bg-blue-600 hover:bg-gray-300 rounded-full">
-            Power-ups
-          </button>
-          <button className="whitespace-nowrap px-4 py-2 bg-blue-600 hover:bg-gray-300 rounded-full">
-            Cosmetics
-          </button>
-          <button className="whitespace-nowrap px-4 py-2 bg-blue-600 hover:bg-gray-300 rounded-full">
-            Special Offers
-          </button>
-        </div>
-
-        {/* FEATURED ITEMS */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-white mb-4">Featured Items</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* ITEM CARD TEMPLATE  */}
-            {[
-              {
-                name: "Legendary Backpack",
-                img: "http://static.photos/education/300x300/7",
-                rarity: "Legendary",
-                rarityColor: "from-purple-500 to-pink-500",
-                gold: 750,
-              },
-              {
-                name: "Super XP Boost",
-                img: "http://static.photos/education/300x300/8",
-                rarity: "Epic",
-                rarityColor: "from-blue-400 to-cyan-400",
-                gold: 300,
-              },
-              {
-                name: "Answer Reveal",
-                img: "http://static.photos/education/300x300/9",
-                rarity: "Rare",
-                rarityColor: "from-green-400 to-emerald-400",
-                gold: 150,
-              },
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                className="shop-item bg-white rounded-xl shadow-md overflow-hidden transition transform hover:-translate-y-1 hover:shadow-xl"
-              >
-                <div
-                  className={`bg-gradient-to-r ${item.rarityColor} p-6 text-center`}
-                >
-                  <img
-                    src={item.img}
-                    className="mx-auto w-32 h-32 object-contain"
-                  />
-                </div>
-
-                <div className="p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-gray-600 font-bold text-lg">
-                      {item.name}
-                    </h3>
-                    <div className="flex items-center bg-yellow-100 px-2 py-1 rounded-full">
-                      <span className="text-gray-600 text-xs font-bold">
-                        {item.rarity}
-                      </span>
-                    </div>
-                  </div>
-
-                  <p className="text-gray-600 text-sm mb-4">
-                    {item.name === "Legendary Backpack"
-                      ? "+25 to all stats, +10% XP bonus"
-                      : item.name === "Super XP Boost"
-                      ? "+50% XP for 1 hour"
-                      : "Reveal one wrong answer choice"}
-                  </p>
-
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center">
-                      <i
-                        data-feather="coins"
-                        className="text-yellow-500 mr-1"
-                      ></i>
-                      <span className="text-gray-600 font-bold">
-                        {item.gold} Gold
-                      </span>
-                    </div>
-                    <button className="bg-yellow-400 hover:bg-yellow-500 text-white px-4 py-1 rounded-full text-sm">
-                      Buy Now
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+        {/* SORT AND FILTER */}
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-blue-500">Available Items</h2>
+            <p className="text-gray-300 text-sm">Browse and purchase rewards from your teacher</p>
           </div>
-        </div>
 
-        {/* ALL ITEMS LIST */}
-        <div>
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-white">All Items</h2>
+          <div className="relative">
+            <select className="block appearance-none bg-white/80 border border-gray-600 px-4 py-2 pr-8 rounded-full text-gray-900 shadow-sm">
+              <option>Sort by: Newest</option>
+              <option>Sort by: Price Low to High</option>
+              <option>Sort by: Price High to Low</option>
+            </select>
 
-            <div className="relative">
-              <select className="block appearance-none bg-blue-600 border border-gray-300 px-4 py-2 pr-8 rounded-full text-white shadow-sm">
-                <option>Sort by: Newest</option>
-                <option>Sort by: Price Low to High</option>
-                <option>Sort by: Price High to Low</option>
-                <option>Sort by: Rarity</option>
-              </select>
-
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-200">
-                <i data-feather="chevron-down" className="w-4 h-4"></i>
-              </div>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-900">
+              <i data-feather="chevron-down" className="w-4 h-4"></i>
             </div>
           </div>
+        </div>
 
-          {/* Item Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* SHOP ITEMS GRID */}
+        <div className="bg-white/30 rounded-xl shadow-lg p-6 text-gray-900">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Sample items - Replace with dynamic data from API */}
             {[
               {
+                id: "1",
                 name: "Wizard Hat",
-                stat: "+15 Wisdom",
-                price: 250,
+                type: "Avatar Items",
+                level: "Epic",
+                price: 650,
                 img: "http://static.photos/education/200x200/11",
+                description: "+15 Wisdom",
               },
               {
+                id: "2",
                 name: "Math Shield",
-                stat: "+10 Knowledge",
+                type: "Avatar Items",
+                level: "Rare",
                 price: 200,
                 img: "http://static.photos/education/200x200/12",
+                description: "+10 Knowledge",
               },
               {
+                id: "3",
                 name: "Health Potion",
-                stat: "Restores 25 HP",
+                type: "Power-ups",
+                level: "Common",
                 price: 100,
                 img: "http://static.photos/education/200x200/13",
+                description: "Restores 25 HP",
               },
               {
+                id: "4",
                 name: "Time Extender",
-                stat: "+30 seconds on timer",
-                price: 120,
+                type: "Power-ups",
+                level: "Rare",
+                price: 320,
                 img: "http://static.photos/education/200x200/14",
+                description: "+30 seconds on timer",
               },
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                className="shop-item bg-white rounded-lg shadow p-4 transition hover:-translate-y-1 hover:shadow-lg"
-              >
-                <div className="bg-gray-100 rounded-lg p-4 mb-3 flex items-center justify-center h-32">
-                  <img src={item.img} className="h-20 object-contain" />
-                </div>
-
-                <h3 className="text-gray-700 font-bold mb-1">{item.name}</h3>
-                <p className="text-gray-600 text-xs mb-2">{item.stat}</p>
-
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center">
-                    <i data-feather="coins" className="text-yellow-500 mr-1"></i>
-                    <span className="text-gray-700 font-medium">
-                      {item.price} Gold
-                    </span>
+              {
+                id: "5",
+                name: "5mins Phone Time",
+                type: "Cosmetics",
+                level: "Special",
+                price: 180,
+                img: "http://static.photos/education/200x200/15",
+                description: "Unlock 5 minutes of free time",
+              },
+              {
+                id: "6",
+                name: "Extra Break",
+                type: "Cosmetics",
+                level: "Legendary",
+                price: 990,
+                img: "http://static.photos/education/200x200/16",
+                description: "Enjoy an extra break period",
+              },
+            ].map((item) => {
+              const rarity = getRarityTier(item.price);
+              return (
+                <div
+                  key={item.id}
+                  className={`shop-item bg-gradient-to-br ${rarity.gradient} border-2 ${rarity.border} rounded-lg transition transform hover:-translate-y-2 ${rarity.glow} hover:shadow-lg overflow-hidden`}
+                >
+                  <div className="bg-gradient-to-b from-gray-800 to-gray-900 h-40 flex items-center justify-center overflow-hidden mb-3 border-b border-gray-700/50">
+                    <img src={item.img} className="h-28 w-full object-contain drop-shadow-lg" alt={item.name} />
                   </div>
 
-                  <button className="bg-yellow-400 hover:bg-yellow-500 text-white px-4 py-1 rounded-full text-sm">
-                    Buy Now
-                  </button>
+                  <div className="p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="text-white font-bold text-sm flex-1">{item.name}</h3>
+                      <span className={`text-xs font-bold px-2 py-1 ${rarity.badge} rounded-full`}>
+                        {rarity.tier}
+                      </span>
+                    </div>
+
+                    <p className="text-gray-200 text-xs mb-3 line-clamp-2">{item.description}</p>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-gray-400/30">
+                      <div className="flex items-center gap-1">
+                        <img
+                          src="/assets/icons/gold-bar.png"
+                          alt="Gold"
+                          className="h-4 w-4"
+                        />
+                        <span className="text-white font-bold text-sm">{item.price}</span>
+                      </div>
+
+                      <button 
+                        disabled={profile.gold < item.price}
+                        className="bg-yellow-400 hover:bg-yellow-500 disabled:bg-gray-500 disabled:cursor-not-allowed text-gray-900 px-3 py-1 rounded-full text-xs font-bold transition transform hover:scale-105"
+                      >
+                        Buy Now
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+
+          {/* Empty State */}
+          <div className="text-center py-12">
+            <i data-feather="inbox" className="w-12 h-12 mx-auto text-gray-900 mb-3"></i>
+            <p className="text-gray-500">Loading items...</p>
           </div>
         </div>
       </div>

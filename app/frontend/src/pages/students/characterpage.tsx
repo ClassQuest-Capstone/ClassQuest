@@ -791,6 +791,7 @@ const CharacterPage: React.FC = () => {
                       </div>
                     </div>
 
+                    <div className="mb-10">
                     {/* Level Badge */}
                     <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 level-badge px-6 py-1 rounded-full">
                       <span className="font-bold text-lg text-white">
@@ -829,6 +830,8 @@ const CharacterPage: React.FC = () => {
                         </div>
                       </div>
                     </div>
+                    </div>
+                    
 
                     <div className="absolute bottom-0 right-0 flex space-x-2 bg-black/50 p-2 rounded-tl-xl">
                       <button className="bg-gray-700 hover:bg-gray-600 p-2 rounded-full text-white transition-all hover:rotate-45">
@@ -888,10 +891,10 @@ const CharacterPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Materials */}
+                    {/* Class Items */}
                     <div className="bg-gray-900 rounded-lg p-4 hover:bg-gray-800 transition-colors">
                       <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-medium">Materials</h3>
+                        <h3 className="font-medium">Class Items</h3>
                         <span className="text-xs text-gray-400">5/10 slots</span>
                       </div>
                       <div className="grid grid-cols-3 gap-2">
@@ -909,27 +912,13 @@ const CharacterPage: React.FC = () => {
                         </div>
                       </div>
                     </div>
-
-                    {/* Quest items */}
-                    <div className="bg-gray-900 rounded-lg p-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-medium">Quest Items</h3>
-                        <span className="text-xs text-gray-400">1/5 slots</span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="bg-gray-800 p-2 rounded flex flex-col items-center text-yellow-300 border border-yellow-500">
-                          <i data-feather="map" className="text-red-500 mb-1" />
-                          <span className="text-xs">Algebra Map</span>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Hearts & tabs section*/}
-            <div className="bg-gray-800 bg-opacity-80 rounded-lg p-6 mt-6 ">
+            <div className="bg-gray-800 bg-opacity-80 rounded-lg p-6 mt-35">
               <div className="w-full max-w-6xl mx-auto px-4">
                 {/* Quick Hearts Display */}
                 <div id="hearts" className="flex items-center justify-center gap-2 mb-6 p-4 ">

@@ -391,6 +391,70 @@ export const usePlayerProgression = (
   }, [profile, classId, studentId]);
 
   /** 
+   * Deduct hearts based on quest score and apply XP penalty if hearts reach 0
+   * Called after quest completion
+   */
+  const deductHeartsForQuestScore = useCallback(
+    async (scorePercentage: number, baseXpReward: number) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        let newHearts = profile.hearts;
+        let xpPenalty = 0;
+
+        // Deduct 1 heart if score < 50%
+        if (scorePercentage < 50) {
+          newHearts = Math.max(0, profile.hearts - 1);
+          console.log(
+            `[Quest Score] Score ${scorePercentage.toFixed(2)}% < 50%, deducting 1 heart. Hearts: ${profile.hearts} → ${newHearts}`
+          );
+        }
+
+        // If hearts = 0 after deduction, reduce XP by 50% of completion reward
+        if (newHearts === 0) {
+          xpPenalty = baseXpReward * 0.5;
+          console.log(
+            `[Quest Score] Hearts = 0. Applying 50% XP penalty: -${xpPenalty.toFixed(0)} XP`
+          );
+        }
+
+        const updatedProfile: PlayerProfile = {
+          ...profile,
+          hearts: newHearts,
+        };
+
+        setProfile(updatedProfile);
+
+        // Persist to backend
+        const xpToNextLevel = calculateTotalXPForLevel(updatedProfile.level + 1) - updatedProfile.totalXP;
+        await upsertPlayerState(classId, studentId, {
+          current_xp: updatedProfile.currentXP,
+          xp_to_next_level: xpToNextLevel,
+          total_xp_earned: updatedProfile.totalXP,
+          hearts: newHearts,
+          max_hearts: updatedProfile.maxHearts,
+          gold: updatedProfile.gold,
+          status: "ALIVE" as const,
+        });
+
+        return {
+          newHearts,
+          xpPenalty,
+          heartsDelta: scorePercentage < 50 ? -1 : 0,
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to deduct hearts";
+        setError(message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [profile, classId, studentId]
+  );
+
+  /** 
    * Weekend reset function to reset hearts to full every Saturday at midnight
    */
   const weekendReset = useCallback(async () => {
@@ -539,5 +603,6 @@ export const usePlayerProgression = (
     equipItem,
     regenerateHearts,
     weekendReset,
+    deductHeartsForQuestScore,
   };
 };

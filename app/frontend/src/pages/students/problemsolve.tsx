@@ -14,7 +14,6 @@ import {
 import { getPlayerState, upsertPlayerState } from "../../api/playerStates.js";
 import { getStudentEnrollments, type EnrollmentItem } from "../../api/classEnrollments.js";
 import { getQuestTemplate, type QuestTemplate } from "../../api/questTemplates.js";
-import { createTransaction } from "../../api/rewardTransactions.js";
 
 // --------------------
 // Student helper
@@ -475,26 +474,31 @@ const ProblemSolve: React.FC = () => {
         throw new Error(`Failed to get or create player state for classId=${classId}, studentId=${studentId}`);
       }
 
-      // Calculate score percentage from responses
-      const correctCount = (latestResponses || []).filter((r: any) => {
-        const isCorrect = r?.answer_raw?.is_correct;
-        return typeof isCorrect === 'boolean' && isCorrect === true;
-      }).length;
-
-      const totalQuestions = questions.length || 1;
-      const scorePercentage = (correctCount / totalQuestions) * 100;
+      // Use firstTryPercent which is computed from first-attempt correctness,
+      const scorePercentage = firstTryPercent;
 
       // Deduct 1 heart if score < 50%
       let hearts = cur.hearts ?? 0;
+      let xpPenalty = 0;
+      
       if (scorePercentage < 50) {
         hearts = Math.max(0, hearts - 1);
-        console.log(`[Quest Complete] Score ${scorePercentage.toFixed(2)}% < 50%, deducting 1 heart. Hearts remaining: ${hearts}`);
+        console.log(`[Quest Complete] Score ${scorePercentage}% < 50%, deducting 1 heart. Hearts: ${cur.hearts} → ${hearts}`);
       }
 
+      // If hearts = 0 after deduction, reduce XP reward by 50% (remove 50% of completion reward)
+      if (hearts === 0) {
+        const { baseXp } = totals.breakdown;
+        xpPenalty = baseXp * 0.5; // 50% of completion reward 
+        console.log(`[Quest Complete] Hearts = 0. Applying 50% XP penalty: -${xpPenalty.toFixed(0)} XP`);
+      }
+
+      const finalXp = Math.max(0, xp - xpPenalty);
+
       await upsertPlayerState(classId, studentId, {
-        current_xp: (cur.current_xp ?? 0) + xp,
+        current_xp: (cur.current_xp ?? 0) + finalXp,
         xp_to_next_level: cur.xp_to_next_level ?? 0,
-        total_xp_earned: (cur.total_xp_earned ?? 0) + xp,
+        total_xp_earned: (cur.total_xp_earned ?? 0) + finalXp,
         hearts: hearts,
         max_hearts: cur.max_hearts ?? 0,
         gold: (cur.gold ?? 0) + gold,
@@ -502,29 +506,8 @@ const ProblemSolve: React.FC = () => {
         status: cur.status ?? "ALIVE",
       });
 
-      // Log a reward transaction so the teacher activity feed picks it up
-      try {
-        const heartsDelta = scorePercentage < 50 ? -1 : 0;
-        await createTransaction({
-          student_id: studentId,
-          class_id: classId,
-          xp_delta: xp,
-          gold_delta: gold,
-          hearts_delta: heartsDelta,
-          source_type: "QUEST_COMPLETION",
-          source_id: questInstanceId,
-          quest_instance_id: questInstanceId,
-          reason: questTemplate?.title
-            ? `Completed quest: ${questTemplate.title}`
-            : "Quest completed",
-        });
-      } catch (Err) {
-        //  if rewards were already applied to player state
-        console.warn("Failed to log reward transaction for quest completion:", Err);
-      }
-
       markRewardsClaimed(studentId, questInstanceId);
-      setClaimedRewards({ xp, gold });
+      setClaimedRewards({ xp: finalXp, gold });
     } catch (e: any) {
       setClaimRewardsError(e?.message || "Failed to award XP/Gold.");
     } finally {

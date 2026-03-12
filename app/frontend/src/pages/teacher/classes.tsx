@@ -101,7 +101,7 @@ const Classes = () => {
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedClassId, setCopiedClassId] = useState<string | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const activeClasses = useMemo(
@@ -225,10 +225,10 @@ const Classes = () => {
     }
   }
 
-  function handleCopy(code: string) {
+  function handleCopy(code: string, classId: string) {
     navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 3000)
+    setCopiedClassId(classId);
+    setTimeout(() => setCopiedClassId(null), 3000)
   }
 
   return (
@@ -376,13 +376,13 @@ const Classes = () => {
                     </p>
 
                     <button
-                      onClick={() => handleCopy(c.join_code)}
+                      onClick={() => handleCopy(c.join_code, c.class_id)}
                       className="px-3 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
                     >
                       Copy
                     </button>
                   </div>
-                      {copied && (
+                      {copiedClassId === c.class_id && (
                         <div className="mt-2 rounded-md bg-green-100 text-green-800 px-3 py-1 text-sm font-medium w-fit">
                           Copied to clipboard!
                         </div>

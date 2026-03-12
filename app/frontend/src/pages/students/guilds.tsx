@@ -664,7 +664,7 @@ const GuildPage: React.FC = () => {
                   roster.map((m) => {
                     const displayName =
                       nameByStudentId[m.student_id] ?? "Loading…";
-
+              const avatars = [ "/assets/mage-head.png", "/assets/warrior-head.png", "/assets/healer-head.png", ];
                     return (
                       <div
                         key={`${m.class_id}:${m.student_id}`}
@@ -673,7 +673,7 @@ const GuildPage: React.FC = () => {
                         <div className="flex items-center">
                           <div className="relative mr-4">
                             <img
-                              src="http://static.photos/people/200x200/9"
+                              src={avatars[Math.floor(Math.random() * avatars.length)]}
                               alt="Member"
                               className="w-12 h-12 rounded-full"
                             />
@@ -765,7 +765,6 @@ const GuildPage: React.FC = () => {
                 const gradient = getGradientBySubject(template?.subject);
                 const statusBg = getStatusColor(battle.status);
                 
-                // Calculate progress (TODO: backend only)
                 const hpPercent = battle.initial_boss_hp > 0 
                   ? Math.max(0, (battle.current_boss_hp / battle.initial_boss_hp) * 100)
                   : 0;
