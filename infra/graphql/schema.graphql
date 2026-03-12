@@ -1,0 +1,308 @@
+# ClassQuest Boss Battle — GraphQL Schema
+# Phase 2: all read queries, subscription event types, subscription skeleton.
+# Internal publish mutations wired with NONE data source (no publish logic yet — Phase 3).
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Types
+# ──────────────────────────────────────────────────────────────────────────────
+
+type BossBattleInstance {
+  boss_instance_id: ID!
+  class_id: ID!
+  boss_template_id: ID!
+  created_by_teacher_id: ID!
+
+  # Lifecycle state
+  status: String!
+  mode_type: String!
+  question_selection_mode: String
+  outcome: String
+  fail_reason: String
+
+  # Boss HP
+  current_boss_hp: Int
+  initial_boss_hp: Int
+
+  # Active question state
+  active_question_id: ID
+  active_guild_id: ID
+  question_started_at: String
+  question_ends_at: String
+
+  # Countdown / intermission timing
+  countdown_end_at: String
+  countdown_seconds: Int
+  intermission_ends_at: String
+
+  # Answer-gating quorum counters
+  received_answer_count: Int
+  required_answer_count: Int
+  ready_to_resolve: Boolean
+
+  # Per-guild answer gating (RANDOMIZED_PER_GUILD) — nullable until mode is complete
+  per_guild_received_answer_count: AWSJSON
+  per_guild_required_answer_count: AWSJSON
+  per_guild_ready_to_resolve: AWSJSON
+
+  # Per-guild active question tracking (RANDOMIZED_PER_GUILD) — nullable until mode is complete
+  per_guild_active_question_id: AWSJSON
+
+  # Plan references
+  question_plan_id: ID
+  guild_question_plan_id: ID
+  participants_snapshot_id: ID
+
+  # Timestamps
+  lobby_opened_at: String
+  completed_at: String
+  created_at: String
+  updated_at: String
+}
+
+type BossBattleParticipant {
+  boss_instance_id: ID!
+  student_id: ID!
+  class_id: ID!
+  guild_id: ID!
+  state: String!
+  joined_at: String!
+  updated_at: String!
+  last_submit_at: String
+  frozen_until: String
+  is_downed: Boolean!
+  downed_at: String
+  kick_reason: String
+}
+
+# BossQuestion — correct_answer is nullable.
+# getActiveBossQuestion resolver filters it out for Students group callers.
+type BossQuestion {
+  question_id: ID!
+  boss_template_id: ID!
+  order_index: Int!
+  order_key: String!
+  question_text: String!
+  question_type: String!
+  options: AWSJSON
+  correct_answer: AWSJSON
+  damage_to_boss_on_correct: Int!
+  damage_to_guild_on_incorrect: Int!
+  max_points: Int
+  auto_gradable: Boolean!
+  time_limit_seconds: Int
+  created_at: String!
+  updated_at: String!
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Subscription event payload types
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Fired after every lifecycle state change. Replaces all polling loops on battle pages.
+type BossBattleStateEvent {
+  boss_instance_id: ID!
+  status: String!
+  current_boss_hp: Int
+  initial_boss_hp: Int
+  active_question_id: ID
+  question_started_at: String
+  question_ends_at: String
+  countdown_end_at: String
+  intermission_ends_at: String
+  active_guild_id: ID
+  received_answer_count: Int
+  required_answer_count: Int
+  ready_to_resolve: Boolean
+  per_guild_active_question_id: AWSJSON
+  outcome: String
+  fail_reason: String
+  completed_at: String
+  updated_at: String
+}
+
+# Fired after join/spectate/leave/kick. Full roster array (not delta) — ≤35 students.
+type RosterChangedEvent {
+  boss_instance_id: ID!
+  participants: [BossBattleParticipant!]!
+}
+
+# Fired after each submitAnswer — per-student feedback for teacher monitor.
+# Phase 5: onAnswerSubmitted subscription for teacher monitor quorum tracking.
+type AnswerSubmittedEvent {
+  boss_instance_id: ID!
+  student_id: ID!
+  is_correct: Boolean!
+  received_answer_count: Int
+  required_answer_count: Int
+  ready_to_resolve: Boolean
+  updated_at: String
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Mutation result types
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Generic result for lifecycle mutations (startBattle, startCountdown, etc.).
+# Subscription event carries the full state update — the mutation result just
+# signals success/failure.
+type BossBattleActionResult {
+  success: Boolean!
+  statusCode: Int!
+  message: String
+  error: String
+}
+
+# submitAnswer needs synchronous per-student feedback (is_correct, frozen_until).
+# The subscription carries quorum counter updates for the teacher monitor.
+type SubmitAnswerResult {
+  success: Boolean!
+  is_correct: Boolean
+  elapsed_seconds: Float
+  effective_time_limit_seconds: Float
+  speed_multiplier: Float
+  damage_to_boss: Int
+  hearts_delta_student: Int
+  hearts_delta_guild_total: Int
+  frozen_until: String
+  received_answer_count: Int
+  required_answer_count: Int
+  ready_to_resolve: Boolean
+  error: String
+}
+
+# Result for join/spectate/leave/kick mutations.
+type ParticipantActionResult {
+  success: Boolean!
+  state: String
+  message: String
+  error: String
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Input types (used by internal publish mutations)
+# ──────────────────────────────────────────────────────────────────────────────
+
+input BossBattleStateEventInput {
+  boss_instance_id: ID!
+  status: String!
+  current_boss_hp: Int
+  initial_boss_hp: Int
+  active_question_id: ID
+  question_started_at: String
+  question_ends_at: String
+  countdown_end_at: String
+  intermission_ends_at: String
+  active_guild_id: ID
+  received_answer_count: Int
+  required_answer_count: Int
+  ready_to_resolve: Boolean
+  per_guild_active_question_id: AWSJSON
+  outcome: String
+  fail_reason: String
+  completed_at: String
+  updated_at: String
+}
+
+input BossBattleParticipantInput {
+  boss_instance_id: ID!
+  student_id: ID!
+  class_id: ID!
+  guild_id: ID!
+  state: String!
+  joined_at: String!
+  updated_at: String!
+  last_submit_at: String
+  frozen_until: String
+  is_downed: Boolean!
+  downed_at: String
+  kick_reason: String
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Queries
+# ──────────────────────────────────────────────────────────────────────────────
+
+type Query {
+  # Single instance lookup by PK — direct DDB GetItem resolver.
+  getBossBattleInstance(bossInstanceId: ID!): BossBattleInstance
+
+  # List all instances for a class — direct DDB GSI1 query (class_id PK, created_at SK).
+  listBossBattleInstancesByClass(classId: ID!): [BossBattleInstance!]!
+
+  # List all participants for a battle — direct DDB Query by PK (boss_instance_id).
+  getBossBattleParticipants(bossInstanceId: ID!): [BossBattleParticipant!]!
+
+  # Fetch a single question by ID — JS resolver; strips correct_answer for Students group.
+  getActiveBossQuestion(questionId: ID!): BossQuestion
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Mutations — internal publish only (Phase 2: NONE resolver skeleton, no publish logic yet)
+# ──────────────────────────────────────────────────────────────────────────────
+
+type Mutation {
+  # ── Teacher-only lifecycle mutations — proxied to existing Lambda handlers ──
+
+  startBattle(bossInstanceId: ID!): BossBattleActionResult
+  startCountdown(bossInstanceId: ID!): BossBattleActionResult
+  startQuestion(bossInstanceId: ID!): BossBattleActionResult
+  resolveQuestion(bossInstanceId: ID!): BossBattleActionResult
+  advanceQuestion(bossInstanceId: ID!): BossBattleActionResult
+  finishBattle(bossInstanceId: ID!): BossBattleActionResult
+
+  # ── Student-only mutation — synchronous is_correct feedback required ─────
+
+  # answerRaw: AWSJSON-encoded object, e.g. {"value":"A"} for MCQ.
+  submitAnswer(bossInstanceId: ID!, answerRaw: AWSJSON!): SubmitAnswerResult
+
+  # ── Participant roster mutations ─────────────────────────────────────────
+
+  joinBattle(bossInstanceId: ID!, guildId: ID!): ParticipantActionResult
+  spectateBattle(bossInstanceId: ID!): ParticipantActionResult
+  leaveBattle(bossInstanceId: ID!): ParticipantActionResult
+  kickParticipant(bossInstanceId: ID!, studentId: ID!, reason: String): ParticipantActionResult
+
+  # ── Internal publish mutations — @aws_iam only, never called by frontend ─
+
+  # Called by the mutation resolver Lambda after each successful state change.
+  publishBattleStateChanged(input: BossBattleStateEventInput!): BossBattleStateEvent
+    @aws_iam
+
+  publishRosterChanged(
+    bossInstanceId: ID!
+    participants: [BossBattleParticipantInput!]!
+  ): RosterChangedEvent
+    @aws_iam
+
+  # Called by mutation resolver Lambda after each successful submitAnswer.
+  publishAnswerSubmitted(
+    bossInstanceId: ID!
+    studentId: ID!
+    isCorrect: Boolean!
+    receivedAnswerCount: Int
+    requiredAnswerCount: Int
+    readyToResolve: Boolean
+    updatedAt: String
+  ): AnswerSubmittedEvent
+    @aws_iam
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Subscriptions — WebSocket connections open successfully in Phase 2.
+# Events fire in Phase 3 once mutation-resolver.ts calls publishBattleStateChanged / publishRosterChanged.
+# ──────────────────────────────────────────────────────────────────────────────
+
+type Subscription {
+  # Filtered by bossInstanceId — delivers only events for the subscribed battle.
+  onBattleStateChanged(bossInstanceId: ID!): BossBattleStateEvent
+    @aws_subscribe(mutations: ["publishBattleStateChanged"])
+
+  # Filtered by bossInstanceId — delivers only roster events for the subscribed battle.
+  onRosterChanged(bossInstanceId: ID!): RosterChangedEvent
+    @aws_subscribe(mutations: ["publishRosterChanged"])
+
+  # Teacher monitor: per-student answer feedback. Filtered by bossInstanceId.
+  # Phase 5: allows teacher to see live quorum progress without full state refresh.
+  onAnswerSubmitted(bossInstanceId: ID!): AnswerSubmittedEvent
+    @aws_subscribe(mutations: ["publishAnswerSubmitted"])
+}

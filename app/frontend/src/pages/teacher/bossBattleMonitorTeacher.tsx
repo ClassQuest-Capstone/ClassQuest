@@ -9,26 +9,34 @@ import { getTeacherProfile } from "../../api/teacherProfiles.js";
 import {
   getBossBattleInstance,
   updateBossBattleInstance,
+  startBossBattleQuestion,
+  resolveBossBattleQuestion,
+  advanceBossBattleToNextQuestion,
+  finishBossBattle,
 } from "../../api/bossBattleInstances/client.js";
 import type { BossBattleInstance } from "../../api/bossBattleInstances/types.js";
 
 import { getBossBattleTemplate } from "../../api/bossBattleTemplates/client.js";
 import type { BossBattleTemplate } from "../../api/bossBattleTemplates/types.js";
 
-import {
-  getBossQuestion,
-  listBossQuestionsByTemplate,
-} from "../../api/bossQuestions/client.js";
+import { getBossQuestion } from "../../api/bossQuestions/client.js";
 import type { BossQuestion } from "../../api/bossQuestions/types.js";
 
 import { listBossBattleParticipants } from "../../api/bossBattleParticipants/client.js";
 import type { BossBattleParticipant } from "../../api/bossBattleParticipants/types.js";
 
 import { listBossAnswerAttemptsByBattle } from "../../api/bossAnswerAttempts/client.js";
+import { getBossResults, computeBossResults } from "../../api/bossResults/client.js";
+import type { BossResultsResponse } from "../../api/bossResults/types.js";
 import type { BossAnswerAttempt } from "../../api/bossAnswerAttempts/types.js";
 
 import { listGuildsByClass, type Guild } from "../../api/guilds.js";
 import { getStudentProfile } from "../../api/studentProfiles.js";
+import {
+  useBattleSubscription,
+  useRosterSubscription,
+  useAnswerSubmittedSubscription,
+} from "../../hooks/useBattleSubscription.ts";
 
 type TeacherUser = {
   id: string;
@@ -115,28 +123,6 @@ async function fetchAllGuildsByClass(classId: string) {
   return all;
 }
 
-async function fetchAllBossQuestionsByTemplate(bossTemplateId: string) {
-  const all: BossQuestion[] = [];
-  let cursor: string | undefined = undefined;
-
-  while (true) {
-    const res = await listBossQuestionsByTemplate(bossTemplateId, {
-      limit: 100,
-      cursor,
-    });
-
-    all.push(...(res.items || []));
-    cursor = res.nextToken || res.cursor;
-    if (!cursor) break;
-  }
-
-  return all.sort((a: any, b: any) => {
-    const ai = Number(a?.order_index ?? 0);
-    const bi = Number(b?.order_index ?? 0);
-    return ai - bi;
-  });
-}
-
 function formatDateTime(iso?: string) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -163,40 +149,6 @@ function getSecondsRemaining(endAt?: string | null) {
   return Math.max(0, Math.ceil((end - Date.now()) / 1000));
 }
 
-function getQuestionDurationSeconds(question?: any, template?: any, instance?: any) {
-  const fromQuestion =
-    Number(question?.time_limit_seconds) > 0
-      ? Number(question.time_limit_seconds)
-      : Number(question?.duration_seconds) > 0
-      ? Number(question.duration_seconds)
-      : 0;
-
-  if (fromQuestion > 0) return fromQuestion;
-
-  const fromTemplate =
-    Number(template?.question_time_limit_seconds) > 0
-      ? Number(template.question_time_limit_seconds)
-      : Number(template?.time_limit_seconds) > 0
-      ? Number(template.time_limit_seconds)
-      : 0;
-
-  if (fromTemplate > 0) return fromTemplate;
-
-  const fromInstance =
-    Number(instance?.question_time_limit_seconds) > 0
-      ? Number(instance.question_time_limit_seconds)
-      : Number(instance?.speed_window_seconds) > 0
-      ? Number(instance.speed_window_seconds)
-      : 0;
-
-  if (fromInstance > 0) return fromInstance;
-
-  return 60;
-}
-
-function isoNowPlusSeconds(seconds: number) {
-  return new Date(Date.now() + seconds * 1000).toISOString();
-}
 
 export default function BossBattleMonitorTeacher() {
   const navigate = useNavigate();
@@ -224,6 +176,15 @@ export default function BossBattleMonitorTeacher() {
 
   const [transitioning, setTransitioning] = useState(false);
   const transitionLockRef = useRef(false);
+  const [battleResults, setBattleResults] = useState<BossResultsResponse | null>(null);
+  const [questionTimeLeft, setQuestionTimeLeft] = useState(0);
+
+  const { battleState, connectionStatus } = useBattleSubscription(bossInstanceId);
+  const { rosterEvent } = useRosterSubscription(bossInstanceId);
+  const { answerEvent } = useAnswerSubmittedSubscription(bossInstanceId);
+  const prevActiveQuestionIdRef = useRef<string | null | undefined>(undefined);
+  const prevReadyToResolveRef = useRef<boolean | null>(null);
+  const hasAutoResolvedRef = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -293,6 +254,15 @@ export default function BossBattleMonitorTeacher() {
       } else {
         setGuilds([]);
       }
+
+      if (inst?.status === "COMPLETED") {
+        try {
+          const results = await getBossResults(inst.boss_instance_id);
+          setBattleResults(results);
+        } catch {
+          setBattleResults(null);
+        }
+      }
     } catch (err: any) {
       console.error("Failed to load boss battle monitor:", err);
       setError(err?.message || "Failed to load teacher monitor.");
@@ -301,157 +271,193 @@ export default function BossBattleMonitorTeacher() {
     }
   }, [bossInstanceId, teacherId]);
 
-  const activateQuestionAtIndex = useCallback(
-    async (inst: BossBattleInstance, tpl: BossBattleTemplate | null, nextIndex: number) => {
-      if (!inst?.boss_template_id) return false;
-
-      const allQuestions = await fetchAllBossQuestionsByTemplate(inst.boss_template_id);
-      if (!allQuestions.length) {
-        setError("This boss template has no questions, so the battle cannot start.");
-        return false;
-      }
-
-      const safeIndex = Math.max(0, Math.min(nextIndex, allQuestions.length - 1));
-      const nextQuestion = allQuestions[safeIndex];
-      const durationSeconds = getQuestionDurationSeconds(nextQuestion, tpl, inst);
-      const nowIso = new Date().toISOString();
-
-      await updateBossBattleInstance(inst.boss_instance_id, {
-      status: "QUESTION_ACTIVE" as any,
-      active_question_id: nextQuestion.question_id,
-      current_question_index: safeIndex,
-      question_started_at: nowIso,
-      question_ends_at: isoNowPlusSeconds(durationSeconds),
-    } as any);
-
-      return true;
-    },
-    []
-  );
-
-  const maybeAdvanceBattleState = useCallback(async () => {
-    if (!instance || transitionLockRef.current) return;
-    if (!bossInstanceId) return;
-
-    const status = String(instance.status || "").toUpperCase();
-
+  // Teacher action: Start Question (COUNTDOWN/INTERMISSION -> QUESTION_ACTIVE)
+  const handleStartQuestion = useCallback(async () => {
+    if (!bossInstanceId || transitionLockRef.current) return;
+    transitionLockRef.current = true;
+    setTransitioning(true);
     try {
-      // COUNTDOWN -> QUESTION_ACTIVE
-      if (status === "COUNTDOWN") {
-        const remaining = getSecondsRemaining((instance as any)?.countdown_end_at);
-        if (remaining <= 0) {
-          transitionLockRef.current = true;
-          setTransitioning(true);
-
-          const tpl =
-            template ||
-            (instance.boss_template_id
-              ? await getBossBattleTemplate(instance.boss_template_id).catch(() => null)
-              : null);
-
-          const success = await activateQuestionAtIndex(
-            instance,
-            tpl,
-            Number((instance as any)?.current_question_index ?? 0)
-          );
-
-          if (success) {
-            await refresh();
-          }
-        }
-        return;
-      }
-
-      // QUESTION_ACTIVE but somehow missing active_question_id
-      if (status === "QUESTION_ACTIVE" && !instance.active_question_id) {
-        transitionLockRef.current = true;
-        setTransitioning(true);
-
-        const tpl =
-          template ||
-          (instance.boss_template_id
-            ? await getBossBattleTemplate(instance.boss_template_id).catch(() => null)
-            : null);
-
-        const success = await activateQuestionAtIndex(
-          instance,
-          tpl,
-          Number((instance as any)?.current_question_index ?? 0)
-        );
-
-        if (success) {
-          await refresh();
-        }
-        return;
-      }
-
-      // INTERMISSION ended and no question is active yet -> move to next question
-      if (status === "INTERMISSION") {
-        const remaining = getSecondsRemaining((instance as any)?.intermission_ends_at);
-        if (remaining <= 0) {
-          transitionLockRef.current = true;
-          setTransitioning(true);
-
-          const tpl =
-            template ||
-            (instance.boss_template_id
-              ? await getBossBattleTemplate(instance.boss_template_id).catch(() => null)
-              : null);
-
-          const nextIndex = Number((instance as any)?.current_question_index ?? 0) + 1;
-          const allQuestions = instance.boss_template_id
-            ? await fetchAllBossQuestionsByTemplate(instance.boss_template_id)
-            : [];
-
-          if (!allQuestions.length) {
-            setError("No questions found for this boss template.");
-            return;
-          }
-
-          if (nextIndex >= allQuestions.length) {
-            await updateBossBattleInstance(instance.boss_instance_id, {
-              status: "COMPLETED" as any,
-              outcome: currentHp <= 0 ? "WIN" : "LOSE",
-              completed_at: new Date().toISOString(),
-              active_question_id: null as any,
-              question_ends_at: null as any,
-              intermission_ends_at: null as any,
-            } as any);
-
-            await refresh();
-            return;
-          }
-
-          const success = await activateQuestionAtIndex(instance, tpl, nextIndex);
-          if (success) {
-            await refresh();
-          }
-        }
-      }
+      await startBossBattleQuestion(bossInstanceId);
+      await refresh();
     } catch (err: any) {
-      console.error("Failed to advance battle state:", err);
-      setError(err?.message || "Failed to advance battle state.");
+      console.error("Failed to start question:", err);
+      setError(err?.message || "Failed to start question.");
     } finally {
       transitionLockRef.current = false;
       setTransitioning(false);
     }
-  }, [bossInstanceId, instance, template, refresh, activateQuestionAtIndex]);
+  }, [bossInstanceId, refresh]);
+
+  // Teacher action: Resolve Question (QUESTION_ACTIVE -> RESOLVING -> INTERMISSION/COMPLETED)
+  const handleResolveQuestion = useCallback(async () => {
+    if (!bossInstanceId || transitionLockRef.current) return;
+    transitionLockRef.current = true;
+    setTransitioning(true);
+    try {
+      await resolveBossBattleQuestion(bossInstanceId);
+      await refresh();
+    } catch (err: any) {
+      // 409 = already resolved (race condition / duplicate trigger) — safe to ignore
+      const status = err?.status ?? err?.statusCode ?? err?.response?.status;
+      if (status === 409) {
+        await refresh(); // still refresh so UI is up-to-date
+      } else {
+        console.error("Failed to resolve question:", err);
+        setError(err?.message || "Failed to resolve question.");
+      }
+    } finally {
+      transitionLockRef.current = false;
+      setTransitioning(false);
+    }
+  }, [bossInstanceId, refresh]);
+
+  // Teacher action: Advance to next question (INTERMISSION -> QUESTION_ACTIVE or COMPLETED)
+  const handleAdvanceQuestion = useCallback(async () => {
+    if (!bossInstanceId || transitionLockRef.current) return;
+    transitionLockRef.current = true;
+    setTransitioning(true);
+    try {
+      const result = await advanceBossBattleToNextQuestion(bossInstanceId);
+      if (!result.has_more_questions || result.status === "COMPLETED") {
+        await finishBossBattle(bossInstanceId).catch(() => {});
+      }
+      await refresh();
+    } catch (err: any) {
+      console.error("Failed to advance question:", err);
+      setError(err?.message || "Failed to advance to next question.");
+    } finally {
+      transitionLockRef.current = false;
+      setTransitioning(false);
+    }
+  }, [bossInstanceId, refresh]);
+
+  // Teacher action: Finish Battle (writes BossResults)
+  const handleFinishBattle = useCallback(async () => {
+    if (!bossInstanceId || transitionLockRef.current) return;
+    transitionLockRef.current = true;
+    setTransitioning(true);
+    try {
+      await finishBossBattle(bossInstanceId);
+      await refresh();
+    } catch (err: any) {
+      console.error("Failed to finish battle:", err);
+      setError(err?.message || "Failed to finish battle.");
+    } finally {
+      transitionLockRef.current = false;
+      setTransitioning(false);
+    }
+  }, [bossInstanceId, refresh]);
+
+  // Abort battle
+  const handleAbortBattle = useCallback(async () => {
+    if (!bossInstanceId) return;
+    if (!confirm("Abort this battle? This cannot be undone.")) return;
+    try {
+      setTransitioning(true);
+      await updateBossBattleInstance(bossInstanceId, {
+        status: "ABORTED",
+        outcome: "ABORTED",
+        fail_reason: "ABORTED_BY_TEACHER",
+        completed_at: new Date().toISOString(),
+      });
+      await refresh();
+    } catch (err: any) {
+      setError(err?.message || "Failed to abort battle.");
+    } finally {
+      setTransitioning(false);
+    }
+  }, [bossInstanceId, refresh]);
+
+  // Compute results (if COMPLETED but results not yet written)
+  const handleComputeResults = useCallback(async () => {
+    if (!bossInstanceId) return;
+    try {
+      setTransitioning(true);
+      await computeBossResults(bossInstanceId);
+      const results = await getBossResults(bossInstanceId);
+      setBattleResults(results);
+    } catch (err: any) {
+      setError(err?.message || "Failed to compute results.");
+    } finally {
+      setTransitioning(false);
+    }
+  }, [bossInstanceId]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
 
   useEffect(() => {
-    const id = window.setInterval(() => {
-      refresh();
-    }, 3000);
-
-    return () => window.clearInterval(id);
-  }, [refresh]);
+    if (!battleState) return;
+    setInstance((prev) => {
+      if (!prev) return prev;
+      return { ...prev, ...battleState } as unknown as BossBattleInstance;
+    });
+    const newQId = battleState.active_question_id ?? null;
+    if (newQId !== prevActiveQuestionIdRef.current) {
+      prevActiveQuestionIdRef.current = newQId;
+      if (newQId) {
+        getBossQuestion(newQId)
+          .then((q) => setQuestion(q))
+          .catch(() => setQuestion(null));
+      } else {
+        setQuestion(null);
+      }
+    }
+  }, [battleState]);
 
   useEffect(() => {
-    maybeAdvanceBattleState();
-  }, [maybeAdvanceBattleState]);
+    if (!rosterEvent) return;
+    setParticipants(rosterEvent.participants as any);
+  }, [rosterEvent]);
+
+  // when ready_to_resolve flips true, refresh attempts and auto-resolve if still QUESTION_ACTIVE
+  useEffect(() => {
+    if (!answerEvent) return;
+    const nowReady = answerEvent.ready_to_resolve;
+
+    if (nowReady && !prevReadyToResolveRef.current) {
+      listBossAnswerAttemptsByBattle(bossInstanceId, { limit: 500 })
+        .then((res) => setAttempts(res.items || []))
+        .catch(() => {});
+
+      if (instance?.status === "QUESTION_ACTIVE") {
+        handleResolveQuestion();
+      }
+    }
+    prevReadyToResolveRef.current = nowReady ?? null;
+  }, [answerEvent, bossInstanceId, instance?.status, handleResolveQuestion]);
+
+  // Live countdown for active question timer
+  useEffect(() => {
+    const endsAt = (instance as any)?.question_ends_at;
+    if (instance?.status !== "QUESTION_ACTIVE" || !endsAt) {
+      setQuestionTimeLeft(0);
+      return;
+    }
+    const tick = () => setQuestionTimeLeft(getSecondsRemaining(endsAt));
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [instance?.status, (instance as any)?.question_ends_at]);
+
+  // Reset the auto-resolve guard whenever the active question changes
+  useEffect(() => {
+    hasAutoResolvedRef.current = false;
+  }, [instance?.active_question_id]);
+
+  // Timer-based auto-resolve for timed questions
+  useEffect(() => {
+    if (
+      instance?.status !== "QUESTION_ACTIVE" ||
+      !(instance as any)?.question_ends_at ||
+      questionTimeLeft !== 0 ||
+      hasAutoResolvedRef.current
+    ) return;
+
+    hasAutoResolvedRef.current = true;
+    handleResolveQuestion();
+  }, [questionTimeLeft, instance?.status, (instance as any)?.question_ends_at, handleResolveQuestion]);
 
   useEffect(() => {
     feather.replace();
@@ -527,6 +533,27 @@ export default function BossBattleMonitorTeacher() {
   const spectateCount = participants.filter((p) => p.state === "SPECTATE").length;
   const downedCount = participants.filter((p) => p.is_downed).length;
 
+  const INITIAL_HEARTS = 3;
+  const guildHpMap = useMemo(() => {
+    const map = new Map<string, { current: number; max: number }>();
+    const byGuild = new Map<string, string[]>();
+    for (const p of participants) {
+      if (!byGuild.has(p.guild_id)) byGuild.set(p.guild_id, []);
+      byGuild.get(p.guild_id)!.push(p.student_id);
+    }
+    for (const [guildId, studentIds] of byGuild) {
+      const max = studentIds.length * INITIAL_HEARTS;
+      let lost = 0;
+      for (const sid of studentIds) {
+        lost += attempts
+          .filter((a) => a.student_id === sid)
+          .reduce((sum, a) => sum + (a.hearts_lost || 0), 0);
+      }
+      map.set(guildId, { current: Math.max(0, max - lost), max });
+    }
+    return map;
+  }, [participants, attempts]);
+
   const initialHp = instance?.initial_boss_hp ?? 0;
   const currentHp = instance?.current_boss_hp ?? 0;
   const hpPercent =
@@ -572,7 +599,7 @@ export default function BossBattleMonitorTeacher() {
                 Classes
               </Link>
 
-              <DropDownProfile />
+              {/* <DropDownProfile /> */}
             </div>
           </div>
         </div>
@@ -628,6 +655,13 @@ export default function BossBattleMonitorTeacher() {
             ) : null}
           </div>
         </div>
+
+        {connectionStatus === "reconnecting" && (
+          <div className="bg-yellow-500/20 border border-yellow-500/40 text-yellow-100 rounded-xl p-3 mb-4 flex items-center gap-2 text-sm">
+            <i data-feather="wifi-off" className="w-4 h-4" />
+            <span>Realtime connection lost — reconnecting...</span>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-500/20 border border-red-500/40 text-red-100 rounded-xl p-4 mb-6">
@@ -715,6 +749,105 @@ export default function BossBattleMonitorTeacher() {
               </div>
             </div>
 
+            {/* Teacher Controls Panel */}
+            <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Teacher Controls</h3>
+              <div className="flex flex-wrap gap-3 items-center">
+                {(instance.status === "COUNTDOWN" || instance.status === "INTERMISSION") && (
+                  <button
+                    onClick={handleStartQuestion}
+                    disabled={transitioning}
+                    className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold border-2 border-emerald-800 shadow-[0_4px_0_0_#166534] hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    Start Question
+                  </button>
+                )}
+
+                {instance.status === "QUESTION_ACTIVE" && (
+                  <button
+                    onClick={handleResolveQuestion}
+                    disabled={transitioning}
+                    className="px-4 py-2 rounded-lg bg-purple-600 text-white font-semibold border-2 border-purple-800 shadow-[0_4px_0_0_#4c1d95] hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    Resolve Question
+                  </button>
+                )}
+
+                {instance.status === "INTERMISSION" && (
+                  <button
+                    onClick={handleAdvanceQuestion}
+                    disabled={transitioning}
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold border-2 border-blue-800 shadow-[0_4px_0_0_#1e3a5f] hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    Advance / Next Question
+                  </button>
+                )}
+
+                {instance.status === "INTERMISSION" && (
+                  <button
+                    onClick={handleFinishBattle}
+                    disabled={transitioning}
+                    className="px-4 py-2 rounded-lg bg-green-700 text-white font-semibold border-2 border-green-900 shadow-[0_4px_0_0_#14532d] hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    Finish Battle
+                  </button>
+                )}
+
+                {instance.status === "COMPLETED" && !battleResults && (
+                  <button
+                    onClick={handleComputeResults}
+                    disabled={transitioning}
+                    className="px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold border-2 border-amber-800 shadow-[0_4px_0_0_#78350f] hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    Compute Results
+                  </button>
+                )}
+
+                {!["COMPLETED", "ABORTED"].includes(instance.status) && (
+                  <button
+                    onClick={handleAbortBattle}
+                    disabled={transitioning}
+                    className="px-4 py-2 rounded-lg bg-red-600 text-white font-semibold border-2 border-red-800 shadow-[0_4px_0_0_#991b1b] hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    Abort Battle
+                  </button>
+                )}
+
+                {transitioning && (
+                  <span className="text-sm text-purple-700 font-semibold">Processing…</span>
+                )}
+              </div>
+
+              {/* Answer quorum display */}
+              {instance.status === "QUESTION_ACTIVE" && (
+                <div className="mt-4 flex flex-wrap gap-4 text-sm">
+                  <div className="rounded-lg border px-4 py-2 bg-gray-50">
+                    <span className="text-gray-500 font-semibold">Answers received: </span>
+                    <span className="font-bold text-gray-900">
+                      {instance.received_answer_count ?? 0} / {instance.required_answer_count ?? "?"}
+                    </span>
+                    {instance.ready_to_resolve && (
+                      <span className="ml-2 text-green-600 font-bold">✓ Ready to resolve</span>
+                    )}
+                  </div>
+                  {questionTimeLeft > 0 && (
+                    <div className="rounded-lg border px-4 py-2 bg-yellow-50">
+                      <span className="text-gray-500 font-semibold">Time left: </span>
+                      <span className="font-bold text-yellow-700">{questionTimeLeft}s</span>
+                    </div>
+                  )}
+                  {instance.mode_type === "TURN_BASED_GUILD" && instance.active_guild_id && (
+                    <div className="rounded-lg border px-4 py-2 bg-blue-50">
+                      <span className="text-gray-500 font-semibold">Active guild: </span>
+                      <span className="font-bold text-blue-700">
+                        {(guildById.get(instance.active_guild_id) as any)?.name || instance.active_guild_id}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="bg-white rounded-xl shadow-md p-6 mb-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Current Battle State</h3>
 
@@ -800,19 +933,140 @@ export default function BossBattleMonitorTeacher() {
               ) : null}
             </div>
 
+            {/* Battle Results (shown when COMPLETED) */}
+            {instance.status === "COMPLETED" && battleResults && (
+              <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+                <div className={`text-center py-4 rounded-lg mb-6 ${battleResults.meta.outcome === "WIN" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                  <div className="text-3xl font-bold">
+                    {battleResults.meta.outcome === "WIN" ? "⚔️ VICTORY!" : "💀 DEFEAT"}
+                  </div>
+                  {battleResults.meta.fail_reason && (
+                    <div className="text-sm mt-1">{battleResults.meta.fail_reason.replace(/_/g, " ")}</div>
+                  )}
+                  <div className="text-sm mt-2">
+                    Boss HP remaining: {battleResults.meta.boss_hp_remaining} ·
+                    Total damage: {battleResults.meta.total_damage_dealt} ·
+                    Questions answered: {battleResults.meta.total_questions_answered}
+                  </div>
+                </div>
+
+                <h4 className="text-lg font-bold text-gray-900 mb-3">Student Results</h4>
+                <div className="overflow-x-auto mb-6">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-100 text-gray-700">
+                      <tr>
+                        <th className="text-left px-4 py-2">Student</th>
+                        <th className="text-left px-4 py-2">Guild</th>
+                        <th className="text-left px-4 py-2">Correct</th>
+                        <th className="text-left px-4 py-2">Wrong</th>
+                        <th className="text-left px-4 py-2">Damage</th>
+                        <th className="text-left px-4 py-2">XP</th>
+                        <th className="text-left px-4 py-2">Gold</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {battleResults.students.map((s) => (
+                        <tr key={s.student_id} className="border-t">
+                          <td className="px-4 py-2 font-semibold">{nameMap[s.student_id] || s.student_id}</td>
+                          <td className="px-4 py-2">{(guildById.get(s.guild_id) as any)?.name || s.guild_id}</td>
+                          <td className="px-4 py-2 text-green-700 font-bold">{s.correct_answers}</td>
+                          <td className="px-4 py-2 text-red-700 font-bold">{s.incorrect_answers}</td>
+                          <td className="px-4 py-2">{s.total_damage_dealt}</td>
+                          <td className="px-4 py-2 text-purple-700 font-bold">+{s.xp_earned}</td>
+                          <td className="px-4 py-2 text-yellow-700 font-bold">+{s.gold_earned}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <h4 className="text-lg font-bold text-gray-900 mb-3">Guild Results</h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-100 text-gray-700">
+                      <tr>
+                        <th className="text-left px-4 py-2">Guild</th>
+                        <th className="text-left px-4 py-2">Members</th>
+                        <th className="text-left px-4 py-2">Correct</th>
+                        <th className="text-left px-4 py-2">Wrong</th>
+                        <th className="text-left px-4 py-2">Total Damage</th>
+                        <th className="text-left px-4 py-2">XP</th>
+                        <th className="text-left px-4 py-2">Gold</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {battleResults.guilds.map((g) => (
+                        <tr key={g.guild_id} className="border-t">
+                          <td className="px-4 py-2 font-semibold">{(guildById.get(g.guild_id) as any)?.name || g.guild_id}</td>
+                          <td className="px-4 py-2">{g.members_count}</td>
+                          <td className="px-4 py-2 text-green-700 font-bold">{g.correct_answers}</td>
+                          <td className="px-4 py-2 text-red-700 font-bold">{g.incorrect_answers}</td>
+                          <td className="px-4 py-2">{g.total_damage_dealt}</td>
+                          <td className="px-4 py-2 text-purple-700 font-bold">+{g.xp_earned}</td>
+                          <td className="px-4 py-2 text-yellow-700 font-bold">+{g.gold_earned}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-6">
               {groupedRows.length === 0 ? (
                 <div className="bg-white rounded-xl shadow-md p-6 text-gray-700">
                   No participants found.
                 </div>
               ) : (
-                groupedRows.map(([guildName, rows]) => (
+                groupedRows.map(([guildName, rows]) => {
+                  const guildId = rows[0]?.guildId ?? "";
+                  const isActiveTurn =
+                    instance.mode_type === "TURN_BASED_GUILD" &&
+                    instance.active_guild_id === guildId;
+                  const perGuildQIndex =
+                    instance.mode_type === "RANDOMIZED_PER_GUILD" && guildId
+                      ? (instance.per_guild_question_index?.[guildId] ?? 0)
+                      : null;
+                  const guildHp = guildId ? guildHpMap.get(guildId) : null;
+
+                  return (
                   <div key={guildName} className="bg-white rounded-xl shadow-md overflow-hidden">
-                    <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-5 text-white">
-                      <h3 className="text-xl font-bold">{guildName}</h3>
-                      <p className="text-white/80 text-sm mt-1">
-                        Students: {rows.length}
-                      </p>
+                    <div className={`bg-gradient-to-r ${isActiveTurn ? "from-yellow-500 to-amber-600" : "from-blue-500 to-indigo-600"} p-5 text-white`}>
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-xl font-bold">{guildName}</h3>
+                            {isActiveTurn && (
+                              <span className="bg-white text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                                ACTIVE TURN
+                              </span>
+                            )}
+                            {perGuildQIndex !== null && (
+                              <span className="bg-white/20 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+                                Q{perGuildQIndex + 1}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-white/80 text-sm mt-1">
+                            Students: {rows.length}
+                          </p>
+                        </div>
+
+                        {guildHp && guildHp.max > 0 && (
+                          <div className="min-w-[140px]">
+                            <div className="flex items-center justify-between text-xs text-white/80 mb-1">
+                              <span>Guild HP</span>
+                              <span>{guildHp.current}/{guildHp.max}</span>
+                            </div>
+                            <div className="w-full bg-white/20 rounded-full h-2">
+                              <div
+                                className="bg-red-400 h-full rounded-full transition-all duration-300"
+                                style={{ width: `${(guildHp.current / guildHp.max) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="overflow-x-auto">
@@ -883,7 +1137,8 @@ export default function BossBattleMonitorTeacher() {
                       </table>
                     </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           </>

@@ -66,6 +66,13 @@ import { handler as bbiGet }                   from "../bossBattleInstances/get.
 import { handler as bbiListByClass }           from "../bossBattleInstances/list-by-class.js";
 import { handler as bbiListByTemplate }        from "../bossBattleInstances/list-by-template.js";
 import { handler as bbiUpdate }                from "../bossBattleInstances/update.js";
+import { handler as bbiStart }                 from "../bossBattleInstances/start-battle.js";
+import { handler as bbiCountdown }             from "../bossBattleInstances/start-countdown.js";
+import { handler as bbiStartQuestion }         from "../bossBattleInstances/start-question.js";
+import { handler as bbiSubmitAnswer }          from "../bossBattleInstances/submit-answer.js";
+import { handler as bbiResolveQuestion }       from "../bossBattleInstances/resolve-question.js";
+import { handler as bbiAdvanceQuestion }       from "../bossBattleInstances/advance-question.js";
+import { handler as bbiFinishBattle }          from "../bossBattleInstances/finish-battle.js";
 
 // BossBattleParticipants
 import { handler as bbpJoin }                  from "../bossBattleParticipants/join.js";
@@ -89,6 +96,39 @@ import { handler as bbsGet }                   from "../bossBattleSnapshots/get-
 
 // BossBattleQuestionPlans
 import { handler as bbqpGet }                  from "../bossBattleQuestionPlans/get-plan.js";
+
+// InventoryItems
+import { handler as iiCreate }               from "../inventoryItems/create.js";
+import { handler as iiGet }                  from "../inventoryItems/get.js";
+import { handler as iiListByStudent }        from "../inventoryItems/list-by-student.js";
+import { handler as iiListByClass }          from "../inventoryItems/list-by-class.js";
+import { handler as iiListByItemOwners }     from "../inventoryItems/list-by-item-owners.js";
+import { handler as iiUpdate }               from "../inventoryItems/update.js";
+import { handler as iiDelete }               from "../inventoryItems/delete.js";
+import { handler as iiGrant }                from "../inventoryItems/grant.js";
+import { handler as iiCheckOwns }            from "../inventoryItems/check-owns.js";
+
+// ShopListings
+import { handler as slCreate }                 from "../shopListings/create.js";
+import { handler as slGet }                    from "../shopListings/get.js";
+import { handler as slListAll }                from "../shopListings/list-all.js";
+import { handler as slListActive }             from "../shopListings/list-active.js";
+import { handler as slListGlobal }             from "../shopListings/list-global.js";
+import { handler as slListByClass }            from "../shopListings/list-by-class.js";
+import { handler as slListByItem }             from "../shopListings/list-by-item.js";
+import { handler as slUpdate }                 from "../shopListings/update.js";
+import { handler as slActivate }               from "../shopListings/activate.js";
+import { handler as slDeactivate }             from "../shopListings/deactivate.js";
+
+// ShopItems
+import { handler as siCreate }                 from "../shopItems/create.js";
+import { handler as siGet }                    from "../shopItems/get.js";
+import { handler as siListAll }                from "../shopItems/list-all.js";
+import { handler as siListActive }             from "../shopItems/list-active.js";
+import { handler as siListByCategory }         from "../shopItems/list-by-category.js";
+import { handler as siUpdate }                 from "../shopItems/update.js";
+import { handler as siDeactivate }             from "../shopItems/deactivate.js";
+import { handler as siActivate }               from "../shopItems/activate.js";
 
 // Dispatch table: keys must exactly match the routeKey API Gateway sets on event.routeKey
 // Format: "METHOD /path" with {param} placeholders verbatim
@@ -157,6 +197,13 @@ const ROUTES: Record<string, (event: any) => Promise<any>> = {
     "GET /classes/{class_id}/boss-battle-instances":                                                                                         bbiListByClass,
     "GET /boss-battle-templates/{boss_template_id}/boss-battle-instances":                                                                   bbiListByTemplate,
     "PATCH /boss-battle-instances/{boss_instance_id}":                                                                                       bbiUpdate,
+    "POST /boss-battle-instances/{boss_instance_id}/start":                                                                                  bbiStart,
+    "POST /boss-battle-instances/{boss_instance_id}/countdown":                                                                              bbiCountdown,
+    "POST /boss-battle-instances/{boss_instance_id}/start-question":                                                                         bbiStartQuestion,
+    "POST /boss-battle-instances/{boss_instance_id}/submit-answer":                                                                          bbiSubmitAnswer,
+    "POST /boss-battle-instances/{boss_instance_id}/resolve-question":                                                                       bbiResolveQuestion,
+    "POST /boss-battle-instances/{boss_instance_id}/advance-question":                                                                       bbiAdvanceQuestion,
+    "POST /boss-battle-instances/{boss_instance_id}/finish":                                                                                 bbiFinishBattle,
 
     // BossBattleParticipants
     "POST /boss-battle-instances/{boss_instance_id}/participants/join":                                                                      bbpJoin,
@@ -180,6 +227,40 @@ const ROUTES: Record<string, (event: any) => Promise<any>> = {
 
     // BossBattleQuestionPlans
     "GET /boss-battle-question-plans/{plan_id}":                                                                                             bbqpGet,
+
+    // InventoryItems
+    "POST /inventory-items":                                                                                                                 iiCreate,
+    "POST /inventory-items/grant":                                                                                                           iiGrant,
+    "GET /inventory-items/student/{student_id}":                                                                                             iiListByStudent,
+    "GET /inventory-items/class/{class_id}":                                                                                                 iiListByClass,
+    "GET /inventory-items/class/{class_id}/student/{student_id}":                                                                            iiListByClass,
+    "GET /inventory-items/item/{item_id}/owners":                                                                                            iiListByItemOwners,
+    "GET /inventory-items/owns/{student_id}/{item_id}":                                                                                      iiCheckOwns,
+    "GET /inventory-items/{student_id}/{item_id}":                                                                                           iiGet,
+    "PUT /inventory-items/{student_id}/{item_id}":                                                                                           iiUpdate,
+    "DELETE /inventory-items/{student_id}/{item_id}":                                                                                        iiDelete,
+
+    // ShopListings
+    "POST /shop-listings":                                                                                                                   slCreate,
+    "GET /shop-listings":                                                                                                                    slListAll,
+    "GET /shop-listings/active":                                                                                                             slListActive,
+    "GET /shop-listings/global":                                                                                                             slListGlobal,
+    "GET /shop-listings/class/{class_id}":                                                                                                   slListByClass,
+    "GET /shop-listings/item/{item_id}":                                                                                                     slListByItem,
+    "GET /shop-listings/{shop_listing_id}":                                                                                                  slGet,
+    "PUT /shop-listings/{shop_listing_id}":                                                                                                  slUpdate,
+    "POST /shop-listings/{shop_listing_id}/activate":                                                                                        slActivate,
+    "POST /shop-listings/{shop_listing_id}/deactivate":                                                                                      slDeactivate,
+
+    // ShopItems
+    "POST /shop-items":                                                                                                                      siCreate,
+    "GET /shop-items":                                                                                                                       siListAll,
+    "GET /shop-items/active":                                                                                                                siListActive,
+    "GET /shop-items/category/{category}":                                                                                                   siListByCategory,
+    "GET /shop-items/{item_id}":                                                                                                             siGet,
+    "PATCH /shop-items/{item_id}":                                                                                                           siUpdate,
+    "PATCH /shop-items/{item_id}/deactivate":                                                                                                siDeactivate,
+    "PATCH /shop-items/{item_id}/activate":                                                                                                  siActivate,
 };
 
 export const handler = async (event: any): Promise<any> => {

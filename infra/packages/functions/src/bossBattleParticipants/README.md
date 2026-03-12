@@ -28,10 +28,10 @@ BossBattleParticipants is the authoritative record of which students joined a sp
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| last_submit_at | string (ISO)? | - | Last answer submission timestamp |
-| frozen_until | string (ISO)? | - | Freeze expiration timestamp (penalty) |
-| is_downed | boolean | false | Player is downed (out of hearts) |
-| downed_at | string (ISO)? | - | When player was downed |
+| last_submit_at | string (ISO)? | - | Last answer submission timestamp (set internally by SubmitBossAnswer) |
+| frozen_until | string (ISO)? | - | Freeze expiration timestamp (set internally by SubmitBossAnswer on wrong-answer penalty) |
+| is_downed | boolean | false | Player is downed (out of hearts — set internally by ResolveQuestion) |
+| downed_at | string (ISO)? | - | When player was downed (set internally by ResolveQuestion) |
 | kick_reason | string? | - | Reason for kick (if state = KICKED) |
 
 ### GSIs
@@ -41,10 +41,10 @@ BossBattleParticipants is the authoritative record of which students joined a sp
 - **SK:** joined_at
 - **Purpose:** List all participants in a battle sorted by join time
 
-**GSI2: List participants by class (required for teacher views)**
+**GSI2: List participants by class (internal use only)**
 - **PK:** class_id
 - **SK:** gsi2_sk (boss_instance_id#student_id)
-- **Purpose:** Teacher can view active lobbies and participants across all battles in a class
+- **Purpose:** Server-side queries across all battles in a class (not exposed as a public endpoint)
 
 ## Participant States
 
@@ -54,25 +54,6 @@ BossBattleParticipants is the authoritative record of which students joined a sp
 | **SPECTATE** | Joined late or manually set to spectate. Cannot answer questions. |
 | **KICKED** | Removed by teacher. Cannot rejoin unless un-kicked. |
 | **LEFT** | Voluntarily left. Can rejoin only during LOBBY phase. |
-
-## Access Patterns
-
-### 1. List all participants in a battle
-**Query:** PK = boss_instance_id
-**Filter (optional):** state = JOINED/SPECTATE
-**Use Case:** Display lobby roster, count active participants
-
-### 2. Get a single participant record
-**GetItem:** (boss_instance_id, student_id)
-**Use Case:** Check if student is already joined, verify state
-
-### 3. Teacher: list participants by class
-**Query GSI2:** PK = class_id
-**Use Case:** Admin dashboard showing active battles and participants
-
-### 4. Update participant state on join/leave/kick
-**UpdateItem:** (boss_instance_id, student_id)
-**Use Case:** State transitions as students interact with the battle
 
 ## Joining Rules (Enforced in join.ts)
 
@@ -93,10 +74,16 @@ BossBattleParticipants is the authoritative record of which students joined a sp
 - Students with state = KICKED cannot rejoin
 - Teacher must manually un-kick (not implemented yet)
 
-## API Endpoints
+---
+
+## Public API Endpoints
+
+The following 5 endpoints are routed in QuestApiStack and dispatched via the quest-router Lambda. These are the **only** publicly exposed HTTP operations for this module.
 
 ### 1. Join Boss Battle
 **POST** `/boss-battle-instances/{boss_instance_id}/participants/join`
+
+**Handler:** `bossBattleParticipants/join.ts`
 
 **Authorization:** STUDENT only (JWT sub extracted from token)
 
@@ -139,6 +126,8 @@ BossBattleParticipants is the authoritative record of which students joined a sp
 ### 2. Spectate Boss Battle
 **POST** `/boss-battle-instances/{boss_instance_id}/participants/spectate`
 
+**Handler:** `bossBattleParticipants/spectate.ts`
+
 **Authorization:** STUDENT only
 
 **Request Body:** None
@@ -152,6 +141,8 @@ BossBattleParticipants is the authoritative record of which students joined a sp
 
 ### 3. Leave Boss Battle
 **POST** `/boss-battle-instances/{boss_instance_id}/participants/leave`
+
+**Handler:** `bossBattleParticipants/leave.ts`
 
 **Authorization:** STUDENT only
 
@@ -167,9 +158,11 @@ BossBattleParticipants is the authoritative record of which students joined a sp
 ### 4. List Participants
 **GET** `/boss-battle-instances/{boss_instance_id}/participants`
 
+**Handler:** `bossBattleParticipants/list.ts`
+
 **Authorization:**
 - TEACHER: Full list
-- STUDENT: Limited list (privacy policy applies - not enforced yet)
+- STUDENT: Limited list (privacy policy applies — not enforced yet)
 
 **Query Parameters:**
 - `state` (ParticipantState, optional): Filter by state
@@ -197,6 +190,8 @@ BossBattleParticipants is the authoritative record of which students joined a sp
 ### 5. Kick Participant
 **POST** `/boss-battle-instances/{boss_instance_id}/participants/{student_id}/kick`
 
+**Handler:** `bossBattleParticipants/kick.ts`
+
 **Authorization:** TEACHER only
 
 **Request Body (optional):**
@@ -213,6 +208,23 @@ BossBattleParticipants is the authoritative record of which students joined a sp
 }
 ```
 
+---
+
+## Internal Repository Operations
+
+The following functions in `repo.ts` are **not** exposed as HTTP endpoints. They are called by other server-side services as part of boss battle orchestration. Do not add them to the API stack or generate frontend client functions for them.
+
+| Function | Called By | Purpose |
+|----------|-----------|---------|
+| `getParticipant(bossInstanceId, studentId)` | `join.ts`, `upsertParticipantJoin()` | Fetch a single participant record for pre-join checks and upsert logic |
+| `markParticipantDowned(bossInstanceId, studentId)` | `bossBattleInstances/resolve-question.ts` | Set `is_downed = true` when a student's hearts reach 0 during question resolution |
+| `updateAntiSpamFields(bossInstanceId, studentId, fields)` | `bossBattleInstances/submit-answer.ts` | Write `last_submit_at` and `frozen_until` after each answer submission |
+| `listParticipantsByClass(classId)` | (reserved for server-side teacher/admin services) | Query GSI2 to list all participants across all battles in a class |
+
+These functions remain in `repo.ts` for use by boss battle orchestration logic. If a public endpoint is needed in the future, a dedicated route handler file and QuestApiStack route entry must be added, with appropriate auth enforcement.
+
+---
+
 ## Validation Rules
 
 ### Join Input
@@ -227,26 +239,18 @@ BossBattleParticipants is the authoritative record of which students joined a sp
 ### Timestamps
 - Must be valid ISO 8601 format (e.g., 2026-02-24T12:00:00.000Z)
 
-### Anti-Spam Fields
-- `last_submit_at`: optional ISO 8601 timestamp
-- `frozen_until`: optional ISO 8601 timestamp
-
 ## Anti-Spam Support
 
-The table stores anti-spam fields but does NOT enforce submit logic. Enforcement happens in answer submission handlers (to be implemented later).
+Anti-spam fields are written internally by server-side services and are never accepted directly from client requests.
 
-**Fields:**
-- `last_submit_at`: Track last submission time for rate limiting
-- `frozen_until`: Penalty freeze timestamp for wrong answers
-- `is_downed`: Player ran out of hearts (cannot answer)
-
-**Future Integration:**
-- Answer submission handler checks `frozen_until` before accepting answer
-- Answer submission handler updates `last_submit_at`
-- Wrong answer penalty sets `frozen_until = now + freeze_on_wrong_seconds`
-- Heart depletion sets `is_downed = true`
+**Fields (internal, set server-side only):**
+- `last_submit_at`: Written by `submit-answer.ts` after each valid submission for rate limiting
+- `frozen_until`: Written by `submit-answer.ts` as a penalty freeze on wrong answers (`now + freeze_on_wrong_seconds`)
+- `is_downed`: Written by `resolve-question.ts` when a student's hearts reach 0
 
 ## Frontend Usage
+
+Only the 5 public endpoints above have corresponding client functions. Internal operations (`markParticipantDowned`, `updateAntiSpamFields`, `listParticipantsByClass`) have no frontend client counterparts.
 
 **Location:** `app/frontend/src/api/bossBattleParticipants/client.ts`
 
@@ -320,5 +324,5 @@ node --import tsx validation.test.ts
 
 ---
 
-**Last Updated:** 2026-02-24
+**Last Updated:** 2026-03-11
 **Feature:** Boss Battle Participation & Lobby Management

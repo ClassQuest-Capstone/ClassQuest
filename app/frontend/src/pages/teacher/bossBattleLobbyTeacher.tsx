@@ -12,6 +12,8 @@ import { getStudentProfile } from "../../api/studentProfiles.js";
 import {
   getBossBattleInstance,
   updateBossBattleInstance,
+  startBossBattleInstance,
+  startBossBattleCountdown,
 } from "../../api/bossBattleInstances/client.js";
 import type { BossBattleInstance } from "../../api/bossBattleInstances/types.js";
 
@@ -20,6 +22,8 @@ import {
   kickParticipant,
   type BossBattleParticipant,
 } from "../../api/bossBattleParticipants/client.js";
+
+import { useBattleSubscription, useRosterSubscription } from "../../hooks/useBattleSubscription.ts";
 
 type TeacherUser = {
   id: string;
@@ -124,10 +128,6 @@ async function fetchAllGuildsByClass(classId: string) {
   return all;
 }
 
-function isoNowPlusSeconds(seconds: number) {
-  return new Date(Date.now() + seconds * 1000).toISOString();
-}
-
 function formatDateTime(value?: string | null) {
   if (!value) return "—";
   const d = new Date(value);
@@ -169,6 +169,9 @@ export default function BossBattleLobbyTeacher() {
   const [guilds, setGuilds] = useState<Guild[]>([]);
   const [nameMap, setNameMap] = useState<StudentNameMap>({});
   const [countdownLeft, setCountdownLeft] = useState(0);
+
+  const { battleState } = useBattleSubscription(bossInstanceId);
+  const { rosterEvent } = useRosterSubscription(bossInstanceId);
 
   const refresh = useCallback(async () => {
     if (!bossInstanceId) {
@@ -226,6 +229,19 @@ export default function BossBattleLobbyTeacher() {
       mounted = false;
     };
   }, [refresh]);
+
+  useEffect(() => {
+    if (!battleState) return;
+    setInstance((prev) => {
+      if (!prev) return prev;
+      return { ...prev, ...battleState } as unknown as BossBattleInstance;
+    });
+  }, [battleState]);
+
+  useEffect(() => {
+    if (!rosterEvent) return;
+    setParticipants(rosterEvent.participants as any);
+  }, [rosterEvent]);
 
   useEffect(() => {
     feather.replace();
@@ -372,10 +388,7 @@ export default function BossBattleLobbyTeacher() {
       setBusy(true);
       setError("");
 
-      await updateBossBattleInstance(bossInstanceId, {
-        status: "LOBBY" as any,
-        lobby_opened_at: new Date().toISOString(),
-      } as any);
+      await startBossBattleInstance(bossInstanceId);
 
       await refresh();
     } catch (err: any) {
@@ -399,20 +412,12 @@ export default function BossBattleLobbyTeacher() {
       return;
     }
 
-    const countdownSeconds =
-      Number((instance as any)?.countdown_seconds) > 0
-        ? Number((instance as any).countdown_seconds)
-        : 10;
-
     try {
       setBusy(true);
       setError("");
 
-      await updateBossBattleInstance(bossInstanceId, {
-        status: "COUNTDOWN" as any,
-        countdown_seconds: countdownSeconds,
-        countdown_end_at: isoNowPlusSeconds(countdownSeconds),
-      } as any);
+      // This endpoint snapshots participants + generates the question plan
+      await startBossBattleCountdown(bossInstanceId);
 
       await refresh();
     } catch (err: any) {

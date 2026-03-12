@@ -1,16 +1,16 @@
 // src/pages/students/bossFight.tsx
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import feather from "feather-icons";
 
 import "../../styles/boss.css";
 
 import { usePlayerProgression } from "../hooks/students/usePlayerProgression.js";
-import { api } from "../../api/http.js";
 
 import {
   listBossBattleInstancesByClass,
   getBossBattleInstance,
+  submitBossBattleAnswer,
 } from "../../api/bossBattleInstances/client.js";
 import type { BossBattleInstance } from "../../api/bossBattleInstances/types.js";
 
@@ -23,10 +23,12 @@ import type { BossBattleParticipant } from "../../api/bossBattleParticipants/typ
 import { getBossBattleTemplate } from "../../api/bossBattleTemplates/client.js";
 import type { BossBattleTemplate } from "../../api/bossBattleTemplates/types.js";
 
-import { getBossQuestion } from "../../api/bossQuestions/client.js";
+import { getBossQuestion, listBossQuestionsByTemplate } from "../../api/bossQuestions/client.js";
 import type { BossQuestion } from "../../api/bossQuestions/types.js";
 
 import { getStudentProfile } from "../../api/studentProfiles.js";
+import { getBossResults, computeBossResults } from "../../api/bossResults/client.js";
+import { useBattleSubscription, useRosterSubscription } from "../../hooks/useBattleSubscription.ts";
 
 type StudentUser = {
   id: string;
@@ -235,10 +237,77 @@ function formatDateTime(value?: string | null) {
   return d.toLocaleString();
 }
 
-async function fetchBossBattleResults(bossInstanceId: string) {
-  return api<BossResultsResponse>(
-    `/boss-battle-instances/${encodeURIComponent(bossInstanceId)}/results`
-  );
+async function fetchBossBattleResultsSafe(bossInstanceId: string): Promise<BossResultsResponse> {
+  try {
+    const r = await getBossResults(bossInstanceId);
+    // Map API types to local BossResultsResponse shape
+    return {
+      outcome: r.meta?.outcome,
+      completed_at: r.meta?.computed_at,
+      fail_reason: r.meta?.fail_reason,
+      guild_results: (r.guilds ?? []).map((g) => ({
+        guild_id: g.guild_id,
+        guild_total_correct: g.correct_answers,
+        guild_total_incorrect: g.incorrect_answers,
+        guild_total_attempts: g.questions_answered,
+        guild_total_damage_to_boss: g.total_damage_dealt,
+        guild_total_hearts_lost: g.hearts_lost,
+        guild_xp_awarded_total: g.xp_earned,
+        guild_gold_awarded_total: g.gold_earned,
+        guild_members_joined: g.members_count,
+        guild_members_downed: 0,
+      })),
+      student_results: (r.students ?? []).map((s) => ({
+        student_id: s.student_id,
+        guild_id: s.guild_id,
+        total_correct: s.correct_answers,
+        total_incorrect: s.incorrect_answers,
+        total_attempts: s.questions_answered,
+        total_damage_to_boss: s.total_damage_dealt,
+        hearts_lost: s.hearts_lost,
+        xp_awarded: s.xp_earned,
+        gold_awarded: s.gold_earned,
+        participation_state: "JOINED",
+      })),
+    };
+  } catch {
+    // Results may not be computed yet; try to trigger computation
+    try {
+      await computeBossResults(bossInstanceId);
+      const r = await getBossResults(bossInstanceId);
+      return {
+        outcome: r.meta?.outcome,
+        completed_at: r.meta?.computed_at,
+        fail_reason: r.meta?.fail_reason,
+        guild_results: (r.guilds ?? []).map((g) => ({
+          guild_id: g.guild_id,
+          guild_total_correct: g.correct_answers,
+          guild_total_incorrect: g.incorrect_answers,
+          guild_total_attempts: g.questions_answered,
+          guild_total_damage_to_boss: g.total_damage_dealt,
+          guild_total_hearts_lost: g.hearts_lost,
+          guild_xp_awarded_total: g.xp_earned,
+          guild_gold_awarded_total: g.gold_earned,
+          guild_members_joined: g.members_count,
+          guild_members_downed: 0,
+        })),
+        student_results: (r.students ?? []).map((s) => ({
+          student_id: s.student_id,
+          guild_id: s.guild_id,
+          total_correct: s.correct_answers,
+          total_incorrect: s.incorrect_answers,
+          total_attempts: s.questions_answered,
+          total_damage_to_boss: s.total_damage_dealt,
+          hearts_lost: s.hearts_lost,
+          xp_awarded: s.xp_earned,
+          gold_awarded: s.gold_earned,
+          participation_state: "JOINED",
+        })),
+      };
+    } catch {
+      throw new Error("Results not available yet.");
+    }
+  }
 }
 
 const BossFight: React.FC = () => {
@@ -264,6 +333,10 @@ const BossFight: React.FC = () => {
   const [questionTimeLeft, setQuestionTimeLeft] = useState<number | null>(null);
   const [intermissionLeft, setIntermissionLeft] = useState<number | null>(null);
 
+  const [allQuestions, setAllQuestions] = useState<BossQuestion[]>([]);
+  const [localHeartsLost, setLocalHeartsLost] = useState(0);
+  const lastSubmitAtRef = useRef<number>(0);
+
   const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
 
   const [showResultModal, setShowResultModal] = useState(false);
@@ -271,6 +344,10 @@ const BossFight: React.FC = () => {
   const [bossResults, setBossResults] = useState<BossResultsResponse | null>(null);
 
   const { profile } = usePlayerProgression(studentId || "", classId || "");
+
+  const { battleState } = useBattleSubscription(instance?.boss_instance_id ?? undefined);
+  const { rosterEvent } = useRosterSubscription(instance?.boss_instance_id ?? undefined);
+  const prevActiveQuestionIdRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (student?.classId) {
@@ -299,6 +376,7 @@ const BossFight: React.FC = () => {
     submitting,
     showResultModal,
     loadingResults,
+    localHeartsLost,
   ]);
 
   useEffect(() => {
@@ -491,7 +569,18 @@ const BossFight: React.FC = () => {
         setTemplate(null);
       }
 
-      if (fresh.active_question_id) {
+      if (fresh.mode_type === "RANDOMIZED_PER_GUILD" && fresh.boss_template_id) {
+        try {
+          const qRes = await listBossQuestionsByTemplate(fresh.boss_template_id, { limit: 200 });
+          const sorted = (qRes.items || []).sort((a, b) => a.order_index - b.order_index);
+          setAllQuestions(sorted);
+          // The per-guild question derivation effect will set the displayed question
+        } catch (error) {
+          console.error("Failed to load questions for RANDOMIZED_PER_GUILD:", error);
+          setAllQuestions([]);
+          setQuestion(null);
+        }
+      } else if (fresh.active_question_id) {
         try {
           const q = await getBossQuestion(fresh.active_question_id);
           setQuestion(q);
@@ -543,14 +632,40 @@ const BossFight: React.FC = () => {
   ]);
 
   useEffect(() => {
-    if (!instance) return;
+    if (!battleState) return;
+    setInstance((prev) => {
+      if (!prev) return prev;
+      return { ...prev, ...battleState } as unknown as BossBattleInstance;
+    });
+    // RANDOMIZED_PER_GUILD: question is derived by a separate effect from allQuestions + per_guild_question_index
+    if (instance?.mode_type === "RANDOMIZED_PER_GUILD") return;
 
-    const poll = window.setInterval(() => {
-      loadInstance();
-    }, 2500);
+    const newQId = battleState.active_question_id ?? null;
+    if (newQId !== prevActiveQuestionIdRef.current) {
+      prevActiveQuestionIdRef.current = newQId;
+      if (newQId) {
+        getBossQuestion(newQId)
+          .then((q) => setQuestion(q))
+          .catch(() => setQuestion(null));
+      } else {
+        setQuestion(null);
+      }
+    }
+  }, [battleState, instance?.mode_type]);
 
-    return () => window.clearInterval(poll);
-  }, [instance?.boss_instance_id, loadInstance, instance]);
+  useEffect(() => {
+    if (!rosterEvent) return;
+    setParticipants(rosterEvent.participants as any);
+  }, [rosterEvent]);
+
+  // Derive displayed question from per_guild_question_index for RANDOMIZED_PER_GUILD mode
+  useEffect(() => {
+    if (instance?.mode_type !== "RANDOMIZED_PER_GUILD") return;
+    if (allQuestions.length === 0) return;
+    if (!myParticipant?.guild_id) return;
+    const idx = instance.per_guild_question_index?.[myParticipant.guild_id] ?? 0;
+    setQuestion(allQuestions[idx] ?? null);
+  }, [instance?.mode_type, instance?.per_guild_question_index, myParticipant?.guild_id, allQuestions]);
 
   useEffect(() => {
     if (!instance) return;
@@ -630,7 +745,7 @@ const BossFight: React.FC = () => {
     (async () => {
       try {
         setLoadingResults(true);
-        const res = await fetchBossBattleResults(instance.boss_instance_id);
+        const res = await fetchBossBattleResultsSafe(instance.boss_instance_id);
         if (!mounted) return;
         setBossResults(res);
       } catch (error) {
@@ -687,30 +802,62 @@ const BossFight: React.FC = () => {
     if (!instance || !question || !studentId || !myParticipant) return;
     if (!canAnswer || submitting || !selectedAnswer) return;
 
+    // Anti-spam: enforce minimum interval between submissions
+    const antiSpamMs = instance.anti_spam_min_submit_interval_ms ?? 1500;
+    if (Date.now() - lastSubmitAtRef.current < antiSpamMs) return;
+    lastSubmitAtRef.current = Date.now();
+
     setSubmitting(true);
 
     try {
-      setBattleLog((prev) => [
-        ...prev,
-        {
-          id: `local-${Date.now()}`,
-          text: `${student?.displayName ?? "You"} submitted "${selectedAnswer}" for question ${
-            question.order_index + 1
-          }.`,
-          kind: "success",
-        },
-      ]);
-      setHasSubmittedCurrentQuestion(true);
-    } catch (error) {
-      console.error("Failed to submit answer:", error);
+      const result = await submitBossBattleAnswer(instance.boss_instance_id, {
+        student_id: studentId,
+        answer_raw: { answer: selectedAnswer },
+      });
 
+      setHasSubmittedCurrentQuestion(true);
+
+      if (result.is_correct) {
+        setBattleLog((prev) => [
+          ...prev,
+          {
+            id: `local-${Date.now()}`,
+            text: `Correct! +${result.damage_to_boss} damage to boss. Speed bonus: ${result.speed_multiplier.toFixed(2)}x`,
+            kind: "success",
+          },
+        ]);
+      } else {
+        const heartsLost = Math.abs(result.hearts_delta_student ?? 0);
+        if (heartsLost > 0) {
+          setLocalHeartsLost((prev) => prev + heartsLost);
+        }
+        const frozenMsg = result.frozen_until ? ` Frozen for ${instance.freeze_on_wrong_seconds}s.` : "";
+        setBattleLog((prev) => [
+          ...prev,
+          {
+            id: `local-${Date.now()}`,
+            text: `Wrong answer.${heartsLost > 0 ? ` Lost ${heartsLost} heart(s).` : ""}${frozenMsg}`,
+            kind: "danger",
+          },
+        ]);
+      }
+
+      // Update local participant frozen_until so canAnswer reacts immediately
+      if (result.frozen_until) {
+        setParticipants((prev) =>
+          prev.map((p) =>
+            p.student_id === studentId
+              ? { ...p, frozen_until: result.frozen_until ?? undefined }
+              : p
+          )
+        );
+      }
+    } catch (error: any) {
+      console.error("Failed to submit answer:", error);
+      const msg = error?.message || "Failed to submit answer. Try again.";
       setBattleLog((prev) => [
         ...prev,
-        {
-          id: `local-${Date.now()}`,
-          text: "Failed to submit answer.",
-          kind: "danger",
-        },
+        { id: `local-${Date.now()}`, text: msg, kind: "danger" },
       ]);
     } finally {
       setSubmitting(false);
@@ -912,9 +1059,15 @@ const BossFight: React.FC = () => {
 
           <p className="text-white text-base leading-7">{question.question_text}</p>
 
-          {instance.mode_type === "TURN_BASED_GUILD" && instance.active_guild_id ? (
-            <div className="mt-4 text-sm text-cyan-300">
-              Active Guild: <span className="font-bold">{instance.active_guild_id}</span>
+          {instance.mode_type === "TURN_BASED_GUILD" &&
+            instance.active_guild_id &&
+            myParticipant?.guild_id !== instance.active_guild_id ? (
+            <div className="mt-4 p-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-cyan-300">
+              It is another guild's turn. Your guild will answer next. Active guild: <span className="font-bold">{instance.active_guild_id}</span>
+            </div>
+          ) : instance.mode_type === "TURN_BASED_GUILD" && instance.active_guild_id ? (
+            <div className="mt-4 text-sm text-green-300 font-semibold">
+              It is your guild's turn! Active guild: <span className="font-bold">{instance.active_guild_id}</span>
             </div>
           ) : null}
 
@@ -1099,6 +1252,19 @@ const BossFight: React.FC = () => {
               ) : (
                 <span className="px-3 py-1 rounded-full bg-amber-900/80 border border-amber-500 text-amber-200 text-xs font-semibold">
                   Not in roster
+                </span>
+              )}
+
+              {myParticipant && myParticipant.state === "JOINED" && (
+                <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-red-900/80 border border-red-500 text-xs font-semibold">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={`inline-block w-3 h-3 rounded-full ${
+                        i < Math.max(0, 3 - localHeartsLost) ? "bg-red-400" : "bg-gray-600"
+                      }`}
+                    />
+                  ))}
                 </span>
               )}
             </div>

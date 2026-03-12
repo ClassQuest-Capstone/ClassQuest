@@ -4,6 +4,7 @@ import {
     PutCommand,
     GetCommand,
     QueryCommand,
+    UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { makeLeaderboardSort } from "./leaderboardSort.js";
 import type { PlayerStateItem } from "./types.js";
@@ -53,6 +54,31 @@ export async function getPlayerState(
         })
     );
     return (res.Item as PlayerStateItem) ?? null;
+}
+
+/**
+ * Set a player's hearts to an explicit value (targeted update, no extra GET round-trip).
+ * Clamp is the caller's responsibility — pass Math.max(0, ...) before calling.
+ * No-ops silently if the player state record does not exist.
+ */
+export async function setPlayerHearts(
+    class_id: string,
+    student_id: string,
+    new_hearts: number
+): Promise<void> {
+    const now = new Date().toISOString();
+    await ddb.send(
+        new UpdateCommand({
+            TableName: TABLE,
+            Key: { class_id, student_id },
+            UpdateExpression: "SET hearts = :hearts, updated_at = :now",
+            ExpressionAttributeValues: {
+                ":hearts": new_hearts,
+                ":now": now,
+            },
+            ConditionExpression: "attribute_exists(class_id)",
+        })
+    );
 }
 
 export type LeaderboardResult = {

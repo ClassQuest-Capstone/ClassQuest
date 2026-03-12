@@ -31,8 +31,12 @@ const BOSS_SNAPSHOTS_TABLE = process.env.BOSS_BATTLE_SNAPSHOTS_TABLE_NAME!;
 const BOSS_QUESTIONS_TABLE = process.env.BOSS_QUESTIONS_TABLE_NAME!;
 
 /**
- * Create question plan for instance
- * Generates deterministic question sequence(s) at countdown start
+ * Create question plan for instance.
+ * Generates deterministic question sequence(s) at countdown start.
+ *
+ * Internal orchestration helper; called during StartCountdown, not exposed
+ * directly as a public HTTP endpoint. Do not wire as a route without adding
+ * a dedicated handler, auth enforcement, and documented API contract.
  */
 export async function createQuestionPlanForInstance(
     input: CreateQuestionPlanInput
@@ -206,7 +210,10 @@ export async function createQuestionPlanForInstance(
 }
 
 /**
- * Update BossBattleInstances with plan references and initialize indexes
+ * Update BossBattleInstances with plan references and initialize indexes.
+ *
+ * Internal helper called only by createQuestionPlanForInstance().
+ * Not exported and not exposed as a public endpoint.
  */
 async function updateInstanceWithPlan(
     bossInstanceId: string,
@@ -288,7 +295,11 @@ export async function getQuestionPlan(
 }
 
 /**
- * List plans by battle instance (GSI1) - debugging
+ * List plans by battle instance (GSI1).
+ *
+ * Internal debugging helper; not a public routed endpoint.
+ * Available for server-side tooling. Do not wire as a public route without
+ * adding a dedicated handler and auth enforcement.
  */
 export async function listPlansByInstance(
     bossInstanceId: string,

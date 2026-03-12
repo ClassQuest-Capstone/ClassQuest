@@ -31,7 +31,10 @@ function buildGsi2Sk(bossInstanceId: string, studentId: string): string {
 }
 
 /**
- * Get a participant record
+ * Get a participant record.
+ *
+ * Internal repository helper; not exposed as an HTTP endpoint.
+ * Used by join.ts (pre-join check) and upsertParticipantJoin (upsert logic).
  */
 export async function getParticipant(
     bossInstanceId: string,
@@ -192,7 +195,11 @@ export async function kickParticipant(
 }
 
 /**
- * Mark participant as downed
+ * Mark participant as downed (is_downed = true).
+ *
+ * Internal repository helper; not exposed as an HTTP endpoint.
+ * Called by the ResolveQuestion service when a student's hearts reach 0
+ * during boss battle question resolution.
  */
 export async function markParticipantDowned(
     bossInstanceId: string,
@@ -217,7 +224,11 @@ export async function markParticipantDowned(
 }
 
 /**
- * Update anti-spam fields
+ * Update anti-spam fields (last_submit_at, frozen_until).
+ *
+ * Internal repository helper; not exposed as an HTTP endpoint.
+ * Called by the SubmitBossAnswer service to enforce rate limiting and
+ * wrong-answer freeze penalties per student per battle.
  */
 export async function updateAntiSpamFields(
     bossInstanceId: string,
@@ -281,8 +292,12 @@ export async function listParticipants(
 }
 
 /**
- * List participants by class (GSI2)
- * Useful for teacher views across all battles in a class
+ * List participants by class (GSI2).
+ *
+ * Internal repository helper; not exposed as an HTTP endpoint.
+ * Available for use by server-side teacher-facing services or admin tooling
+ * that need to query across all battles in a class. Do not wire as a public
+ * route without adding auth enforcement and a documented route handler.
  */
 export async function listParticipantsByClass(
     classId: string

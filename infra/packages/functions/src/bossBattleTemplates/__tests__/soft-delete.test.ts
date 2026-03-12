@@ -23,10 +23,10 @@ vi.mock("@aws-sdk/lib-dynamodb", () => ({
     DynamoDBDocumentClient: {
         from: vi.fn(function () { return { send: mockSend }; }),
     },
-    PutCommand: vi.fn(function (input: any) { this.input = input; }),
-    GetCommand: vi.fn(function (input: any) { this.input = input; }),
-    QueryCommand: vi.fn(function (input: any) { this.input = input; }),
-    UpdateCommand: vi.fn(function (input: any) { this.input = input; }),
+    PutCommand: vi.fn(function (input: any) { return { input }; }),
+    GetCommand: vi.fn(function (input: any) { return { input }; }),
+    QueryCommand: vi.fn(function (input: any) { return { input }; }),
+    UpdateCommand: vi.fn(function (input: any) { return { input }; }),
 }));
 
 // ---------------------------------------------------------------------------
