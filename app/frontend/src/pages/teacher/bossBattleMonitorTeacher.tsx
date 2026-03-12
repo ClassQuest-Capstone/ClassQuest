@@ -184,6 +184,7 @@ export default function BossBattleMonitorTeacher() {
   const { answerEvent } = useAnswerSubmittedSubscription(bossInstanceId);
   const prevActiveQuestionIdRef = useRef<string | null | undefined>(undefined);
   const prevReadyToResolveRef = useRef<boolean | null>(null);
+  const hasAutoResolvedRef = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -296,8 +297,14 @@ export default function BossBattleMonitorTeacher() {
       await resolveBossBattleQuestion(bossInstanceId);
       await refresh();
     } catch (err: any) {
-      console.error("Failed to resolve question:", err);
-      setError(err?.message || "Failed to resolve question.");
+      // 409 = already resolved (race condition / duplicate trigger) — safe to ignore
+      const status = err?.status ?? err?.statusCode ?? err?.response?.status;
+      if (status === 409) {
+        await refresh(); // still refresh so UI is up-to-date
+      } else {
+        console.error("Failed to resolve question:", err);
+        setError(err?.message || "Failed to resolve question.");
+      }
     } finally {
       transitionLockRef.current = false;
       setTransitioning(false);
@@ -404,18 +411,22 @@ export default function BossBattleMonitorTeacher() {
     setParticipants(rosterEvent.participants as any);
   }, [rosterEvent]);
 
-  // Phase 5: when ready_to_resolve flips true, refresh attempts so the teacher
-  // sees the latest answer breakdown without waiting for the next manual refresh.
+  // when ready_to_resolve flips true, refresh attempts and auto-resolve if still QUESTION_ACTIVE
   useEffect(() => {
     if (!answerEvent) return;
     const nowReady = answerEvent.ready_to_resolve;
+
     if (nowReady && !prevReadyToResolveRef.current) {
       listBossAnswerAttemptsByBattle(bossInstanceId, { limit: 500 })
         .then((res) => setAttempts(res.items || []))
         .catch(() => {});
+
+      if (instance?.status === "QUESTION_ACTIVE") {
+        handleResolveQuestion();
+      }
     }
     prevReadyToResolveRef.current = nowReady ?? null;
-  }, [answerEvent, bossInstanceId]);
+  }, [answerEvent, bossInstanceId, instance?.status, handleResolveQuestion]);
 
   // Live countdown for active question timer
   useEffect(() => {
@@ -429,6 +440,24 @@ export default function BossBattleMonitorTeacher() {
     const timer = window.setInterval(tick, 1000);
     return () => window.clearInterval(timer);
   }, [instance?.status, (instance as any)?.question_ends_at]);
+
+  // Reset the auto-resolve guard whenever the active question changes
+  useEffect(() => {
+    hasAutoResolvedRef.current = false;
+  }, [instance?.active_question_id]);
+
+  // Timer-based auto-resolve for timed questions
+  useEffect(() => {
+    if (
+      instance?.status !== "QUESTION_ACTIVE" ||
+      !(instance as any)?.question_ends_at ||
+      questionTimeLeft !== 0 ||
+      hasAutoResolvedRef.current
+    ) return;
+
+    hasAutoResolvedRef.current = true;
+    handleResolveQuestion();
+  }, [questionTimeLeft, instance?.status, (instance as any)?.question_ends_at, handleResolveQuestion]);
 
   useEffect(() => {
     feather.replace();
