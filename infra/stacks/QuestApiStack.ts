@@ -29,6 +29,7 @@ type QuestApiStackProps = {
         bossBattleSnapshotsTable: string;
         bossBattleQuestionPlansTable: string;
         shopItemsTable: string;
+        shopListingsTable: string;
     };
     tableArns: {
         usersTable: string;
@@ -55,6 +56,8 @@ type QuestApiStackProps = {
         bossBattleSnapshotsTable: string;
         bossBattleQuestionPlansTable: string;
         shopItemsTable: string;
+        shopListingsTable: string;
+        inventoryItemsTable: string;
     };
     userPoolId: string;
     userPoolArn: string;
@@ -171,6 +174,30 @@ export function QuestApiStack(ctx: StackContext, props: QuestApiStackProps) {
         // BossBattleQuestionPlans
         "GET /boss-battle-question-plans/{plan_id}": { method: "GET", path: "/boss-battle-question-plans/{plan_id}" },
 
+        // InventoryItems
+        "POST /inventory-items":                                              { method: "POST",   path: "/inventory-items" },
+        "POST /inventory-items/grant":                                        { method: "POST",   path: "/inventory-items/grant" },
+        "GET /inventory-items/student/{student_id}":                          { method: "GET",    path: "/inventory-items/student/{student_id}" },
+        "GET /inventory-items/class/{class_id}":                              { method: "GET",    path: "/inventory-items/class/{class_id}" },
+        "GET /inventory-items/class/{class_id}/student/{student_id}":         { method: "GET",    path: "/inventory-items/class/{class_id}/student/{student_id}" },
+        "GET /inventory-items/item/{item_id}/owners":                         { method: "GET",    path: "/inventory-items/item/{item_id}/owners" },
+        "GET /inventory-items/owns/{student_id}/{item_id}":                   { method: "GET",    path: "/inventory-items/owns/{student_id}/{item_id}" },
+        "GET /inventory-items/{student_id}/{item_id}":                        { method: "GET",    path: "/inventory-items/{student_id}/{item_id}" },
+        "PUT /inventory-items/{student_id}/{item_id}":                        { method: "PUT",    path: "/inventory-items/{student_id}/{item_id}" },
+        "DELETE /inventory-items/{student_id}/{item_id}":                     { method: "DELETE", path: "/inventory-items/{student_id}/{item_id}" },
+
+        // ShopListings
+        "POST /shop-listings":                                        { method: "POST",  path: "/shop-listings" },
+        "GET /shop-listings":                                         { method: "GET",   path: "/shop-listings" },
+        "GET /shop-listings/active":                                  { method: "GET",   path: "/shop-listings/active" },
+        "GET /shop-listings/global":                                  { method: "GET",   path: "/shop-listings/global" },
+        "GET /shop-listings/class/{class_id}":                        { method: "GET",   path: "/shop-listings/class/{class_id}" },
+        "GET /shop-listings/item/{item_id}":                          { method: "GET",   path: "/shop-listings/item/{item_id}" },
+        "GET /shop-listings/{shop_listing_id}":                       { method: "GET",   path: "/shop-listings/{shop_listing_id}" },
+        "PUT /shop-listings/{shop_listing_id}":                       { method: "PUT",   path: "/shop-listings/{shop_listing_id}" },
+        "POST /shop-listings/{shop_listing_id}/activate":             { method: "POST",  path: "/shop-listings/{shop_listing_id}/activate" },
+        "POST /shop-listings/{shop_listing_id}/deactivate":           { method: "POST",  path: "/shop-listings/{shop_listing_id}/deactivate" },
+
         // ShopItems
         "POST /shop-items":                              { method: "POST",  path: "/shop-items" },
         "GET /shop-items":                               { method: "GET",   path: "/shop-items" },
@@ -212,6 +239,8 @@ export function QuestApiStack(ctx: StackContext, props: QuestApiStackProps) {
             BOSS_BATTLE_SNAPSHOTS_TABLE_NAME:          tableNames.bossBattleSnapshotsTable,
             BOSS_BATTLE_QUESTION_PLANS_TABLE_NAME:     tableNames.bossBattleQuestionPlansTable,
             SHOP_ITEMS_TABLE_NAME:                     tableNames.shopItemsTable,
+            SHOP_LISTINGS_TABLE_NAME:                  tableNames.shopListingsTable,
+            INVENTORY_ITEMS_TABLE_NAME:                tableNames.inventoryItemsTable,
             USER_POOL_ID:                              userPoolId,
             // debug-create.ts reads TABLE_NAME (non-standard); point to usersTable
             TABLE_NAME:                                tableNames.usersTable,

@@ -75,6 +75,8 @@ export function DataStack(ctx: StackContext) {
             rewardMilestonesTable: tables.rewardMilestonesTable.tableName,
             studentRewardClaimsTable: tables.studentRewardClaimsTable.tableName,
             shopItemsTable: tables.shopItemsTable.tableName,
+            shopListingsTable: tables.shopListingsTable.tableName,
+            inventoryItemsTable: tables.inventoryItemsTable.tableName,
         },
         tableArns: {
             usersTable: tables.usersTable.tableArn,
@@ -103,6 +105,8 @@ export function DataStack(ctx: StackContext) {
             rewardMilestonesTable: tables.rewardMilestonesTable.tableArn,
             studentRewardClaimsTable: tables.studentRewardClaimsTable.tableArn,
             shopItemsTable: tables.shopItemsTable.tableArn,
+            shopListingsTable: tables.shopListingsTable.tableArn,
+            inventoryItemsTable: tables.inventoryItemsTable.tableArn,
         },
     };
 }

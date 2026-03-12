@@ -97,6 +97,29 @@ import { handler as bbsGet }                   from "../bossBattleSnapshots/get-
 // BossBattleQuestionPlans
 import { handler as bbqpGet }                  from "../bossBattleQuestionPlans/get-plan.js";
 
+// InventoryItems
+import { handler as iiCreate }               from "../inventoryItems/create.js";
+import { handler as iiGet }                  from "../inventoryItems/get.js";
+import { handler as iiListByStudent }        from "../inventoryItems/list-by-student.js";
+import { handler as iiListByClass }          from "../inventoryItems/list-by-class.js";
+import { handler as iiListByItemOwners }     from "../inventoryItems/list-by-item-owners.js";
+import { handler as iiUpdate }               from "../inventoryItems/update.js";
+import { handler as iiDelete }               from "../inventoryItems/delete.js";
+import { handler as iiGrant }                from "../inventoryItems/grant.js";
+import { handler as iiCheckOwns }            from "../inventoryItems/check-owns.js";
+
+// ShopListings
+import { handler as slCreate }                 from "../shopListings/create.js";
+import { handler as slGet }                    from "../shopListings/get.js";
+import { handler as slListAll }                from "../shopListings/list-all.js";
+import { handler as slListActive }             from "../shopListings/list-active.js";
+import { handler as slListGlobal }             from "../shopListings/list-global.js";
+import { handler as slListByClass }            from "../shopListings/list-by-class.js";
+import { handler as slListByItem }             from "../shopListings/list-by-item.js";
+import { handler as slUpdate }                 from "../shopListings/update.js";
+import { handler as slActivate }               from "../shopListings/activate.js";
+import { handler as slDeactivate }             from "../shopListings/deactivate.js";
+
 // ShopItems
 import { handler as siCreate }                 from "../shopItems/create.js";
 import { handler as siGet }                    from "../shopItems/get.js";
@@ -204,6 +227,30 @@ const ROUTES: Record<string, (event: any) => Promise<any>> = {
 
     // BossBattleQuestionPlans
     "GET /boss-battle-question-plans/{plan_id}":                                                                                             bbqpGet,
+
+    // InventoryItems
+    "POST /inventory-items":                                                                                                                 iiCreate,
+    "POST /inventory-items/grant":                                                                                                           iiGrant,
+    "GET /inventory-items/student/{student_id}":                                                                                             iiListByStudent,
+    "GET /inventory-items/class/{class_id}":                                                                                                 iiListByClass,
+    "GET /inventory-items/class/{class_id}/student/{student_id}":                                                                            iiListByClass,
+    "GET /inventory-items/item/{item_id}/owners":                                                                                            iiListByItemOwners,
+    "GET /inventory-items/owns/{student_id}/{item_id}":                                                                                      iiCheckOwns,
+    "GET /inventory-items/{student_id}/{item_id}":                                                                                           iiGet,
+    "PUT /inventory-items/{student_id}/{item_id}":                                                                                           iiUpdate,
+    "DELETE /inventory-items/{student_id}/{item_id}":                                                                                        iiDelete,
+
+    // ShopListings
+    "POST /shop-listings":                                                                                                                   slCreate,
+    "GET /shop-listings":                                                                                                                    slListAll,
+    "GET /shop-listings/active":                                                                                                             slListActive,
+    "GET /shop-listings/global":                                                                                                             slListGlobal,
+    "GET /shop-listings/class/{class_id}":                                                                                                   slListByClass,
+    "GET /shop-listings/item/{item_id}":                                                                                                     slListByItem,
+    "GET /shop-listings/{shop_listing_id}":                                                                                                  slGet,
+    "PUT /shop-listings/{shop_listing_id}":                                                                                                  slUpdate,
+    "POST /shop-listings/{shop_listing_id}/activate":                                                                                        slActivate,
+    "POST /shop-listings/{shop_listing_id}/deactivate":                                                                                      slDeactivate,
 
     // ShopItems
     "POST /shop-items":                                                                                                                      siCreate,

@@ -635,6 +635,75 @@ export function createTables(ctx: StackContext) {
         },
     });
 
+    // InventoryItems table — student item ownership records
+    //
+    // PK: STUDENT#{student_id}
+    // SK: ITEM#{item_id}
+    //
+    // GSI1: GSI1PK (CLASS#{class_id}) / GSI1SK (STUDENT#{student_id}#ITEM#{item_id})
+    // GSI2: GSI2PK (ITEM#{item_id})   / GSI2SK (CLASS#{class_id}#STUDENT#{student_id})
+    const inventoryItemsTable = new Table(stack, "InventoryItems", {
+        fields: {
+            PK:     "string",   // STUDENT#{student_id}
+            SK:     "string",   // ITEM#{item_id}
+            GSI1PK: "string",   // CLASS#{class_id}
+            GSI1SK: "string",   // STUDENT#{student_id}#ITEM#{item_id}
+            GSI2PK: "string",   // ITEM#{item_id}
+            GSI2SK: "string",   // CLASS#{class_id}#STUDENT#{student_id}
+        },
+        primaryIndex: {
+            partitionKey: "PK",
+            sortKey:      "SK",
+        },
+        globalIndexes: {
+            gsi1: {  // class-level inventory browse
+                partitionKey: "GSI1PK",
+                sortKey:      "GSI1SK",
+            },
+            gsi2: {  // item-centric owner lookup
+                partitionKey: "GSI2PK",
+                sortKey:      "GSI2SK",
+            },
+        },
+    });
+
+    // ShopListings table — controls where/when/how a ShopItem appears in the shop
+    //
+    // PK: SHOP#GLOBAL | SHOP#CLASS#{class_id}
+    // SK: ACTIVEFROM#{available_from}#LISTING#{shop_listing_id}
+    //
+    // GSI1: GSI1PK (SHOPVIEW#GLOBAL#ACTIVE etc.) / GSI1SK (FROM#...#TO#...#ITEM#...#LISTING#...)
+    // GSI2: GSI2PK (ITEM#{item_id})               / GSI2SK (SHOP#{class|GLOBAL}#FROM#...#LISTING#...)
+    // GSI3: shop_listing_id                        — direct lookup by listing ID
+    const shopListingsTable = new Table(stack, "ShopListings", {
+        fields: {
+            PK:              "string",   // SHOP#GLOBAL | SHOP#CLASS#{class_id}
+            SK:              "string",   // ACTIVEFROM#{available_from}#LISTING#{shop_listing_id}
+            GSI1PK:          "string",   // SHOPVIEW#GLOBAL#ACTIVE | SHOPVIEW#CLASS#{class_id}#INACTIVE | ...
+            GSI1SK:          "string",   // FROM#...#TO#...#ITEM#...#LISTING#...
+            GSI2PK:          "string",   // ITEM#{item_id}
+            GSI2SK:          "string",   // SHOP#GLOBAL#FROM#...#LISTING#... | SHOP#CLASS#{class_id}#FROM#...
+            shop_listing_id: "string",   // GSI3 PK — direct lookup by listing ID
+        },
+        primaryIndex: {
+            partitionKey: "PK",
+            sortKey:      "SK",
+        },
+        globalIndexes: {
+            gsi1: {  // shop bucket view — active/inactive per scope
+                partitionKey: "GSI1PK",
+                sortKey:      "GSI1SK",
+            },
+            gsi2: {  // item-centric lookup — all listings for one item
+                partitionKey: "GSI2PK",
+                sortKey:      "GSI2SK",
+            },
+            gsi3: {  // direct listing ID lookup (used by get/update/activate/deactivate)
+                partitionKey: "shop_listing_id",
+            },
+        },
+    });
+
     return {
         usersTable,
         teacherProfilesTable,
@@ -662,5 +731,7 @@ export function createTables(ctx: StackContext) {
         rewardMilestonesTable,
         studentRewardClaimsTable,
         shopItemsTable,
+        shopListingsTable,
+        inventoryItemsTable,
     };
 }
