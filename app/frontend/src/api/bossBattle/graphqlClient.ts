@@ -35,11 +35,11 @@ export const graphqlClient = generateClient();
 export async function getBossBattleInstanceGql(
     bossInstanceId: string
 ): Promise<BossBattleInstanceGql | null> {
-    const result = await graphqlClient.graphql({
+    const result = (await graphqlClient.graphql({
         query: GET_BOSS_BATTLE_INSTANCE,
         variables: { bossInstanceId },
-    });
-    return (result.data as any)?.getBossBattleInstance ?? null;
+    })) as any;
+    return result.data?.getBossBattleInstance ?? null;
 }
 
 /**
@@ -49,11 +49,11 @@ export async function getBossBattleInstanceGql(
 export async function listBossBattleInstancesByClassGql(
     classId: string
 ): Promise<BossBattleInstanceGql[]> {
-    const result = await graphqlClient.graphql({
+    const result = (await graphqlClient.graphql({
         query: LIST_BOSS_BATTLE_INSTANCES_BY_CLASS,
         variables: { classId },
-    });
-    return (result.data as any)?.listBossBattleInstancesByClass ?? [];
+    })) as any;
+    return result.data?.listBossBattleInstancesByClass ?? [];
 }
 
 /**
@@ -63,11 +63,11 @@ export async function listBossBattleInstancesByClassGql(
 export async function getBossBattleParticipantsGql(
     bossInstanceId: string
 ): Promise<BossBattleParticipantGql[]> {
-    const result = await graphqlClient.graphql({
+    const result = (await graphqlClient.graphql({
         query: GET_BOSS_BATTLE_PARTICIPANTS,
         variables: { bossInstanceId },
-    });
-    return (result.data as any)?.getBossBattleParticipants ?? [];
+    })) as any;
+    return result.data?.getBossBattleParticipants ?? [];
 }
 
 /**
@@ -78,9 +78,9 @@ export async function getBossBattleParticipantsGql(
 export async function getActiveBossQuestionGql(
     questionId: string
 ): Promise<BossQuestionGql | null> {
-    const result = await graphqlClient.graphql({
+    const result = (await graphqlClient.graphql({
         query: GET_ACTIVE_BOSS_QUESTION,
         variables: { questionId },
-    });
-    return (result.data as any)?.getActiveBossQuestion ?? null;
+    })) as any;
+    return result.data?.getActiveBossQuestion ?? null;
 }

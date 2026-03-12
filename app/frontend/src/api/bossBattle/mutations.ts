@@ -193,59 +193,59 @@ export interface ParticipantActionResult {
 }
 
 export async function startBattleGql(bossInstanceId: string): Promise<ActionResult> {
-    const result = await graphqlClient.graphql({ query: START_BATTLE, variables: { bossInstanceId } });
-    return (result.data as any).startBattle;
+    const result = (await graphqlClient.graphql({ query: START_BATTLE, variables: { bossInstanceId } })) as any;
+    return result.data.startBattle;
 }
 
 export async function startCountdownGql(bossInstanceId: string): Promise<ActionResult> {
-    const result = await graphqlClient.graphql({ query: START_COUNTDOWN, variables: { bossInstanceId } });
-    return (result.data as any).startCountdown;
+    const result = (await graphqlClient.graphql({ query: START_COUNTDOWN, variables: { bossInstanceId } })) as any;
+    return result.data.startCountdown;
 }
 
 export async function startQuestionGql(bossInstanceId: string): Promise<ActionResult> {
-    const result = await graphqlClient.graphql({ query: START_QUESTION, variables: { bossInstanceId } });
-    return (result.data as any).startQuestion;
+    const result = (await graphqlClient.graphql({ query: START_QUESTION, variables: { bossInstanceId } })) as any;
+    return result.data.startQuestion;
 }
 
 export async function resolveQuestionGql(bossInstanceId: string): Promise<ActionResult> {
-    const result = await graphqlClient.graphql({ query: RESOLVE_QUESTION, variables: { bossInstanceId } });
-    return (result.data as any).resolveQuestion;
+    const result = (await graphqlClient.graphql({ query: RESOLVE_QUESTION, variables: { bossInstanceId } })) as any;
+    return result.data.resolveQuestion;
 }
 
 export async function advanceQuestionGql(bossInstanceId: string): Promise<ActionResult> {
-    const result = await graphqlClient.graphql({ query: ADVANCE_QUESTION, variables: { bossInstanceId } });
-    return (result.data as any).advanceQuestion;
+    const result = (await graphqlClient.graphql({ query: ADVANCE_QUESTION, variables: { bossInstanceId } })) as any;
+    return result.data.advanceQuestion;
 }
 
 export async function finishBattleGql(bossInstanceId: string): Promise<ActionResult> {
-    const result = await graphqlClient.graphql({ query: FINISH_BATTLE, variables: { bossInstanceId } });
-    return (result.data as any).finishBattle;
+    const result = (await graphqlClient.graphql({ query: FINISH_BATTLE, variables: { bossInstanceId } })) as any;
+    return result.data.finishBattle;
 }
 
 export async function submitAnswerGql(
     bossInstanceId: string,
     answerRaw: Record<string, unknown>
 ): Promise<SubmitAnswerResult> {
-    const result = await graphqlClient.graphql({
+    const result = (await graphqlClient.graphql({
         query: SUBMIT_ANSWER,
         variables: { bossInstanceId, answerRaw: JSON.stringify(answerRaw) },
-    });
-    return (result.data as any).submitAnswer;
+    })) as any;
+    return result.data.submitAnswer;
 }
 
 export async function joinBattleGql(bossInstanceId: string, guildId: string): Promise<ParticipantActionResult> {
-    const result = await graphqlClient.graphql({ query: JOIN_BATTLE, variables: { bossInstanceId, guildId } });
-    return (result.data as any).joinBattle;
+    const result = (await graphqlClient.graphql({ query: JOIN_BATTLE, variables: { bossInstanceId, guildId } })) as any;
+    return result.data.joinBattle;
 }
 
 export async function spectateBattleGql(bossInstanceId: string): Promise<ParticipantActionResult> {
-    const result = await graphqlClient.graphql({ query: SPECTATE_BATTLE, variables: { bossInstanceId } });
-    return (result.data as any).spectateBattle;
+    const result = (await graphqlClient.graphql({ query: SPECTATE_BATTLE, variables: { bossInstanceId } })) as any;
+    return result.data.spectateBattle;
 }
 
 export async function leaveBattleGql(bossInstanceId: string): Promise<ParticipantActionResult> {
-    const result = await graphqlClient.graphql({ query: LEAVE_BATTLE, variables: { bossInstanceId } });
-    return (result.data as any).leaveBattle;
+    const result = (await graphqlClient.graphql({ query: LEAVE_BATTLE, variables: { bossInstanceId } })) as any;
+    return result.data.leaveBattle;
 }
 
 export async function kickParticipantGql(
@@ -253,9 +253,9 @@ export async function kickParticipantGql(
     studentId: string,
     reason?: string
 ): Promise<ParticipantActionResult> {
-    const result = await graphqlClient.graphql({
+    const result = (await graphqlClient.graphql({
         query: KICK_PARTICIPANT,
         variables: { bossInstanceId, studentId, reason: reason ?? null },
-    });
-    return (result.data as any).kickParticipant;
+    })) as any;
+    return result.data.kickParticipant;
 }
