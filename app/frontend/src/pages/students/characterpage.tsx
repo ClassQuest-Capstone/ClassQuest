@@ -232,6 +232,8 @@ const CharacterPage: React.FC = () => {
   const [shopPurchasedItems, setShopPurchasedItems] = useState<(ShopItem & { inventory_item_id: string; quantity: number })[]>([]);
   const [loadingShopItems, setLoadingShopItems] = useState(false);
   const [usingItemIds, setUsingItemIds] = useState<Set<string>>(new Set());
+  const [itemTimerStarts, setItemTimerStarts] = useState<Map<string, number>>(new Map()); // inventory_item_id -> start timestamp (ms)
+  const [currentTimeMs, setCurrentTimeMs] = useState<number>(Date.now()); // Used to trigger re-renders for timer display
 
   // Tabs state
   const [tab, setTab] = useState<TabKey>("quests");
@@ -324,6 +326,161 @@ const CharacterPage: React.FC = () => {
     fetchShopItems();
   }, [studentId, classId]);
 
+  // Initialize item timers from localStorage on mount
+  useEffect(() => {
+    const storedTimers = localStorage.getItem(`cq_itemTimers_${studentId}`);
+    if (storedTimers) {
+      try {
+        const parsed = JSON.parse(storedTimers) as Record<string, number>;
+        const timerMap = new Map(Object.entries(parsed));
+        
+        // Filter out expired timers
+        const now = Date.now();
+        const TEN_MINUTES = 600000;
+        const validTimers = new Map<string, number>();
+        
+        for (const [inventoryItemId, startTime] of timerMap) {
+          const elapsed = now - startTime;
+          if (elapsed < TEN_MINUTES) {
+            validTimers.set(inventoryItemId, startTime);
+            setUsingItemIds(prev => new Set(prev).add(inventoryItemId));
+          }
+        }
+        
+        setItemTimerStarts(validTimers);
+      } catch (error) {
+        console.error("Failed to parse stored timers:", error);
+      }
+    }
+  }, [studentId]);
+
+  // Save item timers to localStorage whenever they change
+  useEffect(() => {
+    if (itemTimerStarts.size === 0) {
+      localStorage.removeItem(`cq_itemTimers_${studentId}`);
+    } else {
+      const timerObj = Object.fromEntries(itemTimerStarts);
+      localStorage.setItem(`cq_itemTimers_${studentId}`, JSON.stringify(timerObj));
+    }
+  }, [itemTimerStarts, studentId]);
+
+  // Timer display update effect - updates every 1 second to force re-renders
+  useEffect(() => {
+    if (itemTimerStarts.size === 0) return;
+
+    const interval = setInterval(() => {
+      setCurrentTimeMs(Date.now());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [itemTimerStarts.size]);
+
+  // Check for and delete expired items (on mount and when items load)
+  useEffect(() => {
+    const checkAndDeleteExpiredItems = async () => {
+      const now = Date.now();
+      const TEN_MINUTES = 600000; // MODIFY HERE (TODO:)
+      const expiredIds: Array<{ inventoryItemId: string; itemId: string }> = [];
+
+      for (const [inventoryItemId, startTime] of itemTimerStarts) {
+        const elapsed = now - startTime;
+        if (elapsed >= TEN_MINUTES) {
+          const item = shopPurchasedItems.find(
+            item => item.inventory_item_id === inventoryItemId
+          );
+          if (item) {
+            expiredIds.push({
+              inventoryItemId,
+              itemId: item.item_id,
+            });
+          }
+        }
+      }
+
+      // Delete all expired items
+      for (const { inventoryItemId, itemId } of expiredIds) {
+        try {
+          await deleteInventoryItem(studentId, itemId);
+          setShopPurchasedItems(prev =>
+            prev.filter(item => item.inventory_item_id !== inventoryItemId)
+          );
+          setItemTimerStarts(prev => {
+            const updated = new Map(prev);
+            updated.delete(inventoryItemId);
+            return updated;
+          });
+          setUsingItemIds(prev => {
+            const updated = new Set(prev);
+            updated.delete(inventoryItemId);
+            return updated;
+          });
+          alert("Item used!");
+        } catch (error) {
+          console.error("Failed to delete expired item:", error);
+        }
+      }
+    };
+
+    if (shopPurchasedItems.length > 0 && itemTimerStarts.size > 0) {
+      checkAndDeleteExpiredItems();
+    }
+  }, [shopPurchasedItems, studentId]);
+
+  // Timer effect to handle countdown and item deletion
+  useEffect(() => {
+    if (itemTimerStarts.size === 0) return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const TEN_MINUTES = 600000;
+      const completedItems: Array<{ inventoryItemId: string; itemId: string }> = [];
+      const updated = new Map(itemTimerStarts);
+
+      for (const [inventoryItemId, startTime] of updated) {
+        const elapsed = now - startTime;
+
+        if (elapsed >= TEN_MINUTES) {
+          // Timer complete - find the item to get its ID
+          const item = shopPurchasedItems.find(
+            item => item.inventory_item_id === inventoryItemId
+          );
+          if (item) {
+            completedItems.push({
+              inventoryItemId,
+              itemId: item.item_id,
+            });
+          }
+          updated.delete(inventoryItemId);
+        }
+      }
+
+      if (updated.size !== itemTimerStarts.size) {
+        setItemTimerStarts(updated);
+      }
+
+      // Delete completed items
+      completedItems.forEach(async ({ inventoryItemId, itemId }) => {
+        try {
+          await deleteInventoryItem(studentId, itemId);
+          setShopPurchasedItems(prev =>
+            prev.filter(item => item.inventory_item_id !== inventoryItemId)
+          );
+          alert("Item used!");
+        } catch (error) {
+          console.error("Failed to delete item:", error);
+        } finally {
+          setUsingItemIds(prev => {
+            const updated = new Set(prev);
+            updated.delete(inventoryItemId);
+            return updated;
+          });
+        }
+      });
+    }, 1000); // Check every second instead of 100ms for better performance
+
+    return () => clearInterval(interval);
+  }, [itemTimerStarts, shopPurchasedItems, studentId]);
+
   // Handle using an item
   const handleUseItem = async (inventoryItemId: string, itemId: string) => {
     if (!studentId) {
@@ -331,28 +488,10 @@ const CharacterPage: React.FC = () => {
       return;
     }
 
-    try {
-      setUsingItemIds(prev => new Set(prev).add(inventoryItemId));
-
-      // Delete the item from inventory
-      await deleteInventoryItem(studentId, itemId);
-
-      // Remove from local state
-      setShopPurchasedItems(prev =>
-        prev.filter(item => item.inventory_item_id !== inventoryItemId)
-      );
-
-      alert("Item used successfully!");
-    } catch (error) {
-      console.error("Failed to use item:", error);
-      alert("Failed to use item. Please try again.");
-    } finally {
-      setUsingItemIds(prev => {
-        const updated = new Set(prev);
-        updated.delete(inventoryItemId);
-        return updated;
-      });
-    }
+    // Start the 10-minute timer - store the current timestamp
+    const now = Date.now();
+    setItemTimerStarts(prev => new Map(prev).set(inventoryItemId, now));
+    setUsingItemIds(prev => new Set(prev).add(inventoryItemId));
   };
 
   // Player progression fetches from player state and student profile
@@ -887,8 +1026,8 @@ const CharacterPage: React.FC = () => {
                     <div className="mb-10">
                     {/* Level Badge */}
                     <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 level-badge px-6 py-1 rounded-full">
-                      <span className="font-bold text-lg text-white">
-                        Level {profile.level} Warrior
+                      <span className="font-bold text-xl text-white">
+                        Level {profile.level} {/*Warrior*/}
                       </span>
                     </div>
 
@@ -1017,6 +1156,18 @@ const CharacterPage: React.FC = () => {
                               <span className="text-xs text-center text-gray-200 line-clamp-2">{item.name}</span>
                               {item.quantity > 1 && (
                                 <span className="text-xs text-yellow-300 font-bold">x{item.quantity}</span>
+                              )}
+                              {itemTimerStarts.has(item.inventory_item_id) && (
+                                <div className="mt-1 text-xs text-blue-300 font-semibold">
+                                  {(() => {
+                                    const startTime = itemTimerStarts.get(item.inventory_item_id) || 0;
+                                    const elapsed = currentTimeMs - startTime;
+                                    const remaining = Math.max(0, 600000 - elapsed);
+                                    const minutes = Math.floor(remaining / 1000 / 60);
+                                    const seconds = Math.floor((remaining / 1000) % 60);
+                                    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+                                  })()}
+                                </div>
                               )}
                               <button
                                 onClick={() => handleUseItem(item.inventory_item_id, item.item_id)}

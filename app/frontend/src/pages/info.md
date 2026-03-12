@@ -186,11 +186,11 @@ TODO: make shop items avaliable to students and not avaliable button to launch t
 
 TODO: make items appear in students shop (DONE)
 
-TODO: make armours and stuff saved in bakend and connect with rewards to unlock 
+TODO: make armours and stuff saved in bakend and connect with rewards to unlock. use rewardMilestones for this 
 
 TODO: if no image provided use default
 
-TODO: TELL TEAM THAT REQUEST TO USE CLASS ITEMS DOES NOT WORK
+TODO: Student use item then 10 mins timer satrt until item is deleted (DONE), for future let teacher approve item use
 
 
 HARDCODED EACH ITEM TO BE IN SHOP FOR 2 WEEKS ???

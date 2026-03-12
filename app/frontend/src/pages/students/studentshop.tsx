@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { BookOpen, Menu, ChevronDown, Loader, Inbox } from "react-feather";
 import { usePlayerProgression } from "../hooks/students/usePlayerProgression.js";
 import { listClassShopListings, listActiveShopListings } from "../../api/shopListings/client.js";
 import { listShopItems } from "../../api/shopItems/client.js";
@@ -115,7 +116,6 @@ const StudentShop: React.FC = () => {
         setLoading(false);
       }
     };
-
     fetchShopItems();
   }, [classId]);
 
@@ -196,7 +196,7 @@ const StudentShop: React.FC = () => {
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <div className="flex-shrink-0 flex items-center">
-                <i data-feather="book-open" className="w-8 h-8 mr-2"></i>
+                <BookOpen className="w-8 h-8 mr-2" />
                 <span className="text-xl font-bold">ClassQuest</span>
               </div>
             </div>
@@ -265,7 +265,7 @@ const StudentShop: React.FC = () => {
             {/* Mobile Menu */}
             <div className="-mr-2 flex items-center md:hidden">
               <button className="inline-flex items-center justify-center p-2 rounded-md text-primary-100 hover:text-white hover:bg-primary-600">
-                <i data-feather="menu"></i>
+                <Menu />
               </button>
             </div>
           </div>
@@ -283,7 +283,6 @@ const StudentShop: React.FC = () => {
           </div>
 
           <div className="flex items-center bg-yellow-100 px-4 py-2 rounded-full">
-            <i data-feather="coin" className="text-yellow-900 mr-2"></i>
             <img
                 src="/assets/icons/gold-bar.png"
                 alt="Gold"
@@ -308,7 +307,7 @@ const StudentShop: React.FC = () => {
             </select>
 
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-900">
-              <i data-feather="chevron-down" className="w-4 h-4"></i>
+              <ChevronDown className="w-4 h-4" />
             </div>
           </div>
         </div>
@@ -317,12 +316,12 @@ const StudentShop: React.FC = () => {
         <div className="bg-white/30 rounded-xl shadow-lg p-6 text-gray-900">
           {loading ? (
             <div className="text-center py-12">
-              <i data-feather="loader" className="w-12 h-12 mx-auto text-gray-900 mb-3 animate-spin"></i>
+              <Loader className="w-12 h-12 mx-auto text-gray-900 mb-3 animate-spin" />
               <p className="text-gray-700 font-medium">Loading shop items...</p>
             </div>
           ) : shopItems.length === 0 ? (
             <div className="text-center py-12">
-              <i data-feather="inbox" className="w-12 h-12 mx-auto text-gray-900 mb-3"></i>
+              <Inbox className="w-12 h-12 mx-auto text-gray-900 mb-3" />
               <p className="text-gray-700 font-medium">No items available in the shop</p>
             </div>
           ) : (

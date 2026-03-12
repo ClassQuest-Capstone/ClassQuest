@@ -21,6 +21,7 @@
     "graphql": "^16.13.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-feather": "^2.0.10",
     "react-router-dom": "^7.9.6"
   },
   "devDependencies": {
