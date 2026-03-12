@@ -12,6 +12,8 @@ import { getStudentProfile } from "../../api/studentProfiles.js";
 import {
   getBossBattleInstance,
   updateBossBattleInstance,
+  startBossBattleInstance,
+  startBossBattleCountdown,
 } from "../../api/bossBattleInstances/client.js";
 import type { BossBattleInstance } from "../../api/bossBattleInstances/types.js";
 
@@ -124,10 +126,6 @@ async function fetchAllGuildsByClass(classId: string) {
   }
 
   return all;
-}
-
-function isoNowPlusSeconds(seconds: number) {
-  return new Date(Date.now() + seconds * 1000).toISOString();
 }
 
 function formatDateTime(value?: string | null) {
@@ -390,10 +388,7 @@ export default function BossBattleLobbyTeacher() {
       setBusy(true);
       setError("");
 
-      await updateBossBattleInstance(bossInstanceId, {
-        status: "LOBBY" as any,
-        lobby_opened_at: new Date().toISOString(),
-      } as any);
+      await startBossBattleInstance(bossInstanceId);
 
       await refresh();
     } catch (err: any) {
@@ -417,20 +412,12 @@ export default function BossBattleLobbyTeacher() {
       return;
     }
 
-    const countdownSeconds =
-      Number((instance as any)?.countdown_seconds) > 0
-        ? Number((instance as any).countdown_seconds)
-        : 10;
-
     try {
       setBusy(true);
       setError("");
 
-      await updateBossBattleInstance(bossInstanceId, {
-        status: "COUNTDOWN" as any,
-        countdown_seconds: countdownSeconds,
-        countdown_end_at: isoNowPlusSeconds(countdownSeconds),
-      } as any);
+      // This endpoint snapshots participants + generates the question plan
+      await startBossBattleCountdown(bossInstanceId);
 
       await refresh();
     } catch (err: any) {

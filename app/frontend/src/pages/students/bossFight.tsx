@@ -6,11 +6,11 @@ import feather from "feather-icons";
 import "../../styles/boss.css";
 
 import { usePlayerProgression } from "../hooks/students/usePlayerProgression.js";
-import { api } from "../../api/http.js";
 
 import {
   listBossBattleInstancesByClass,
   getBossBattleInstance,
+  submitBossBattleAnswer,
 } from "../../api/bossBattleInstances/client.js";
 import type { BossBattleInstance } from "../../api/bossBattleInstances/types.js";
 
@@ -27,6 +27,7 @@ import { getBossQuestion } from "../../api/bossQuestions/client.js";
 import type { BossQuestion } from "../../api/bossQuestions/types.js";
 
 import { getStudentProfile } from "../../api/studentProfiles.js";
+import { getBossResults, computeBossResults } from "../../api/bossResults/client.js";
 import { useBattleSubscription, useRosterSubscription } from "../../hooks/useBattleSubscription.ts";
 
 type StudentUser = {
@@ -236,10 +237,77 @@ function formatDateTime(value?: string | null) {
   return d.toLocaleString();
 }
 
-async function fetchBossBattleResults(bossInstanceId: string) {
-  return api<BossResultsResponse>(
-    `/boss-battle-instances/${encodeURIComponent(bossInstanceId)}/results`
-  );
+async function fetchBossBattleResultsSafe(bossInstanceId: string): Promise<BossResultsResponse> {
+  try {
+    const r = await getBossResults(bossInstanceId);
+    // Map API types to local BossResultsResponse shape
+    return {
+      outcome: r.meta?.outcome,
+      completed_at: r.meta?.computed_at,
+      fail_reason: r.meta?.fail_reason,
+      guild_results: (r.guilds ?? []).map((g) => ({
+        guild_id: g.guild_id,
+        guild_total_correct: g.correct_answers,
+        guild_total_incorrect: g.incorrect_answers,
+        guild_total_attempts: g.questions_answered,
+        guild_total_damage_to_boss: g.total_damage_dealt,
+        guild_total_hearts_lost: g.hearts_lost,
+        guild_xp_awarded_total: g.xp_earned,
+        guild_gold_awarded_total: g.gold_earned,
+        guild_members_joined: g.members_count,
+        guild_members_downed: 0,
+      })),
+      student_results: (r.students ?? []).map((s) => ({
+        student_id: s.student_id,
+        guild_id: s.guild_id,
+        total_correct: s.correct_answers,
+        total_incorrect: s.incorrect_answers,
+        total_attempts: s.questions_answered,
+        total_damage_to_boss: s.total_damage_dealt,
+        hearts_lost: s.hearts_lost,
+        xp_awarded: s.xp_earned,
+        gold_awarded: s.gold_earned,
+        participation_state: "JOINED",
+      })),
+    };
+  } catch {
+    // Results may not be computed yet; try to trigger computation
+    try {
+      await computeBossResults(bossInstanceId);
+      const r = await getBossResults(bossInstanceId);
+      return {
+        outcome: r.meta?.outcome,
+        completed_at: r.meta?.computed_at,
+        fail_reason: r.meta?.fail_reason,
+        guild_results: (r.guilds ?? []).map((g) => ({
+          guild_id: g.guild_id,
+          guild_total_correct: g.correct_answers,
+          guild_total_incorrect: g.incorrect_answers,
+          guild_total_attempts: g.questions_answered,
+          guild_total_damage_to_boss: g.total_damage_dealt,
+          guild_total_hearts_lost: g.hearts_lost,
+          guild_xp_awarded_total: g.xp_earned,
+          guild_gold_awarded_total: g.gold_earned,
+          guild_members_joined: g.members_count,
+          guild_members_downed: 0,
+        })),
+        student_results: (r.students ?? []).map((s) => ({
+          student_id: s.student_id,
+          guild_id: s.guild_id,
+          total_correct: s.correct_answers,
+          total_incorrect: s.incorrect_answers,
+          total_attempts: s.questions_answered,
+          total_damage_to_boss: s.total_damage_dealt,
+          hearts_lost: s.hearts_lost,
+          xp_awarded: s.xp_earned,
+          gold_awarded: s.gold_earned,
+          participation_state: "JOINED",
+        })),
+      };
+    } catch {
+      throw new Error("Results not available yet.");
+    }
+  }
 }
 
 const BossFight: React.FC = () => {
@@ -649,7 +717,7 @@ const BossFight: React.FC = () => {
     (async () => {
       try {
         setLoadingResults(true);
-        const res = await fetchBossBattleResults(instance.boss_instance_id);
+        const res = await fetchBossBattleResultsSafe(instance.boss_instance_id);
         if (!mounted) return;
         setBossResults(res);
       } catch (error) {
@@ -709,27 +777,51 @@ const BossFight: React.FC = () => {
     setSubmitting(true);
 
     try {
-      setBattleLog((prev) => [
-        ...prev,
-        {
-          id: `local-${Date.now()}`,
-          text: `${student?.displayName ?? "You"} submitted "${selectedAnswer}" for question ${
-            question.order_index + 1
-          }.`,
-          kind: "success",
-        },
-      ]);
-      setHasSubmittedCurrentQuestion(true);
-    } catch (error) {
-      console.error("Failed to submit answer:", error);
+      const result = await submitBossBattleAnswer(instance.boss_instance_id, {
+        student_id: studentId,
+        answer_raw: { answer: selectedAnswer },
+      });
 
+      setHasSubmittedCurrentQuestion(true);
+
+      if (result.is_correct) {
+        setBattleLog((prev) => [
+          ...prev,
+          {
+            id: `local-${Date.now()}`,
+            text: `Correct! +${result.damage_to_boss} damage to boss. Speed bonus: ${result.speed_multiplier.toFixed(2)}x`,
+            kind: "success",
+          },
+        ]);
+      } else {
+        const heartsLost = Math.abs(result.hearts_delta_student ?? 0);
+        const frozenMsg = result.frozen_until ? ` Frozen for ${instance.freeze_on_wrong_seconds}s.` : "";
+        setBattleLog((prev) => [
+          ...prev,
+          {
+            id: `local-${Date.now()}`,
+            text: `Wrong answer.${heartsLost > 0 ? ` Lost ${heartsLost} heart(s).` : ""}${frozenMsg}`,
+            kind: "danger",
+          },
+        ]);
+      }
+
+      // Update local participant frozen_until so canAnswer reacts immediately
+      if (result.frozen_until) {
+        setParticipants((prev) =>
+          prev.map((p) =>
+            p.student_id === studentId
+              ? { ...p, frozen_until: result.frozen_until ?? undefined }
+              : p
+          )
+        );
+      }
+    } catch (error: any) {
+      console.error("Failed to submit answer:", error);
+      const msg = error?.message || "Failed to submit answer. Try again.";
       setBattleLog((prev) => [
         ...prev,
-        {
-          id: `local-${Date.now()}`,
-          text: "Failed to submit answer.",
-          kind: "danger",
-        },
+        { id: `local-${Date.now()}`, text: msg, kind: "danger" },
       ]);
     } finally {
       setSubmitting(false);
@@ -931,9 +1023,15 @@ const BossFight: React.FC = () => {
 
           <p className="text-white text-base leading-7">{question.question_text}</p>
 
-          {instance.mode_type === "TURN_BASED_GUILD" && instance.active_guild_id ? (
-            <div className="mt-4 text-sm text-cyan-300">
-              Active Guild: <span className="font-bold">{instance.active_guild_id}</span>
+          {instance.mode_type === "TURN_BASED_GUILD" &&
+            instance.active_guild_id &&
+            myParticipant?.guild_id !== instance.active_guild_id ? (
+            <div className="mt-4 p-3 rounded-lg bg-slate-800 border border-slate-600 text-sm text-cyan-300">
+              It is another guild's turn. Your guild will answer next. Active guild: <span className="font-bold">{instance.active_guild_id}</span>
+            </div>
+          ) : instance.mode_type === "TURN_BASED_GUILD" && instance.active_guild_id ? (
+            <div className="mt-4 text-sm text-green-300 font-semibold">
+              It is your guild's turn! Active guild: <span className="font-bold">{instance.active_guild_id}</span>
             </div>
           ) : null}
 
