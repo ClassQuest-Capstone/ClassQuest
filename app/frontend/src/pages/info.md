@@ -186,7 +186,11 @@ TODO: make shop items avaliable to students and not avaliable button to launch t
 
 TODO: make items appear in students shop (DONE)
 
-TODO: make armours and stuff saved in bakend and connect with rewards to unlock. use rewardMilestones for this 
+TODO: make armours and stuff saved in bakend and connect with rewards to unlock. use rewardMilestones for this (DONE)
+
+TODO: add tooltip for xp teacher side
+
+TODO: fix issues with welcome.tsx
 
 TODO: if no image provided use default
 

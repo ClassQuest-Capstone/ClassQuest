@@ -22,6 +22,10 @@ import { listStudentInventoryItems } from "../../api/inventoryItems/client.js";
 import { deleteInventoryItem } from "../../api/inventoryItems/client.js";
 import { listShopItems } from "../../api/shopItems/client.js";
 import type { ShopItem } from "../../api/shopItems/types.js";
+import { listStudentRewardMilestones } from "../../api/rewardMilestones/client.js";
+import type { StudentRewardMilestone, StudentRewardMilestonesResponse } from "../../api/rewardMilestones/types.js";
+import { listStudentRewardClaimsByStudent } from "../../api/studentRewardClaims/client.js";
+import type { StudentRewardClaim } from "../../api/studentRewardClaims/types.js";
 
 type EquipmentSlot = "helmet" | "armour" | "shield" | "pet" | "background";
 
@@ -30,6 +34,11 @@ interface EquipmentItem {
   name: string;
   slot: EquipmentSlot;
   icon: string; // path under public/
+}
+
+interface ClaimedReward extends EquipmentItem {
+  rewardId: string;
+  claimedAt: string;
 }
 
 const SLOT_LABELS: Record<EquipmentSlot, string> = {
@@ -217,7 +226,8 @@ const CharacterPage: React.FC = () => {
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const userMenuButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  const [inventory] = useState<EquipmentItem[]>(INITIAL_INVENTORY);
+  const [claimedRewards, setClaimedRewards] = useState<ClaimedReward[]>([]);
+  const [loadingClaimedRewards, setLoadingClaimedRewards] = useState(false);
   const [equipped, setEquipped] = useState<
     Partial<Record<EquipmentSlot, EquipmentItem | null>>
   >({
@@ -272,6 +282,61 @@ const CharacterPage: React.FC = () => {
       }
     })();
   }, [studentId]);
+
+  // Fetch claimed rewards from backend to populate inventory
+  useEffect(() => {
+    if (!studentId || !classId) {
+      setClaimedRewards([]);
+      return;
+    }
+
+    const fetchClaimedRewards = async () => {
+      try {
+        setLoadingClaimedRewards(true);
+
+        // Fetch student reward milestones (all available rewards)
+        const milestonesResponse = await listStudentRewardMilestones(classId, { studentId });
+        const allMilestones = milestonesResponse.rewards || [];
+
+        // Fetch student reward claims for this class
+        const claimsResponse = await listStudentRewardClaimsByStudent(classId, studentId, "CLAIMED");
+        const claimedRewardIds = new Set(claimsResponse.map((c: StudentRewardClaim) => c.reward_id));
+
+        // Filter only claimed rewards and convert to inventory format
+        const claimed: ClaimedReward[] = allMilestones
+          .filter((m: StudentRewardMilestone) => claimedRewardIds.has(m.reward_id))
+          .map((m: StudentRewardMilestone) => {
+            // Map reward type to equipment slot
+            let slot: EquipmentSlot = "helmet";
+            const type = (m.type || "").toLowerCase();
+            
+            if (type.includes("helmet")) slot = "helmet";
+            else if (type.includes("armor") || type.includes("armour")) slot = "armour";
+            else if (type.includes("shield")) slot = "shield";
+            else if (type.includes("pet")) slot = "pet";
+            else if (type.includes("background")) slot = "background";
+
+            return {
+              rewardId: m.reward_id,
+              id: m.reward_id,
+              name: m.title,
+              slot,
+              icon: m.image_asset_path || "/assets/icons/question.png",
+              claimedAt: new Date().toISOString(),
+            };
+          });
+
+        setClaimedRewards(claimed);
+      } catch (error) {
+        console.error("Failed to fetch claimed rewards:", error);
+        setClaimedRewards([]);
+      } finally {
+        setLoadingClaimedRewards(false);
+      }
+    };
+
+    fetchClaimedRewards();
+  }, [studentId, classId]);
 
   // Fetch shop purchased items
   useEffect(() => {
@@ -511,6 +576,52 @@ const CharacterPage: React.FC = () => {
   const milestoneProgress = getMilestoneProgress();
   const rewards = getRewardsWithStatus();
 
+  // Wrapper around claimReward to refresh claimed rewards after successful claim
+  const handleClaimReward = async (rewardLevel: number) => {
+    try {
+      await claimReward(rewardLevel);
+      // Refresh claimed rewards after successful claim
+      if (studentId && classId) {
+        try {
+          const milestonesResponse = await listStudentRewardMilestones(classId, { studentId });
+          const allMilestones = milestonesResponse.rewards || [];
+
+          const claimsResponse = await listStudentRewardClaimsByStudent(classId, studentId, "CLAIMED");
+          const claimedRewardIds = new Set(claimsResponse.map((c: StudentRewardClaim) => c.reward_id));
+
+          const claimed: ClaimedReward[] = allMilestones
+            .filter((m: StudentRewardMilestone) => claimedRewardIds.has(m.reward_id))
+            .map((m: StudentRewardMilestone) => {
+              let slot: EquipmentSlot = "helmet";
+              const type = (m.type || "").toLowerCase();
+              
+              if (type.includes("helmet")) slot = "helmet";
+              else if (type.includes("armor") || type.includes("armour")) slot = "armour";
+              else if (type.includes("shield")) slot = "shield";
+              else if (type.includes("pet")) slot = "pet";
+              else if (type.includes("background")) slot = "background";
+
+              return {
+                rewardId: m.reward_id,
+                id: m.reward_id,
+                name: m.title,
+                slot,
+                icon: m.image_asset_path || "/assets/cards/mage.png",
+                claimedAt: new Date().toISOString(),
+              };
+            });
+
+          setClaimedRewards(claimed);
+        } catch (error) {
+          console.error("Failed to refresh claimed rewards:", error);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to claim reward:", error);
+      throw error;
+    }
+  };
+
   // Check for heart regeneration every 60 seconds
   useEffect(() => {
     const heartRegenInterval = setInterval(() => {
@@ -692,7 +803,7 @@ const CharacterPage: React.FC = () => {
 
   useEffect(() => {
     feather.replace();
-  }, [isUserMenuOpen, inventory, equipped, tab, quests, questsLoading]);
+  }, [isUserMenuOpen, claimedRewards, equipped, tab, quests, questsLoading]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -738,12 +849,12 @@ const CharacterPage: React.FC = () => {
     if (!id || !itemSlot) return;
     if (itemSlot !== slot) return;
 
-    const item = inventory.find((i) => i.id === id);
+    const item = claimedRewards.find((i: ClaimedReward) => i.id === id);
     if (!item) return;
 
     setEquipped((prev) => ({
       ...prev,
-      [slot]: item,
+      [slot]: item as EquipmentItem,
     }));
   };
 
@@ -1089,38 +1200,53 @@ const CharacterPage: React.FC = () => {
                   </h2>
 
                   <div className="space-y-4">
+                    {/* Claimed Rewards (Equipment) */}
                     <div className="bg-gray-900 rounded-lg p-4 hover:bg-gray-800 transition-colors">
                       <div className="flex justify-between items-center mb-2">
                         <h3 className="font-medium">Equipment</h3>
                         <span className="text-xs text-gray-400">
-                          {inventory.length}/10 slots
+                          {claimedRewards.length}/10 slots
                         </span>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {inventory.map((item) => (
-                          <div
-                            key={item.id}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, item)}
-                            className="bg-gray-800 p-2 rounded flex flex-col items-center text-yellow-300 border border-yellow-500 cursor-grab active:cursor-grabbing"
-                            title={`Drag to ${SLOT_LABELS[item.slot]} slot`}
-                          >
-                            <div className="w-12 h-12 mb-1 flex items-center justify-center">
-                              <img
-                                src={item.icon}
-                                alt={item.name}
-                                className="max-w-full max-h-full object-contain pointer-events-none"
-                              />
+                      
+                      {loadingClaimedRewards ? (
+                        <div className="text-center py-4">
+                          <p className="text-gray-400 text-sm">Loading rewards...</p>
+                        </div>
+                      ) : claimedRewards.length === 0 ? (
+                        <div className="text-center py-4">
+                          <p className="text-gray-400 text-sm">Claim rewards to populate equipment</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-2">
+                          {claimedRewards.map((item) => (
+                            <div
+                              key={item.id}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, item as EquipmentItem)}
+                              className="bg-gray-800 p-2 rounded flex flex-col items-center text-yellow-300 border border-yellow-500 cursor-grab active:cursor-grabbing hover:border-yellow-300 transition-colors"
+                              title={`Drag to ${SLOT_LABELS[item.slot]} slot`}
+                            >
+                              <div className="w-12 h-12 mb-1 flex items-center justify-center">
+                                <img
+                                  src={item.icon}
+                                  alt={item.name}
+                                  className="max-w-full max-h-full object-contain pointer-events-none"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Crect fill='%23444' width='48' height='48'/%3E%3C/svg%3E";
+                                  }}
+                                />
+                              </div>
+                              <span className="text-[10px] text-center">
+                                {item.name}
+                              </span>
+                              <span className="text-[9px] text-gray-400">
+                                {SLOT_LABELS[item.slot]}
+                              </span>
                             </div>
-                            <span className="text-[10px] text-center">
-                              {item.name}
-                            </span>
-                            <span className="text-[9px] text-gray-400">
-                              {SLOT_LABELS[item.slot]}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Class Items */}
@@ -1667,7 +1793,7 @@ const CharacterPage: React.FC = () => {
                               disabled={!r.unlocked || r.claimed}
                               onClick={() => {
                                 if (r.unlocked && !r.claimed) {
-                                  claimReward(r.level).catch((err: any) =>
+                                  handleClaimReward(r.level).catch((err: any) =>
                                     console.error("Claim failed:", err)
                                   );
                                 }
