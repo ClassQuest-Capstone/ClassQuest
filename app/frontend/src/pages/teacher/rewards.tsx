@@ -3,6 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.js";
 import ProfileModal from "../features/teacher/ProfileModal.js";
+import { createShopItem, listShopItems, activateShopItem, deactivateShopItem, updateShopItem } from "../../api/shopItems/client.js";
+import type { ShopItem, CreateShopItemInput, UpdateShopItemInput } from "../../api/shopItems/types.js";
+import { createShopListing, listShopListingsByItem, activateShopListing, deactivateShopListing } from "../../api/shopListings/client.js";
+import type { CreateShopListingInput } from "../../api/shopListings/types.js";
 
 type TeacherUser = {
   id: string;
@@ -26,14 +30,24 @@ type StudentRequest = {
 const rewards = () => {
     const navigate = useNavigate();
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [loading, setIsLoading] = useState(false); // Loading state
+    const [loading, setIsLoading] = useState(false);
     const [teacher, setTeacher] = useState<TeacherUser | null>(null);
     const [shopType, setShopType] = useState("");
+    const [description, setDescription] = useState("");
+    const [category, setCategory] = useState("");
+    const [rarity, setRarity] = useState("");
+    const [isCosmetic, setIsCosmetic] = useState("");
     const [price, setPrice] = useState("");
     const [shopImage, setShopImage] = useState<File | null>(null);
     const [shopLevel, setShopLevel] = useState("");
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<Tab>("Shop Items");
+    const [shopItems, setShopItems] = useState<ShopItem[]>([]);
+    const [loadingItems, setLoadingItems] = useState(false);
+    const [editingItemId, setEditingItemId] = useState<string | null>(null);
+    const [editData, setEditData] = useState<Partial<ShopItem> | null>(null);
+    const [editImage, setEditImage] = useState<File | null>(null);
+    const [editLoading, setEditLoading] = useState(false);
     const [studentRequests, setStudentRequests] = useState<StudentRequest[]>([
       // Mock data - replace with API call
       {
@@ -89,9 +103,10 @@ const rewards = () => {
 
     useEffect(() => {
         feather.replace();
-    })
+    });
+
     // Load teacher data from localStorage
-      useEffect(() => {
+    useEffect(() => {
         const currentUserJson = localStorage.getItem("cq_currentUser");
         if (currentUserJson) {
           try {
@@ -101,24 +116,229 @@ const rewards = () => {
             console.error("Failed to parse teacher data from localStorage:", error);
           }
         }
-      }, []);
-    const handleCreateQuest = (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        const formData = new FormData(event.currentTarget);
-        // TODO: Send reward data to API
-        console.log({
-            shopType,
-            price,
-            shopLevel,
-            shopImage
+    }, []);
+
+    // Load shop items from backend
+    useEffect(() => {
+        const fetchShopItems = async () => {
+            try {
+                setLoadingItems(true);
+                const result = await listShopItems();
+                setShopItems(result.items || []);
+            } catch (error) {
+                console.error("Failed to load shop items:", error);
+            } finally {
+                setLoadingItems(false);
+            }
+        };
+        fetchShopItems();
+    }, []);
+
+    const generateSpritePathFromFile = async (file: File): Promise<string> => {
+        // Convert file to base64 data URL
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target?.result as string;
+                resolve(dataUrl);
+            };
+            reader.readAsDataURL(file);
         });
-        // Reset form
-        setShopType("");
-        setPrice("");
-        setShopLevel("");
-        setShopImage(null);
-        setIsModalOpen(false);
-    }
+    };
+
+    const handleCreateQuest = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        try {
+            setIsLoading(true);
+
+            // Generate sprite path from file or use default
+            let spritePath = "/items/default.png";
+            if (shopImage) {
+                spritePath = await generateSpritePathFromFile(shopImage);
+            }
+
+            // Generate unique IDs
+            const itemId = `item-${Date.now()}`;
+            const listingId = `listing-${Date.now()}`;
+
+            // Create the shop item
+            const itemInput: CreateShopItemInput = {
+                item_id: itemId,
+                name: shopType,
+                description: description,
+                category: category,
+                rarity: rarity as "COMMON" | "UNCOMMON" | "RARE" | "EPIC" | "LEGENDARY",
+                gold_cost: parseInt(price, 10),
+                required_level: parseInt(shopLevel, 10),
+                is_cosmetic_only: isCosmetic === "true",
+                sprite_path: spritePath,
+                is_active: false // New items start as inactive
+            };
+
+            // Call API to create item
+            await createShopItem(itemInput);
+
+            // Create corresponding shop listing
+            const today = new Date();
+            const availableFrom = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+            const farFuture = new Date(today.getFullYear() + 10, today.getMonth(), today.getDate());
+            const availableTo = farFuture.toISOString().split('T')[0]; // YYYY-MM-DD format
+
+            const listingInput: CreateShopListingInput = {
+                shop_listing_id: listingId,
+                item_id: itemId,
+                available_from: availableFrom,
+                available_to: availableTo,
+                is_active: false // Match the item's active status
+            };
+
+            try {
+                await createShopListing(listingInput);
+            } catch (listingError) {
+                console.warn("Failed to create shop listing:", listingError);
+                // Continue anyway - the item was created successfully
+            }
+
+            // Refresh the shop items list
+            const result = await listShopItems();
+            setShopItems(result.items || []);
+
+            // Reset form
+            setShopType("");
+            setDescription("");
+            setCategory("");
+            setRarity("");
+            setIsCosmetic("");
+            setPrice("");
+            setShopLevel("");
+            setShopImage(null);
+            setIsModalOpen(false);
+        } catch (error) {
+            console.error("Failed to create shop item:", error);
+            alert("Failed to create shop item. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleToggleActive = async (itemId: string, currentStatus: boolean) => {
+        try {
+            setLoadingItems(true);
+            
+            // Activate or deactivate the ShopItem
+            if (currentStatus) {
+                // Item is currently active, deactivate it
+                await deactivateShopItem(itemId);
+            } else {
+                // Item is not active, activate it
+                await activateShopItem(itemId);
+            }
+
+            // Sync ShopListings for this item - get all listings for this item
+            try {
+                const listingsResult = await listShopListingsByItem(itemId);
+                const listings = listingsResult.items || [];
+
+                // Update all shop listings to match the new item status
+                for (const listing of listings) {
+                    if (currentStatus && listing.is_active) {
+                        // Item deactivated
+                        await deactivateShopListing(listing.shop_listing_id);
+                    } else if (!currentStatus && !listing.is_active) {
+                        // Item activated
+                        await activateShopListing(listing.shop_listing_id);
+                    }
+                }
+            } catch (listingError) {
+                console.warn("Failed to sync ShopListings for item:", listingError);
+                //Shop item status was updated successfully
+            }
+            
+            // Refresh the shop items list
+            const result = await listShopItems();
+            setShopItems(result.items || []);
+        } catch (error) {
+            console.error("Failed to toggle item status:", error);
+            alert("Failed to update item status. Please try again.");
+        } finally {
+            setLoadingItems(false);
+        }
+    };
+
+    const handleEditItem = (item: ShopItem) => {
+        setEditingItemId(item.item_id);
+        setEditData({ ...item });
+        setEditImage(null);
+    };
+
+    const handleCancelEdit = () => {
+        setEditingItemId(null);
+        setEditData(null);
+        setEditImage(null);
+    };
+
+    const handleSaveEdit = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!editData || !editingItemId) return;
+
+        try {
+            setEditLoading(true);
+
+            // Handle image if a new one was selected
+            let updatedSpritePath = editData.sprite_path;
+            if (editImage) {
+                updatedSpritePath = await generateSpritePathFromFile(editImage);
+            }
+
+            // Create update object
+            const updateInput: UpdateShopItemInput = {
+                name: editData.name,
+                description: editData.description,
+                category: editData.category,
+                rarity: editData.rarity as "COMMON" | "UNCOMMON" | "RARE" | "EPIC" | "LEGENDARY",
+                gold_cost: editData.gold_cost,
+                required_level: editData.required_level,
+                is_cosmetic_only: editData.is_cosmetic_only,
+                sprite_path: updatedSpritePath,
+            };
+
+            // Call API to update item
+            await updateShopItem(editingItemId, updateInput);
+
+            // Refresh the shop items list
+            const result = await listShopItems();
+            setShopItems(result.items || []);
+
+            // Close modal
+            handleCancelEdit();
+        } catch (error) {
+            console.error("Failed to update shop item:", error);
+            alert("Failed to update shop item. Please try again.");
+        } finally {
+            setEditLoading(false);
+        }
+    };
+
+    const validateImageSize = (file: File): boolean => {
+        const maxSizeMB = 5;
+        const maxSizeBytes = maxSizeMB * 1024 * 1024;
+        return file.size <= maxSizeBytes;
+    };
+
+    const handleImageSelect = (file: File | undefined, isEdit: boolean = false) => {
+        if (!file) return;
+
+        if (!validateImageSize(file)) {
+            alert(`Image size exceeds ${5}MB limit. Please select a smaller image.`);
+            return;
+        }
+
+        if (isEdit) {
+            setEditImage(file);
+        } else {
+            setShopImage(file);
+        }
+    };
     
 
     return (
@@ -182,21 +402,16 @@ const rewards = () => {
                         <i data-feather="plus" className="mr-2"></i> Create Items
                     </button>
                     </div>
-                     {/* Tabs */}
-                    <div className="mb-6 flex justify-center ">
+                     {/* Tabs - Commented out since Shop Items is the only page */}
+                    {/* <div className="mb-6 flex justify-center ">
                       <nav className="flex space-x-8 ">
                         <button className={tabClass("Shop Items")} onClick={() => setActiveTab("Shop Items")}>
                           Shop Items
                         </button>
-                        <button className={tabClass("Student Requests")} onClick={() => setActiveTab("Student Requests")}>
-                          Student Requests
-                        </button>
                       </nav>
-                    </div>
+                    </div> */}
 
                     {/** Categories*/}
-            {activeTab === "Shop Items" && (
-              <>
                     <div className="mb-8">
                       <div className="grid grid-cols-1 gap-4 text-white">
                           
@@ -229,16 +444,85 @@ const rewards = () => {
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Level</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200"></tbody>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                        {loadingItems ? (
+                            <tr>
+                                <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
+                                    Loading shop items...
+                                </td>
+                            </tr>
+                        ) : shopItems.length === 0 ? (
+                            <tr>
+                                <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
+                                    No shop items created yet. Click "Create Items" to get started.
+                                </td>
+                            </tr>
+                        ) : (
+                            shopItems.map((item) => (
+                                <tr key={item.item_id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        Level {item.required_level}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <img
+                                            src={item.sprite_path}
+                                            alt={item.name}
+                                            className="h-10 w-10 object-cover rounded"
+                                            onError={(e) => {
+                                                (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect fill='%23ddd' width='40' height='40'/%3E%3C/svg%3E";
+                                            }}
+                                        />
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        {item.name}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                        {item.description}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {item.category}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-yellow-600">
+                                        {item.gold_cost} Gold
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        <button
+                                            onClick={() => handleToggleActive(item.item_id, item.is_active)}
+                                            disabled={loadingItems}
+                                            className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                                                item.is_active
+                                                    ? "bg-green-100 text-green-800 hover:bg-green-200"
+                                                    : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                        >
+                                            {item.is_active ? "Active" : "Activate"}
+                                        </button>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm flex gap-2">
+                                        <button
+                                            onClick={() => handleEditItem(item)}
+                                            className="text-blue-600 hover:text-blue-800 transition-colors p-1 rounded hover:bg-blue-50"
+                                            title="Edit item"
+                                        >
+                                            <i data-feather="edit-2" className="w-5 h-5"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
                 </table>
              </div>
                 </div>
-              </>
-             )}
+
+             {/* Commented out Student Requests section
              {activeTab === "Student Requests" && (
               <div className="bg-white rounded-xl shadow-lg p-6 text-gray-900">
                 <div className="flex justify-between items-center mb-6">
@@ -310,6 +594,7 @@ const rewards = () => {
                 )}
               </div>
              )}
+             */}
           </main>
           {/* Modal */}
           {isModalOpen && (
@@ -334,6 +619,79 @@ const rewards = () => {
                       required
                       placeholder="Enter item type. e.g 5mins Phone Time"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+                  </div>
+                  {/* Description Input */}
+                 <div>
+                    <label
+                      htmlFor="description"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Description
+                    </label>
+                    <input
+                      type="text"
+                      id="description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      required
+                      placeholder="Enter item description"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+                  </div>
+                  {/* Category Dropdown */}
+                  <div>
+                    <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
+                      Category
+                    </label>
+                    <select
+                      id="category"
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select a category...</option>
+                      <option value="CLASS_ITEMS">Class Items</option>
+                      <option value="COSMETIC">Cosmetic</option>
+                      <option value="POWER_UPS">Power-ups</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+                   {/* Rarity Dropdown */}
+                  <div>
+                    <label htmlFor="Rarity" className="block text-sm font-medium text-gray-700 mb-2">
+                      Rarity
+                    </label>
+                    <select
+                      id="rarity"
+                      value={rarity}
+                      onChange={(e) => setRarity(e.target.value)}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select a rarity...</option>
+                      <option value="COMMON">Common</option>
+                      <option value="UNCOMMON">Uncommon</option>
+                      <option value="RARE">Rare</option>
+                      <option value="EPIC">Epic</option>
+                      <option value="LEGENDARY">Legendary</option>
+                    </select>
+                  </div>
+                  {/* Is cosmetic dropdown */}
+                  <div>
+                    <label htmlFor="isCosmetic" className="block text-sm font-medium text-gray-700 mb-2">
+                      Is the item cosmetic only?
+                    </label>
+                    <select
+                      id="isCosmetic"
+                      value={isCosmetic}
+                      onChange={(e) => setIsCosmetic(e.target.value)}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select an option...</option>
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
                   </div>
                   {/* Price Dropdown */}
                   <div>
@@ -381,7 +739,7 @@ const rewards = () => {
                   </div>
                   <div>
                     <label
-                      htmlFor="shopImage"
+                      htmlFor="sprite_path"
                       className="block text-sm font-medium text-gray-700 mb-2"
                     >
                       Item Image
@@ -389,20 +747,43 @@ const rewards = () => {
 
                     <button type="button">
                       <label
-                        htmlFor="shopImage"
-                        className="w-full flex flex-col items-center px-4 py-2 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:border-gray-400"
+                        htmlFor="sprite_path"
+                        className={`w-full flex flex-col items-center px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                          shopImage
+                            ? "border-green-300 bg-green-50 hover:border-green-400"
+                            : "border-gray-300 hover:border-gray-400"
+                        }`}
                       >
-                        <i data-feather="upload-cloud" className="w-6 h-6 mb-2"></i>
-                        <span className="text-sm text-gray-600">Upload Image</span>
+                        {shopImage ? (
+                          <>
+                            <i data-feather="check-circle" className="w-6 h-6 mb-2 text-green-600"></i>
+                            <span className="text-sm font-medium text-green-700">{shopImage.name}</span>
+                          </>
+                        ) : (
+                          <>
+                            <i data-feather="upload-cloud" className="w-6 h-6 mb-2 text-gray-600"></i>
+                            <span className="text-sm text-gray-600">Upload Image</span>
+                          </>
+                        )}
                       </label>
                       <input
                         type="file"
-                        id="shopImage"
+                        id="sprite_path"
                         accept="image/*"
-                        onChange={(e) => setShopImage(e.target.files![0])}
+                        onChange={(e) => handleImageSelect(e.target.files?.[0], false)}
                         className="hidden"
                       />
                     </button>
+                    {shopImage && (
+                      <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
+                        <i data-feather="check" className="w-4 h-4"></i>
+                        Image selected successfully
+                      </p>
+                    )}
+                    <p className="text-xs text-red-500 mt-2">
+                      <i data-feather="alert-circle" className="w-4 h-4 inline mr-1"></i>
+                      Maximum file size: 900KB
+                    </p>
                   </div>
 
 
@@ -420,10 +801,201 @@ const rewards = () => {
                       onClick={() => {
                         setIsModalOpen(false);
                         setShopType("");
+                        setDescription("");
+                        setCategory("");
+                        setRarity("");
+                        setIsCosmetic("");
                         setPrice("");
                         setShopLevel("");
                         setShopImage(null);
                       }}
+                      className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-900 font-medium py-2 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Edit Modal */}
+          {editingItemId && editData && (
+            <div className="fixed inset-0 bg-white/300 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center text-gray-900">
+              <div className="relative top-20 mx-auto p-5 border w-full max-w-xl shadow-lg rounded-md bg-white">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Edit Shop Item</h2>
+                
+                <form onSubmit={handleSaveEdit} className="space-y-5">
+                  <div>
+                    <label htmlFor="edit_shopType" className="block text-sm font-medium text-gray-700 mb-2">
+                      Item Type
+                    </label>
+                    <input
+                      type="text"
+                      id="edit_shopType"
+                      value={editData.name || ""}
+                      onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                      required
+                      placeholder="Enter item type"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit_description" className="block text-sm font-medium text-gray-700 mb-2">
+                      Description
+                    </label>
+                    <input
+                      type="text"
+                      id="edit_description"
+                      value={editData.description || ""}
+                      onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                      required
+                      placeholder="Enter item description"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit_category" className="block text-sm font-medium text-gray-700 mb-2">
+                      Category
+                    </label>
+                    <select
+                      id="edit_category"
+                      value={editData.category || ""}
+                      onChange={(e) => setEditData({ ...editData, category: e.target.value })}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select a category...</option>
+                      <option value="CLASS_ITEMS">Class Items</option>
+                      <option value="COSMETIC">Cosmetic</option>
+                      <option value="POWER_UPS">Power-ups</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit_rarity" className="block text-sm font-medium text-gray-700 mb-2">
+                      Rarity
+                    </label>
+                    <select
+                      id="edit_rarity"
+                      value={editData.rarity || ""}
+                      onChange={(e) => setEditData({ ...editData, rarity: e.target.value as any })}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select a rarity...</option>
+                      <option value="COMMON">Common</option>
+                      <option value="UNCOMMON">Uncommon</option>
+                      <option value="RARE">Rare</option>
+                      <option value="EPIC">Epic</option>
+                      <option value="LEGENDARY">Legendary</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit_isCosmetic" className="block text-sm font-medium text-gray-700 mb-2">
+                      Is the item cosmetic only?
+                    </label>
+                    <select
+                      id="edit_isCosmetic"
+                      value={editData.is_cosmetic_only ? "true" : "false"}
+                      onChange={(e) => setEditData({ ...editData, is_cosmetic_only: e.target.value === "true" })}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select an option...</option>
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit_price" className="block text-sm font-medium text-gray-700 mb-2">
+                      Price (Gold)
+                    </label>
+                    <input
+                      type="number"
+                      id="edit_price"
+                      value={editData.gold_cost || ""}
+                      onChange={(e) => setEditData({ ...editData, gold_cost: parseInt(e.target.value, 10) || 0 })}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit_level" className="block text-sm font-medium text-gray-700 mb-2">
+                      Level
+                    </label>
+                    <input
+                      type="number"
+                      id="edit_level"
+                      value={editData.required_level || ""}
+                      onChange={(e) => setEditData({ ...editData, required_level: parseInt(e.target.value, 10) || 0 })}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="edit_sprite_path" className="block text-sm font-medium text-gray-700 mb-2">
+                      Item Image (Optional)
+                    </label>
+                    <button type="button">
+                      <label
+                        htmlFor="edit_sprite_path"
+                        className={`w-full flex flex-col items-center px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                          editImage
+                            ? "border-green-300 bg-green-50 hover:border-green-400"
+                            : "border-gray-300 hover:border-gray-400"
+                        }`}
+                      >
+                        {editImage ? (
+                          <>
+                            <i data-feather="check-circle" className="w-6 h-6 mb-2 text-green-600"></i>
+                            <span className="text-sm font-medium text-green-700">{editImage.name}</span>
+                          </>
+                        ) : (
+                          <>
+                            <i data-feather="upload-cloud" className="w-6 h-6 mb-2 text-gray-600"></i>
+                            <span className="text-sm text-gray-600">Replace Image</span>
+                          </>
+                        )}
+                      </label>
+                      <input
+                        type="file"
+                        id="edit_sprite_path"
+                        accept="image/*"
+                        onChange={(e) => handleImageSelect(e.target.files?.[0], true)}
+                        className="hidden"
+                      />
+                    </button>
+                    {editImage && (
+                      <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
+                        <i data-feather="check" className="w-4 h-4"></i>
+                        Image selected successfully
+                      </p>
+                    )}
+                    <p className="text-xs text-red-500 mt-2">
+                      <i data-feather="alert-circle" className="w-4 h-4 inline mr-1"></i>
+                      Maximum file size: 900KB
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      type="submit"
+                      disabled={editLoading}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition-colors disabled:bg-gray-400"
+                    >
+                      {editLoading ? "Saving..." : "Save Changes"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
                       className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-900 font-medium py-2 rounded-lg transition-colors"
                     >
                       Cancel

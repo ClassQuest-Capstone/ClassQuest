@@ -182,7 +182,18 @@ TODO: tool tip to inidicate answers quest question creation (DONE)
 
 TODO: Error with modifying questions from quest template (DONE)
 
-TODO: make shop items avaliable to students and not avaliable button to launch to shop?
+TODO: make shop items avaliable to students and not avaliable button to launch to shop? (DONE)
+
+TODO: make items appear in students shop (DONE)
+
+TODO: make armours and stuff saved in bakend and connect with rewards to unlock 
+
+TODO: if no image provided use default
+
+TODO: TELL TEAM THAT REQUEST TO USE CLASS ITEMS DOES NOT WORK
+
+
+HARDCODED EACH ITEM TO BE IN SHOP FOR 2 WEEKS ???
 
 TODO: revisit heart logic to work with student's score (DONE) 
 

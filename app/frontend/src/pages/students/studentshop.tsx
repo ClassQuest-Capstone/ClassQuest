@@ -1,7 +1,12 @@
 import React, { useEffect, useState, useMemo } from "react";
-import feather from "feather-icons";
 import { Link } from "react-router-dom";
 import { usePlayerProgression } from "../hooks/students/usePlayerProgression.js";
+import { listClassShopListings, listActiveShopListings } from "../../api/shopListings/client.js";
+import { listShopItems } from "../../api/shopItems/client.js";
+import { grantInventoryItem } from "../../api/inventoryItems/client.js";
+import { upsertPlayerState, getPlayerState } from "../../api/playerStates.js";
+import type { ShopListing } from "../../api/shopListings/types.js";
+import type { ShopItem } from "../../api/shopItems/types.js";
 
 type StudentUser = {
   id: string;
@@ -23,21 +28,27 @@ function getCurrentStudent(): StudentUser | null {
   return null;
 }
 
-// Determine rarity tier based on gold price
-function getRarityTier(price: number) {
-  if (price >= 900) return { tier: "Legendary", border: "border-yellow-400", gradient: "from-yellow-900/70 to-orange-900/70", badge: "bg-yellow-400 text-yellow-900", glow: "hover:shadow-yellow-500/50" };
-  if (price >= 500) return { tier: "Epic", border: "border-purple-500", gradient: "from-purple-900/70 to-pink-900/70", badge: "bg-purple-400 text-white", glow: "hover:shadow-purple-500/50" };
-  if (price >= 300) return { tier: "Rare", border: "border-blue-400", gradient: "from-blue-900/80 to-cyan-900/80", badge: "bg-blue-400 text-white", glow: "hover:shadow-blue-500/50" };
-  if (price >= 160) return { tier: "Uncommon", border: "border-green-400", gradient: "from-green-900/70 to-emerald-900/70", badge: "bg-green-400 text-green-900", glow: "hover:shadow-green-500/50" };
-  return { tier: "Common", border: "border-gray-300", gradient: "from-gray-500/70 to-gray-600/70", badge: "bg-gray-300 text-gray-700", glow: "hover:shadow-gray-400/50" };
+// Map rarity tier to styling
+function getRarityTier(rarity: string) {
+  const rarityMap: { [key: string]: { tier: string; border: string; gradient: string; badge: string; glow: string } } = {
+    "LEGENDARY": { tier: "Legendary", border: "border-yellow-400", gradient: "from-yellow-900/70 to-orange-900/70", badge: "bg-yellow-400 text-yellow-900", glow: "hover:shadow-yellow-500/50" },
+    "EPIC": { tier: "Epic", border: "border-purple-500", gradient: "from-purple-900/70 to-pink-900/70", badge: "bg-purple-400 text-white", glow: "hover:shadow-purple-500/50" },
+    "RARE": { tier: "Rare", border: "border-blue-400", gradient: "from-blue-900/80 to-cyan-900/80", badge: "bg-blue-400 text-white", glow: "hover:shadow-blue-500/50" },
+    "UNCOMMON": { tier: "Uncommon", border: "border-green-400", gradient: "from-green-900/70 to-emerald-900/70", badge: "bg-green-400 text-green-900", glow: "hover:shadow-green-500/50" },
+    "COMMON": { tier: "Common", border: "border-gray-300", gradient: "from-gray-500/70 to-gray-600/70", badge: "bg-gray-300 text-gray-700", glow: "hover:shadow-gray-400/50" },
+  };
+  return rarityMap[rarity] || rarityMap["COMMON"];
 }
 
 const StudentShop: React.FC = () => {
   const student = useMemo(() => getCurrentStudent(), []);
   const studentId = student?.id ?? null;
   const [classId, setClassId] = useState<string | null>(null);
+  const [shopItems, setShopItems] = useState<(ShopItem & { listing_id: string })[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [purchasingItemIds, setPurchasingItemIds] = useState<Set<string>>(new Set());
   
-    useEffect(() => {
+  useEffect(() => {
     // From student
     if (student?.classId) {
       setClassId(student.classId);
@@ -59,10 +70,117 @@ const StudentShop: React.FC = () => {
     studentId || "",
     classId || ""
   );
-  
+
+  // Fetch shop listings and items
   useEffect(() => {
-    feather.replace();
-  }, []);
+    const fetchShopItems = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch listings for the class or globally
+        const listingsResult = classId
+          ? await listClassShopListings(classId)
+          : await listActiveShopListings();
+        
+        const listings = listingsResult.items || [];
+
+        // Fetch all shop items
+        const itemsResult = await listShopItems();
+        const allItems = itemsResult.items || [];
+
+        // Filter listings by is_active status and map to items
+        const displayItems = listings
+          .filter(listing => listing.is_active === true) // Only show active listings
+          .map(listing => {
+            // Find the corresponding item from ShopItems
+            const item = allItems.find(i => i.item_id === listing.item_id);
+            if (item) {
+              return {
+                ...item,
+                listing_id: listing.shop_listing_id,
+              };
+            }
+            return null;
+          })
+          .filter((item): item is (ShopItem & { listing_id: string }) => item !== null);
+
+        // Sort by price (lowest to highest)
+        displayItems.sort((a, b) => a.gold_cost - b.gold_cost);
+
+        setShopItems(displayItems);
+      } catch (error) {
+        console.error("Failed to fetch shop items:", error);
+        setShopItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchShopItems();
+  }, [classId]);
+
+  const handleBuy = async (item: ShopItem & { listing_id: string }) => {
+    if (!studentId || !classId) {
+      alert("Missing student or class information");
+      return;
+    }
+
+    const canAfford = profile.gold >= item.gold_cost;
+    const meetsLevel = item.required_level <= (profile.level || 1);
+    
+    if (!canAfford || !meetsLevel) {
+      alert(
+        !canAfford
+          ? "You don't have enough gold"
+          : `You need to be level ${item.required_level} to purchase this item`
+      );
+      return;
+    }
+
+    try {
+      setPurchasingItemIds(prev => new Set(prev).add(item.item_id));
+
+      // Get current player state to preserve XP values
+      const playerState = await getPlayerState(classId, studentId);
+      
+      // Calculate new gold amount
+      const newGoldAmount = playerState.gold - item.gold_cost;
+
+      // Upsert player state with preserved XP and updated gold
+      await upsertPlayerState(classId, studentId, {
+        current_xp: playerState.current_xp,
+        xp_to_next_level: playerState.xp_to_next_level,
+        total_xp_earned: playerState.total_xp_earned,
+        hearts: playerState.hearts,
+        max_hearts: playerState.max_hearts,
+        gold: newGoldAmount,
+        status: "ALIVE",
+      });
+
+      // Grant item to student's inventory
+      await grantInventoryItem({
+        student_id: studentId,
+        class_id: classId,
+        item_id: item.item_id,
+        quantity: 1,
+        acquired_from: "SHOP_PURCHASE",
+      });
+
+      // Update local profile state
+      (profile as any).gold = newGoldAmount;
+
+      alert("Item purchased successfully!");
+    } catch (error) {
+      console.error("Failed to purchase item:", error);
+      alert("Failed to purchase item. Please try again.");
+    } finally {
+      setPurchasingItemIds(prev => {
+        const updated = new Set(prev);
+        updated.delete(item.item_id);
+        return updated;
+      });
+    }
+  };
 
   return (
     <div
@@ -165,7 +283,7 @@ const StudentShop: React.FC = () => {
           </div>
 
           <div className="flex items-center bg-yellow-100 px-4 py-2 rounded-full">
-            <i data-feather="coins" className="text-yellow-900 mr-2"></i>
+            <i data-feather="coin" className="text-yellow-900 mr-2"></i>
             <img
                 src="/assets/icons/gold-bar.png"
                 alt="Gold"
@@ -197,112 +315,82 @@ const StudentShop: React.FC = () => {
 
         {/* SHOP ITEMS GRID */}
         <div className="bg-white/30 rounded-xl shadow-lg p-6 text-gray-900">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Sample items - Replace with dynamic data from API */}
-            {[
-              {
-                id: "1",
-                name: "Wizard Hat",
-                type: "Avatar Items",
-                level: "Epic",
-                price: 650,
-                img: "http://static.photos/education/200x200/11",
-                description: "+15 Wisdom",
-              },
-              {
-                id: "2",
-                name: "Math Shield",
-                type: "Avatar Items",
-                level: "Rare",
-                price: 200,
-                img: "http://static.photos/education/200x200/12",
-                description: "+10 Knowledge",
-              },
-              {
-                id: "3",
-                name: "Health Potion",
-                type: "Power-ups",
-                level: "Common",
-                price: 100,
-                img: "http://static.photos/education/200x200/13",
-                description: "Restores 25 HP",
-              },
-              {
-                id: "4",
-                name: "Time Extender",
-                type: "Power-ups",
-                level: "Rare",
-                price: 320,
-                img: "http://static.photos/education/200x200/14",
-                description: "+30 seconds on timer",
-              },
-              {
-                id: "5",
-                name: "5mins Phone Time",
-                type: "Cosmetics",
-                level: "Special",
-                price: 180,
-                img: "http://static.photos/education/200x200/15",
-                description: "Unlock 5 minutes of free time",
-              },
-              {
-                id: "6",
-                name: "Extra Break",
-                type: "Cosmetics",
-                level: "Legendary",
-                price: 990,
-                img: "http://static.photos/education/200x200/16",
-                description: "Enjoy an extra break period",
-              },
-            ].map((item) => {
-              const rarity = getRarityTier(item.price);
-              return (
-                <div
-                  key={item.id}
-                  className={`shop-item bg-gradient-to-br ${rarity.gradient} border-2 ${rarity.border} rounded-lg transition transform hover:-translate-y-2 ${rarity.glow} hover:shadow-lg overflow-hidden`}
-                >
-                  <div className="bg-gradient-to-b from-gray-800 to-gray-900 h-40 flex items-center justify-center overflow-hidden mb-3 border-b border-gray-700/50">
-                    <img src={item.img} className="h-28 w-full object-contain drop-shadow-lg" alt={item.name} />
-                  </div>
+          {loading ? (
+            <div className="text-center py-12">
+              <i data-feather="loader" className="w-12 h-12 mx-auto text-gray-900 mb-3 animate-spin"></i>
+              <p className="text-gray-700 font-medium">Loading shop items...</p>
+            </div>
+          ) : shopItems.length === 0 ? (
+            <div className="text-center py-12">
+              <i data-feather="inbox" className="w-12 h-12 mx-auto text-gray-900 mb-3"></i>
+              <p className="text-gray-700 font-medium">No items available in the shop</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {shopItems.map((item) => {
+                const rarity = getRarityTier(item.rarity);
+                const canAfford = profile.gold >= item.gold_cost;
+                const meetsLevel = item.required_level <= (profile.level || 1);
+                const canBuy = canAfford && meetsLevel;
 
-                  <div className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-white font-bold text-sm flex-1">{item.name}</h3>
-                      <span className={`text-xs font-bold px-2 py-1 ${rarity.badge} rounded-full`}>
-                        {rarity.tier}
-                      </span>
+                return (
+                  <div
+                    key={item.item_id}
+                    className={`shop-item bg-gradient-to-br ${rarity.gradient} border-2 ${rarity.border} rounded-lg transition transform hover:-translate-y-2 ${rarity.glow} hover:shadow-lg overflow-hidden`}
+                  >
+                    <div className="bg-gradient-to-b from-black/40 to-black/60 h-40 flex items-center justify-center overflow-hidden mb-3 border-b border-gray-700/50">
+                      <img
+                        src={item.sprite_path}
+                        className="h-full w-full object-contain drop-shadow-lg"
+                        alt={item.name}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='112' height='112'%3E%3Crect fill='%23333' width='112' height='112'/%3E%3Ctext x='50%25' y='50%25' font-size='12' fill='%23666' text-anchor='middle' dy='.3em'%3ENo Image%3C/text%3E%3C/svg%3E";
+                        }}
+                      />
                     </div>
 
-                    <p className="text-gray-200 text-xs mb-3 line-clamp-2">{item.description}</p>
-
-                    <div className="flex items-center justify-between pt-3 border-t border-gray-400/30">
-                      <div className="flex items-center gap-1">
-                        <img
-                          src="/assets/icons/gold-bar.png"
-                          alt="Gold"
-                          className="h-4 w-4"
-                        />
-                        <span className="text-white font-bold text-sm">{item.price}</span>
+                    <div className="p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-white font-bold text-sm flex-1">{item.name}</h3>
+                        <span className={`text-xs font-bold px-2 py-1 ${rarity.badge} rounded-full`}>
+                          {rarity.tier}
+                        </span>
                       </div>
 
-                      <button 
-                        disabled={profile.gold < item.price}
-                        className="bg-yellow-400 hover:bg-yellow-500 disabled:bg-gray-500 disabled:cursor-not-allowed text-gray-900 px-3 py-1 rounded-full text-xs font-bold transition transform hover:scale-105"
-                      >
-                        Buy Now
-                      </button>
+                      <p className="text-gray-200 text-xs mb-2 line-clamp-2">{item.description}</p>
+
+                      <div className="text-xs text-gray-300 mb-3 flex gap-2 flex-wrap">
+                       {/* <span className="inline-block bg-white/20 px-2 py-1 rounded">{item.category}</span>*/}
+                        {item.required_level > 1 && (
+                          <span className="inline-block bg-white/20 px-2 py-1 rounded">Lv. {item.required_level}</span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-3 border-t border-gray-400/30">
+                        <div className="flex items-center gap-1">
+                          <img
+                            src="/assets/icons/gold-bar.png"
+                            alt="Gold"
+                            className="h-4 w-4"
+                          />
+                          <span className="text-white font-bold text-sm">{item.gold_cost.toLocaleString()}</span>
+                        </div>
+
+                        <button
+                          disabled={!canBuy || purchasingItemIds.has(item.item_id)}
+                          onClick={() => handleBuy(item)}
+                          title={!canAfford ? "Not enough gold" : !meetsLevel ? `Requires Level ${item.required_level}` : "Purchase item"}
+                          className="bg-yellow-400 hover:bg-yellow-500 disabled:bg-gray-500 disabled:cursor-not-allowed text-gray-900 px-3 py-1 rounded-full text-xs font-bold transition transform hover:scale-105"
+                        >
+                          {purchasingItemIds.has(item.item_id) ? "..." : "Buy"}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Empty State */}
-          <div className="text-center py-12">
-            <i data-feather="inbox" className="w-12 h-12 mx-auto text-gray-900 mb-3"></i>
-            <p className="text-gray-500">Loading items...</p>
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

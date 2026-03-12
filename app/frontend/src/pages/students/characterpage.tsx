@@ -18,6 +18,10 @@ import { getResponsesByInstanceAndStudent } from "../../api/questQuestionRespons
 import { getStudentEnrollments, type EnrollmentItem, } from "../../api/classEnrollments.js";
 
 import { usePlayerProgression } from "../hooks/students/usePlayerProgression.js";
+import { listStudentInventoryItems } from "../../api/inventoryItems/client.js";
+import { deleteInventoryItem } from "../../api/inventoryItems/client.js";
+import { listShopItems } from "../../api/shopItems/client.js";
+import type { ShopItem } from "../../api/shopItems/types.js";
 
 type EquipmentSlot = "helmet" | "armour" | "shield" | "pet" | "background";
 
@@ -224,6 +228,11 @@ const CharacterPage: React.FC = () => {
     background: null,
   });
 
+  // Shop purchased items state
+  const [shopPurchasedItems, setShopPurchasedItems] = useState<(ShopItem & { inventory_item_id: string; quantity: number })[]>([]);
+  const [loadingShopItems, setLoadingShopItems] = useState(false);
+  const [usingItemIds, setUsingItemIds] = useState<Set<string>>(new Set());
+
   // Tabs state
   const [tab, setTab] = useState<TabKey>("quests");
   const [showAllQuests, setShowAllQuests] = useState(false);
@@ -261,6 +270,90 @@ const CharacterPage: React.FC = () => {
       }
     })();
   }, [studentId]);
+
+  // Fetch shop purchased items
+  useEffect(() => {
+    if (!studentId || !classId) {
+      setShopPurchasedItems([]);
+      return;
+    }
+
+    const fetchShopItems = async () => {
+      try {
+        setLoadingShopItems(true);
+        
+        // Get all inventory items for student with SHOP_PURCHASE origin
+        const inventoryResult = await listStudentInventoryItems(studentId);
+        const shopItems = (inventoryResult.items || []).filter(
+          item => item.acquired_from === "SHOP_PURCHASE"
+        );
+
+        if (shopItems.length === 0) {
+          setShopPurchasedItems([]);
+          return;
+        }
+
+        // Get all shop items
+        const allShopItemsResult = await listShopItems();
+        const allShopItems = allShopItemsResult.items || [];
+
+        // Map inventory items to shop items
+        const mapped = shopItems
+          .map(inv => {
+            const shopItem = allShopItems.find(s => s.item_id === inv.item_id);
+            if (shopItem) {
+              return {
+                ...shopItem,
+                inventory_item_id: inv.inventory_item_id,
+                quantity: inv.quantity,
+              };
+            }
+            return null;
+          })
+          .filter((item): item is (ShopItem & { inventory_item_id: string; quantity: number }) => item !== null);
+
+        setShopPurchasedItems(mapped);
+      } catch (error) {
+        console.error("Failed to fetch shop purchased items:", error);
+        setShopPurchasedItems([]);
+      } finally {
+        setLoadingShopItems(false);
+      }
+    };
+
+    fetchShopItems();
+  }, [studentId, classId]);
+
+  // Handle using an item
+  const handleUseItem = async (inventoryItemId: string, itemId: string) => {
+    if (!studentId) {
+      alert("Student ID not found");
+      return;
+    }
+
+    try {
+      setUsingItemIds(prev => new Set(prev).add(inventoryItemId));
+
+      // Delete the item from inventory
+      await deleteInventoryItem(studentId, itemId);
+
+      // Remove from local state
+      setShopPurchasedItems(prev =>
+        prev.filter(item => item.inventory_item_id !== inventoryItemId)
+      );
+
+      alert("Item used successfully!");
+    } catch (error) {
+      console.error("Failed to use item:", error);
+      alert("Failed to use item. Please try again.");
+    } finally {
+      setUsingItemIds(prev => {
+        const updated = new Set(prev);
+        updated.delete(inventoryItemId);
+        return updated;
+      });
+    }
+  };
 
   // Player progression fetches from player state and student profile
   const {
@@ -894,23 +987,49 @@ const CharacterPage: React.FC = () => {
                     {/* Class Items */}
                     <div className="bg-gray-900 rounded-lg p-4 hover:bg-gray-800 transition-colors">
                       <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-medium">Class Items</h3>
-                        <span className="text-xs text-gray-400">5/10 slots</span>
+                        <h3 className="font-medium">Shop Items</h3>
+                        <span className="text-xs text-gray-400">{shopPurchasedItems.length} items</span>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="bg-gray-800 p-2 rounded flex flex-col items-center text-yellow-300 border border-yellow-500">
-                          <i data-feather="feather" className="text-white mb-1" />
-                          <span className="text-xs">Math Feather (5)</span>
+                      
+                      {loadingShopItems ? (
+                        <div className="text-center py-8">
+                          <p className="text-gray-400 text-sm">Loading items...</p>
                         </div>
-                        <div className="bg-gray-800 p-2 rounded flex flex-col items-center text-yellow-300 border border-yellow-500">
-                          <i data-feather="star" className="text-purple-500 mb-1" />
-                          <span className="text-xs">Knowledge Gem (2)</span>
+                      ) : shopPurchasedItems.length === 0 ? (
+                        <div className="text-center py-8">
+                          <p className="text-gray-400 text-sm">No shop items purchased yet</p>
                         </div>
-                        <div className="bg-gray-800 p-2 rounded flex flex-col items-center text-yellow-300 border border-yellow-500">
-                          <i data-feather="book" className="text-green-500 mb-1" />
-                          <span className="text-xs">Ancient Page (7)</span>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-2">
+                          {shopPurchasedItems.map((item) => (
+                            <div
+                              key={item.inventory_item_id}
+                              className="bg-gray-800 p-2 rounded flex flex-col items-center border border-gray-600 hover:border-gray-400 transition-colors"
+                            >
+                              <img
+                                src={item.sprite_path}
+                                alt={item.name}
+                                className="w-12 h-12 object-contain mb-1"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Crect fill='%23444' width='48' height='48'/%3E%3C/svg%3E";
+                                }}
+                              />
+                              <span className="text-xs text-center text-gray-200 line-clamp-2">{item.name}</span>
+                              {item.quantity > 1 && (
+                                <span className="text-xs text-yellow-300 font-bold">x{item.quantity}</span>
+                              )}
+                              <button
+                                onClick={() => handleUseItem(item.inventory_item_id, item.item_id)}
+                                disabled={usingItemIds.has(item.inventory_item_id)}
+                                className="mt-1 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-2 py-1 rounded text-white transition"
+                                title="Use item"
+                              >
+                                {usingItemIds.has(item.inventory_item_id) ? "..." : "Use"}
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>

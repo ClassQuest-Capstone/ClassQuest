@@ -4,13 +4,17 @@
 export type ShopRarity = "COMMON" | "UNCOMMON" | "RARE" | "EPIC" | "LEGENDARY";
 
 /**
+ * ShopItem categories
+ */
+export type ShopCategory = "CLASS_ITEMS" | "COSMETIC" | "POWER_UPS" | "OTHER";
+/**
  * ShopItem as returned by the API.
  */
 export type ShopItem = {
     item_id: string;
     name: string;
     description: string;
-    category: string;
+    category: ShopCategory;
     rarity: ShopRarity;
     gold_cost: number;
     required_level: number;
