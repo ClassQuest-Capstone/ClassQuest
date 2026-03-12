@@ -80,3 +80,4 @@ temp/
 *.sarif
 .claude/
 CLAUDE.md
+ai/

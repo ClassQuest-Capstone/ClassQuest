@@ -97,6 +97,16 @@ import { handler as bbsGet }                   from "../bossBattleSnapshots/get-
 // BossBattleQuestionPlans
 import { handler as bbqpGet }                  from "../bossBattleQuestionPlans/get-plan.js";
 
+// ShopItems
+import { handler as siCreate }                 from "../shopItems/create.js";
+import { handler as siGet }                    from "../shopItems/get.js";
+import { handler as siListAll }                from "../shopItems/list-all.js";
+import { handler as siListActive }             from "../shopItems/list-active.js";
+import { handler as siListByCategory }         from "../shopItems/list-by-category.js";
+import { handler as siUpdate }                 from "../shopItems/update.js";
+import { handler as siDeactivate }             from "../shopItems/deactivate.js";
+import { handler as siActivate }               from "../shopItems/activate.js";
+
 // Dispatch table: keys must exactly match the routeKey API Gateway sets on event.routeKey
 // Format: "METHOD /path" with {param} placeholders verbatim
 const ROUTES: Record<string, (event: any) => Promise<any>> = {
@@ -194,6 +204,16 @@ const ROUTES: Record<string, (event: any) => Promise<any>> = {
 
     // BossBattleQuestionPlans
     "GET /boss-battle-question-plans/{plan_id}":                                                                                             bbqpGet,
+
+    // ShopItems
+    "POST /shop-items":                                                                                                                      siCreate,
+    "GET /shop-items":                                                                                                                       siListAll,
+    "GET /shop-items/active":                                                                                                                siListActive,
+    "GET /shop-items/category/{category}":                                                                                                   siListByCategory,
+    "GET /shop-items/{item_id}":                                                                                                             siGet,
+    "PATCH /shop-items/{item_id}":                                                                                                           siUpdate,
+    "PATCH /shop-items/{item_id}/deactivate":                                                                                                siDeactivate,
+    "PATCH /shop-items/{item_id}/activate":                                                                                                  siActivate,
 };
 
 export const handler = async (event: any): Promise<any> => {

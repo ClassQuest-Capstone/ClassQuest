@@ -28,6 +28,7 @@ type QuestApiStackProps = {
         bossResultsTable: string;
         bossBattleSnapshotsTable: string;
         bossBattleQuestionPlansTable: string;
+        shopItemsTable: string;
     };
     tableArns: {
         usersTable: string;
@@ -53,6 +54,7 @@ type QuestApiStackProps = {
         bossResultsTable: string;
         bossBattleSnapshotsTable: string;
         bossBattleQuestionPlansTable: string;
+        shopItemsTable: string;
     };
     userPoolId: string;
     userPoolArn: string;
@@ -168,6 +170,16 @@ export function QuestApiStack(ctx: StackContext, props: QuestApiStackProps) {
 
         // BossBattleQuestionPlans
         "GET /boss-battle-question-plans/{plan_id}": { method: "GET", path: "/boss-battle-question-plans/{plan_id}" },
+
+        // ShopItems
+        "POST /shop-items":                              { method: "POST",  path: "/shop-items" },
+        "GET /shop-items":                               { method: "GET",   path: "/shop-items" },
+        "GET /shop-items/active":                        { method: "GET",   path: "/shop-items/active" },
+        "GET /shop-items/category/{category}":           { method: "GET",   path: "/shop-items/category/{category}" },
+        "GET /shop-items/{item_id}":                     { method: "GET",   path: "/shop-items/{item_id}" },
+        "PATCH /shop-items/{item_id}":                   { method: "PATCH", path: "/shop-items/{item_id}" },
+        "PATCH /shop-items/{item_id}/deactivate":        { method: "PATCH", path: "/shop-items/{item_id}/deactivate" },
+        "PATCH /shop-items/{item_id}/activate":          { method: "PATCH", path: "/shop-items/{item_id}/activate" },
     };
 
     // ── ROUTER LAMBDA (replaces individual Lambdas) ──────────────────────────
@@ -199,6 +211,7 @@ export function QuestApiStack(ctx: StackContext, props: QuestApiStackProps) {
             BOSS_RESULTS_TABLE_NAME:                   tableNames.bossResultsTable,
             BOSS_BATTLE_SNAPSHOTS_TABLE_NAME:          tableNames.bossBattleSnapshotsTable,
             BOSS_BATTLE_QUESTION_PLANS_TABLE_NAME:     tableNames.bossBattleQuestionPlansTable,
+            SHOP_ITEMS_TABLE_NAME:                     tableNames.shopItemsTable,
             USER_POOL_ID:                              userPoolId,
             // debug-create.ts reads TABLE_NAME (non-standard); point to usersTable
             TABLE_NAME:                                tableNames.usersTable,
