@@ -747,7 +747,7 @@ const GuildPage: React.FC = () => {
             </div>
           )}
 
-          {!bossBattlesLoading && bossBattles.length === 0 && (
+          {!bossBattlesLoading && bossBattles.filter((battle) => battle.status?.toUpperCase() !== "ARCHIVED" && !battle.template?.is_deleted).length === 0 && (
             <div className="bg-white/90 rounded-xl shadow-lg p-6">
               <p className="text-gray-700">
                 <span className="font-semibold">No boss battles found.</span>
@@ -758,9 +758,11 @@ const GuildPage: React.FC = () => {
             </div>
           )}
 
-          {!bossBattlesLoading && bossBattles.length > 0 && (
+          {!bossBattlesLoading && bossBattles.filter((battle) => battle.status?.toUpperCase() !== "ARCHIVED" && !battle.template?.is_deleted).length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {bossBattles.map((battle) => {
+              {bossBattles
+                .filter((battle) => battle.status?.toUpperCase() !== "ARCHIVED" && !battle.template?.is_deleted)
+                .map((battle) => {
                 const template = battle.template;
                 const subject = template?.subject || "Other";
                 const gradient = getGradientBySubject(template?.subject);

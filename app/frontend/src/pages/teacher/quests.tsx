@@ -87,7 +87,7 @@ const Quests = () => {
   const editModeQuestId = location.state?.questId as string | undefined;
   const isEditMode = location.state?.editMode === true;
 
-  const questionTypes: QuestionType[] = ["Multiple Choice", "True/False", "Short Answer", "Matching"];
+  const questionTypes: QuestionType[] = ["Multiple Choice", "True/False", "Short Answer"]; //, "Matching"];
 
   // questions list
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -248,6 +248,11 @@ const Quests = () => {
 
   // Helper function to normalize options
   const normalizeOptions = (options: any): AnswerOption[] => {
+    //Unwrap choices from MCQ
+    if (options && options.choices && Array.isArray(options.choices)) {
+      options = options.choices;
+    }
+
     if (Array.isArray(options)) {
       if (options.length === 0) return [];
       if (typeof options[0] === "string") {

@@ -321,7 +321,11 @@ const CharacterPage: React.FC = () => {
               id: m.reward_id,
               name: m.title,
               slot,
-              icon: m.image_asset_path || "/assets/icons/question.png",
+              icon: m.image_asset_path
+                ? m.image_asset_path.startsWith("data:")
+                  ? m.image_asset_path
+                  : `data:image/png;base64,${m.image_asset_path}`
+                : "/assets/icons/question.png",
               claimedAt: new Date().toISOString(),
             };
           });
@@ -1019,7 +1023,7 @@ const CharacterPage: React.FC = () => {
               <div className="relative inline-block mr-2">
               <i data-feather="help-circle" className="mr-2 text-white-200 cursor-help peer"/>
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap opacity-0 peer-hover:opacity-100 transition-opacity pointer-events-none shadow-lg border border-gray-700">
-                Experience Points - Earn from quests to level up
+                Experience Points(XP) - Earn from quests to level up
               </div>
             </div>
 
@@ -1028,7 +1032,7 @@ const CharacterPage: React.FC = () => {
                   {profile.totalXP.toLocaleString()} XP
                 </span>
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg border border-gray-700">
-                  Experience Points - Earn from quests to level up
+                  Experience Points (XP) - Earn from quests to level up
                 </div>
               </div>
               <div className="flex items-center bg-gradient-to-r from-yellow-600 to-yellow-500 px-4 py-2 rounded-full shadow-lg relative group cursor-help">

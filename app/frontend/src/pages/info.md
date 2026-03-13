@@ -188,11 +188,13 @@ TODO: make items appear in students shop (DONE)
 
 TODO: make armours and stuff saved in bakend and connect with rewards to unlock. use rewardMilestones for this (DONE)
 
-TODO: add tooltip for xp teacher side
+TODO: add tooltip for xp teacher side (DONE)
 
 TODO: fix issues with welcome.tsx
 
 TODO: if no image provided use default
+
+TODO: update studenet profile picture (DONE)
 
 TODO: Student use item then 10 mins timer satrt until item is deleted (DONE), for future let teacher approve item use
 

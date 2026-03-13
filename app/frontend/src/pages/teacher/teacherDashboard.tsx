@@ -365,13 +365,29 @@ const TeacherDashboard = () => {
                           </div>
                           <div className="mt-4 grid grid-cols-2 gap-4">
                             <div>
-                              <p className="text-sm font-medium text-gray-900">Total XP</p>
+                              <div className="flex items-center gap-2 mb-2">
+                                <p className="text-sm font-medium text-gray-900">Total XP</p>
+                                <div className="relative inline-block group">
+                                  <i data-feather="help-circle" className="w-5 h-5 text-blue-500 cursor-help"/>
+                                  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg max-w-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg border border-gray-700">
+                                    Experience Points (XP) - Earn from quests to level up
+                                  </div>
+                                </div>
+                              </div>
                               <p className="text-xl font-semibold text-gray-900">
                                 {(student.total_xp_earned ?? 0).toLocaleString()}
                               </p>
                             </div>
                             <div>
+                              <div className="flex items-center gap-2 mb-2">
                               <p className="text-sm font-medium text-gray-900">Gold</p>
+                              <div className="relative inline-block group">
+                                  <i data-feather="help-circle" className="w-5 h-5 text-blue-500 cursor-help"/>
+                                  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg max-w-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg border border-gray-700">
+                                    Gold - Earn from completing quests
+                                  </div>
+                                </div>
+                              </div>
                               <p className=" flex items-center text-xl font-semibold text-gray-900">
                                 <CurrencyDollarIcon className="h-6 w-6 text-yellow-500" />{" "}
                                 {(student.gold ?? 0).toLocaleString()}

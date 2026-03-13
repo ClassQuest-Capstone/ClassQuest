@@ -434,13 +434,13 @@ const BossClasses = () => {
           <span className="text-sm font-medium">Back</span>
         </Link>
 
-        <button
+       {/*<button
           onClick={openBossAssignModal}
           className="inline-flex items-center bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold"
         >
           <i data-feather="plus" className="w-4 h-4 mr-2"></i>
           Assign Boss Battle
-        </button>
+        </button>*/}
       </div>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
