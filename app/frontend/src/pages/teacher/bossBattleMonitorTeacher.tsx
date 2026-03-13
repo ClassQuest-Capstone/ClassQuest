@@ -699,8 +699,6 @@ export default function BossBattleMonitorTeacher() {
               >
                 Classes
               </Link>
-
-              {/* <DropDownProfile /> */}
             </div>
           </div>
         </div>
@@ -774,163 +772,87 @@ export default function BossBattleMonitorTeacher() {
 
         {instance && (
           <>
-            <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
-              <div className="bg-gradient-to-r from-purple-600 to-indigo-700 text-white p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-2xl font-bold">
-                      {template?.title || "Unnamed Boss"}
-                    </h2>
-                    <p className="text-white/90 mt-1">
-                      {template?.description || "No description provided."}
-                    </p>
-                  </div>
-
-                  <div
-                    className={`${getStatusPill(
-                      instance.status
-                    )} px-4 py-2 rounded-full text-xs font-bold`}
-                  >
+            {/* ── Battle Arena Preview ── */}
+            <div className="relative h-[420px] mb-6">
+              <div
+                className="absolute inset-0 rounded-xl overflow-hidden border border-white/10 bg-cover bg-center"
+                style={{
+                  backgroundImage: "url('/assets/background/goblin_stage.png')",
+                  backgroundPosition: "center 80%",
+                }}
+              >
+                {/* Status badge */}
+                <div className="absolute top-3 right-3 z-20 flex flex-wrap gap-2 justify-end">
+                  <span className={`px-3 py-1 rounded-full ${getStatusPill(instance.status)} text-white text-xs font-semibold`}>
                     {instance.status}
+                  </span>
+                  {transitioning && (
+                    <span className="px-3 py-1 rounded-full bg-yellow-700/80 border border-yellow-500 text-yellow-200 text-xs font-semibold animate-pulse">
+                      Advancing...
+                    </span>
+                  )}
+                </div>
+
+                {/* Boss HP bar */}
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 w-[360px] max-w-[70%]">
+                  <div className="rounded-2xl bg-black/70 border border-red-500/60 px-4 py-3 shadow-xl">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-red-200 text-xs uppercase tracking-[0.2em] font-bold">Boss HP</span>
+                      <span className="text-white text-xs font-bold">
+                        {initialHp > 0 ? ((currentHp / initialHp) * 100).toFixed(2) : "0.00"}%
+                      </span>
+                    </div>
+                    <div className="w-full h-4 rounded-full bg-slate-900 border border-slate-700 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-red-700 via-red-500 to-orange-400 transition-all duration-300"
+                        style={{ width: `${hpPercent}%` }}
+                      />
+                    </div>
+                    <div className="mt-1 text-center text-xs text-slate-300">{template?.title ?? "Boss Battle"}</div>
                   </div>
                 </div>
 
-                <div className="mt-5">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-semibold">Boss HP</span>
-                    <span className="text-sm font-semibold">
-                      {initialHp > 0 ? ((currentHp / initialHp) * 100).toFixed(2) : "0.00"}%
-                    </span>
+                <div className="absolute inset-0 z-10">
+                  {/* Party side — bossAvatar.png. Adjust bottom-[30%] to move it up or down */}
+                  <div className="absolute left-[4%] bottom-[30%] w-[42%] flex items-end justify-center">
+                    <img
+                      src="/assets/boss/bossAvatar.png"
+                      alt="Party"
+                      className="w-40 md:w-52 drop-shadow-[0_14px_20px_rgba(0,0,0,0.7)]"
+                    />
                   </div>
 
-                  <div className="w-full bg-white/20 rounded-full h-4 overflow-hidden">
-                    <div
-                      className="bg-white h-full transition-all duration-300"
-                      style={{ width: `${hpPercent}%` }}
+                  {/* Boss side */}
+                  <div className="absolute right-[6%] bottom-[8%] w-[34%] h-[70%] flex items-end justify-center">
+                    <img
+                      src="/assets/boss/goblin_king.png"
+                      alt="Boss"
+                      className="w-[200px] md:w-[260px] lg:w-[300px] drop-shadow-[0_18px_28px_rgba(0,0,0,0.8)]"
                     />
                   </div>
                 </div>
-              </div>
 
-              <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="rounded-lg border p-4">
-                  <div className="text-xs text-gray-500 font-semibold tracking-widest">
-                    JOINED
+                {/* Stats + status strip */}
+                <div className="absolute bottom-0 left-0 right-0 bg-black/80 px-4 py-3 border-t-2 border-yellow-500 z-20 flex flex-wrap items-center gap-x-6 gap-y-1">
+                  <span className="text-slate-300 text-xs font-mono">
+                    {instance.status === "QUESTION_ACTIVE" && questionTimeLeft > 0
+                      ? `⏱ ${questionTimeLeft}s remaining — Q${Number((instance as any)?.current_question_index ?? 0) + 1}`
+                      : instance.status === "INTERMISSION"
+                      ? "Intermission — next question loading…"
+                      : instance.status === "COMPLETED"
+                      ? (battleResults?.meta?.outcome === "WIN" ? "⚔️ Victory!" : "💀 Defeat")
+                      : instance.status === "LOBBY"
+                      ? "Waiting for students to join…"
+                      : instance.status}
+                  </span>
+                  <div className="flex items-center gap-4 ml-auto">
+                    <span className="text-xs text-slate-300"><span className="font-bold text-white">{joinedCount}</span> Joined</span>
+                    <span className="text-xs text-slate-300"><span className="font-bold text-white">{spectateCount}</span> Spectating</span>
+                    <span className="text-xs text-slate-300"><span className="font-bold text-red-400">{downedCount}</span> Downed</span>
+                    <span className="text-xs text-slate-300"><span className="font-bold text-white">{attempts.length}</span> Attempts</span>
                   </div>
-                  <div className="mt-2 text-2xl font-bold text-gray-900">{joinedCount}</div>
-                </div>
-
-                <div className="rounded-lg border p-4">
-                  <div className="text-xs text-gray-500 font-semibold tracking-widest">
-                    SPECTATING
-                  </div>
-                  <div className="mt-2 text-2xl font-bold text-gray-900">{spectateCount}</div>
-                </div>
-
-                <div className="rounded-lg border p-4">
-                  <div className="text-xs text-gray-500 font-semibold tracking-widest">
-                    DOWNED
-                  </div>
-                  <div className="mt-2 text-2xl font-bold text-gray-900">{downedCount}</div>
-                </div>
-
-                <div className="rounded-lg border p-4">
-                  <div className="text-xs text-gray-500 font-semibold tracking-widest">
-                    TOTAL ATTEMPTS
-                  </div>
-                  <div className="mt-2 text-2xl font-bold text-gray-900">{attempts.length}</div>
                 </div>
               </div>
-            </div>
-
-            {/* Teacher Controls Panel */}
-            <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Teacher Controls</h3>
-              <div className="flex flex-wrap gap-3 items-center">
-                {(instance.status === "COUNTDOWN" || instance.status === "INTERMISSION") && (
-                  <button
-                    onClick={handleStartQuestion}
-                    disabled={transitioning}
-                    className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold border-2 border-emerald-800 shadow-[0_4px_0_0_#166534] hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    Start Question
-                  </button>
-                )}
-
-                {instance.status === "QUESTION_ACTIVE" && (
-                  <button
-                    onClick={handleResolveQuestion}
-                    disabled={transitioning}
-                    className="px-4 py-2 rounded-lg bg-purple-600 text-white font-semibold border-2 border-purple-800 shadow-[0_4px_0_0_#4c1d95] hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    Resolve Question
-                  </button>
-                )}
-
-                {instance.status === "INTERMISSION" && (
-                  <button
-                    onClick={handleAdvanceQuestion}
-                    disabled={transitioning}
-                    className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold border-2 border-blue-800 shadow-[0_4px_0_0_#1e3a5f] hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    Advance / Next Question
-                  </button>
-                )}
-
-                {instance.status === "INTERMISSION" && (
-                  <button
-                    onClick={handleFinishBattle}
-                    disabled={transitioning}
-                    className="px-4 py-2 rounded-lg bg-green-700 text-white font-semibold border-2 border-green-900 shadow-[0_4px_0_0_#14532d] hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    Finish Battle
-                  </button>
-                )}
-
-
-                {!["COMPLETED", "ABORTED"].includes(instance.status) && (
-                  <button
-                    onClick={handleAbortBattle}
-                    disabled={transitioning}
-                    className="px-4 py-2 rounded-lg bg-red-600 text-white font-semibold border-2 border-red-800 shadow-[0_4px_0_0_#991b1b] hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    Abort Battle
-                  </button>
-                )}
-
-                {transitioning && (
-                  <span className="text-sm text-purple-700 font-semibold">Processing…</span>
-                )}
-              </div>
-
-              {/* Answer quorum display */}
-              {instance.status === "QUESTION_ACTIVE" && (
-                <div className="mt-4 flex flex-wrap gap-4 text-sm">
-                  <div className="rounded-lg border px-4 py-2 bg-gray-50">
-                    <span className="text-gray-500 font-semibold">Answers received: </span>
-                    <span className="font-bold text-gray-900">
-                      {instance.received_answer_count ?? 0} / {instance.required_answer_count ?? "?"}
-                    </span>
-                    {instance.ready_to_resolve && (
-                      <span className="ml-2 text-green-600 font-bold">✓ Ready to resolve</span>
-                    )}
-                  </div>
-                  {questionTimeLeft > 0 && (
-                    <div className="rounded-lg border px-4 py-2 bg-yellow-50">
-                      <span className="text-gray-500 font-semibold">Time left: </span>
-                      <span className="font-bold text-yellow-700">{questionTimeLeft}s</span>
-                    </div>
-                  )}
-                  {instance.mode_type === "TURN_BASED_GUILD" && instance.active_guild_id && (
-                    <div className="rounded-lg border px-4 py-2 bg-blue-50">
-                      <span className="text-gray-500 font-semibold">Active guild: </span>
-                      <span className="font-bold text-blue-700">
-                        {(guildById.get(instance.active_guild_id) as any)?.name || instance.active_guild_id}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
             <div className="bg-white rounded-xl shadow-md p-6 mb-6">

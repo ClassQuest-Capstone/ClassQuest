@@ -152,8 +152,7 @@ export async function tryAutoAdvanceAndStartNextQuestion(
         const allJoined = await listParticipants(boss_instance_id, {
             state: ParticipantState.JOINED,
         });
-        const activeParticipants = allJoined.filter((p) => !p.is_downed);
-        const required_answer_count = activeParticipants.length;
+        const required_answer_count = allJoined.length;
 
         // --- 6. Compute question timing ---
         const effectiveTimeLimit =

@@ -114,7 +114,7 @@ React.useEffect(() => {
   const timeout = setTimeout(() => {
     const r = targetEl.getBoundingClientRect();
     setRect(r);
-  }, 250); 
+  }, 600);
 
   return () => clearTimeout(timeout);
 }, [currentStep, targetEl]);
@@ -139,7 +139,7 @@ React.useEffect(() => {
     const viewportHeight = window.innerHeight;
     
     // Search if target is nav menu
-    const isNavMenu = config.targetId === "nav-menu";
+    const isNavMenu = config.targetId === "nav-menu" || config.targetId === "nav-tab";
     
     // Positioning to the right or left of target
     const rightSpace = viewportWidth - rect.right;

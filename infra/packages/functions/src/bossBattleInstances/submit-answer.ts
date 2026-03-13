@@ -128,13 +128,6 @@ export const handler = async (event: any) => {
             };
         }
 
-        if (participant.is_downed) {
-            return {
-                statusCode: 409,
-                body: JSON.stringify({ error: "Downed participants cannot submit answers" }),
-            };
-        }
-
         const now = new Date();
         const nowMs = now.getTime();
         const nowIso = now.toISOString();

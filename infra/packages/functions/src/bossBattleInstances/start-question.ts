@@ -194,7 +194,7 @@ export const handler = async (event: any) => {
         const allJoined = await listParticipants(boss_instance_id, {
             state: ParticipantState.JOINED,
         });
-        const activeParticipants = allJoined.filter((p) => !p.is_downed);
+        const activeParticipants = allJoined;
 
         let required_answer_count: number;
         let ready_to_resolve_init: boolean;

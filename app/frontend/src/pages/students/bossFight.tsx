@@ -395,7 +395,6 @@ const BossFight: React.FC = () => {
     if (!instance || !myParticipant || !question) return false;
     if (instance.status !== "QUESTION_ACTIVE") return false;
     if (myParticipant.state !== "JOINED") return false;
-    if (myParticipant.is_downed) return false;
     if (hasSubmittedCurrentQuestion) return false;
 
     if (myParticipant.frozen_until) {
@@ -1144,12 +1143,6 @@ const BossFight: React.FC = () => {
           {myParticipant?.state === "KICKED" ? (
             <div className="mt-4 text-sm text-red-300">
               You were removed from this boss battle.
-            </div>
-          ) : null}
-
-          {myParticipant?.is_downed ? (
-            <div className="mt-4 text-sm text-red-300">
-              You are downed and can no longer answer.
             </div>
           ) : null}
 

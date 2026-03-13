@@ -330,6 +330,7 @@ const ProblemSolve: React.FC = () => {
   // Timer
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const timerRef = useRef<number | null>(null);
+  const [skippedIndices, setSkippedIndices] = useState<Set<number>>(new Set());
 
   // Responses
   const [responses, setResponses] = useState<QuestQuestionResponse[]>([]);
@@ -667,26 +668,29 @@ const ProblemSolve: React.FC = () => {
 
     if (timerRef.current) window.clearInterval(timerRef.current);
 
+    let secondsLeft = q.timeLimit || 60;
     timerRef.current = window.setInterval(() => {
-      setSecondsLeft((s) => {
-        if (s <= 1) {
-          if (timerRef.current) window.clearInterval(timerRef.current);
-          timerRef.current = null;
+      secondsLeft -= 1;
+      setSecondsLeft(secondsLeft);
+      if (secondsLeft <= 0) {
+        if (timerRef.current) window.clearInterval(timerRef.current);
+        timerRef.current = null;
 
-          if (studentId && questInstanceId) markQuestExpired(studentId, questInstanceId);
-          alert("Time's up! This quest has expired.");
-          navigate("/character", { replace: true });
-          return 0;
+        setFeedback({ kind: "bad", msg: "Time's up! Moving to the next question." });
+        setSkippedIndices((prev) => new Set(prev).add(currentIndex));
+        if (currentIndex < questions.length - 1) {
+          setCurrentIndex(currentIndex + 1);
+        } else {
+          setIsFinished(true);
         }
-        return s - 1;
-      });
+      }
     }, 1000);
 
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
       timerRef.current = null;
     };
-  }, [currentIndex, loading, isFinished, questions, navigate, questInstanceId, studentId]);
+  }, [currentIndex, loading, isFinished, questions, questInstanceId, studentId]);
 
   // Feather refresh
   useEffect(() => {
@@ -709,6 +713,7 @@ const ProblemSolve: React.FC = () => {
 
   const currentQuestion = questions[currentIndex];
   const currentRemainingXp = remainingXp[currentIndex] ?? currentQuestion?.xpValue ?? 0;
+  const isPreviewMode = !!(currentQuestion && (responsesByQuestionId.has(currentQuestion.id) || skippedIndices.has(currentIndex)));
 
   const handleSelect = (optionId: string) => {
     setFeedback(null);
@@ -1114,6 +1119,12 @@ const ProblemSolve: React.FC = () => {
                   </div>
                 )}
 
+                {isPreviewMode && (
+                  <div className="mb-4 bg-gray-100 border border-gray-300 text-gray-600 px-4 py-2 rounded-md text-sm">
+                    Preview only — this question has already been submitted.
+                  </div>
+                )}
+
                 {currentQuestion.answerOptions.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     {currentQuestion.answerOptions.map((opt, i) => {
@@ -1123,10 +1134,11 @@ const ProblemSolve: React.FC = () => {
                         <button
                           key={opt.id}
                           type="button"
+                          disabled={isPreviewMode}
                           className={`bg-white border rounded-lg p-4 text-left flex items-start transition ${
                             isSelected ? "border-indigo-500 bg-indigo-50" : "border-gray-200"
-                          }`}
-                          onClick={() => handleSelect(opt.id)}
+                          } ${isPreviewMode ? "opacity-60 cursor-not-allowed" : ""}`}
+                          onClick={() => !isPreviewMode && handleSelect(opt.id)}
                         >
                           <span className={`rounded-full w-8 h-8 flex items-center justify-center mr-4 font-bold ${isSelected ? "bg-indigo-500 text-white" : "bg-gray-100 text-gray-800"}`}>
                             {letter}
@@ -1142,6 +1154,7 @@ const ProblemSolve: React.FC = () => {
                     <textarea
                       className="w-full border border-gray-300 rounded-lg p-3 text-gray-900"
                       rows={4}
+                      disabled={isPreviewMode}
                       value={shortAnswers[currentIndex] ?? ""}
                       onChange={(e) => {
                         const v = e.target.value;
@@ -1170,14 +1183,16 @@ const ProblemSolve: React.FC = () => {
                     <span>Previous</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={saving}
-                    className={`bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg flex items-center ${saving ? "opacity-60 cursor-not-allowed" : ""}`}
-                  >
-                    {saving ? "Saving..." : currentIndex === questions.length - 1 ? "Finish Quest" : "Submit"}
-                  </button>
+                  {!isPreviewMode && (
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={saving}
+                      className={`bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg flex items-center ${saving ? "opacity-60 cursor-not-allowed" : ""}`}
+                    >
+                      {saving ? "Saving..." : currentIndex === questions.length - 1 ? "Finish Quest" : "Submit"}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
