@@ -76,6 +76,8 @@ export type BossBattleInstance = {
     turn_policy?: TurnPolicy;
     outcome?: BattleOutcome;
     fail_reason?: FailReason;
+    passing_score?: number;
+    passing_score_percent?: number;
     // Answer-gating runtime state (reset each StartQuestion)
     required_answer_count?: number;
     received_answer_count?: number;
@@ -103,6 +105,8 @@ export type CreateBossBattleInstanceInput = {
     freeze_on_wrong_seconds?: number;
     late_join_policy?: LateJoinPolicy;
     turn_policy?: TurnPolicy;
+    passing_score?: number;
+    passing_score_percent?: number;
 };
 
 export type UpdateBossBattleInstanceInput = Partial<{

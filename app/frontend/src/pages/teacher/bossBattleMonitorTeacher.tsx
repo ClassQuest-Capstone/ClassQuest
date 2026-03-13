@@ -32,11 +32,7 @@ import type { BossAnswerAttempt } from "../../api/bossAnswerAttempts/types.js";
 
 import { listGuildsByClass, type Guild } from "../../api/guilds.js";
 import { getStudentProfile } from "../../api/studentProfiles.js";
-import {
-  useBattleSubscription,
-  useRosterSubscription,
-  useAnswerSubmittedSubscription,
-} from "../../hooks/useBattleSubscription.ts";
+import { useBattlePolling, useRosterPolling } from "../../hooks/useBattlePolling.ts";
 
 type TeacherUser = {
   id: string;
@@ -178,13 +174,15 @@ export default function BossBattleMonitorTeacher() {
   const transitionLockRef = useRef(false);
   const [battleResults, setBattleResults] = useState<BossResultsResponse | null>(null);
   const [questionTimeLeft, setQuestionTimeLeft] = useState(0);
+  const [countdownLeft, setCountdownLeft] = useState(0);
+  const hasAutoStartedRef = useRef(false);
 
-  const { battleState, connectionStatus } = useBattleSubscription(bossInstanceId);
-  const { rosterEvent } = useRosterSubscription(bossInstanceId);
-  const { answerEvent } = useAnswerSubmittedSubscription(bossInstanceId);
+  const polledInstance = useBattlePolling(bossInstanceId, 2500);
+  const polledParticipants = useRosterPolling(bossInstanceId, 3000);
   const prevActiveQuestionIdRef = useRef<string | null | undefined>(undefined);
   const prevReadyToResolveRef = useRef<boolean | null>(null);
   const hasAutoResolvedRef = useRef(false);
+  const intermissionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -288,7 +286,28 @@ export default function BossBattleMonitorTeacher() {
     }
   }, [bossInstanceId, refresh]);
 
-  // Teacher action: Resolve Question (QUESTION_ACTIVE -> RESOLVING -> INTERMISSION/COMPLETED)
+  // Auto-chain: Resolve → (5s intermission for students to see answer) → Advance → StartQuestion
+  // Auto-resolve: called when all students have answered — transitions battle to INTERMISSION.
+  // The INTERMISSION effect below handles the 5s wait, advance, and startQuestion.
+  const handleAutoChain = useCallback(async () => {
+    if (!bossInstanceId || transitionLockRef.current) return;
+    transitionLockRef.current = true;
+    setTransitioning(true);
+    try {
+      await resolveBossBattleQuestion(bossInstanceId);
+    } catch (err: any) {
+      const status = err?.status ?? err?.statusCode ?? err?.response?.status;
+      if (status !== 409) { // 409 = already resolved, safe to ignore
+        console.error("Resolve failed:", err);
+        setError(err?.message || "Failed to resolve question.");
+      }
+    } finally {
+      transitionLockRef.current = false;
+      setTransitioning(false);
+    }
+  }, [bossInstanceId]);
+
+  // Manual resolve button (kept for edge cases / teacher override)
   const handleResolveQuestion = useCallback(async () => {
     if (!bossInstanceId || transitionLockRef.current) return;
     transitionLockRef.current = true;
@@ -297,10 +316,9 @@ export default function BossBattleMonitorTeacher() {
       await resolveBossBattleQuestion(bossInstanceId);
       await refresh();
     } catch (err: any) {
-      // 409 = already resolved (race condition / duplicate trigger) — safe to ignore
       const status = err?.status ?? err?.statusCode ?? err?.response?.status;
       if (status === 409) {
-        await refresh(); // still refresh so UI is up-to-date
+        await refresh();
       } else {
         console.error("Failed to resolve question:", err);
         setError(err?.message || "Failed to resolve question.");
@@ -311,14 +329,15 @@ export default function BossBattleMonitorTeacher() {
     }
   }, [bossInstanceId, refresh]);
 
-  // Teacher action: Advance to next question (INTERMISSION -> QUESTION_ACTIVE or COMPLETED)
+  // Manual advance button (kept for teacher override)
   const handleAdvanceQuestion = useCallback(async () => {
     if (!bossInstanceId || transitionLockRef.current) return;
     transitionLockRef.current = true;
     setTransitioning(true);
     try {
-      const result = await advanceBossBattleToNextQuestion(bossInstanceId);
-      if (!result.has_more_questions || result.status === "COMPLETED") {
+      await advanceBossBattleToNextQuestion(bossInstanceId);
+      const fresh = await getBossBattleInstance(bossInstanceId);
+      if (fresh?.status === "COMPLETED") {
         await finishBossBattle(bossInstanceId).catch(() => {});
       }
       await refresh();
@@ -387,13 +406,14 @@ export default function BossBattleMonitorTeacher() {
     refresh();
   }, [refresh]);
 
+  // Merge polled instance — also detect question changes and ready_to_resolve
   useEffect(() => {
-    if (!battleState) return;
-    setInstance((prev) => {
-      if (!prev) return prev;
-      return { ...prev, ...battleState } as unknown as BossBattleInstance;
-    });
-    const newQId = battleState.active_question_id ?? null;
+    if (!polledInstance) return;
+
+    setInstance(polledInstance);
+
+    // Load question when active_question_id changes
+    const newQId = polledInstance.active_question_id ?? null;
     if (newQId !== prevActiveQuestionIdRef.current) {
       prevActiveQuestionIdRef.current = newQId;
       if (newQId) {
@@ -404,29 +424,26 @@ export default function BossBattleMonitorTeacher() {
         setQuestion(null);
       }
     }
-  }, [battleState]);
 
-  useEffect(() => {
-    if (!rosterEvent) return;
-    setParticipants(rosterEvent.participants as any);
-  }, [rosterEvent]);
-
-  // when ready_to_resolve flips true, refresh attempts and auto-resolve if still QUESTION_ACTIVE
-  useEffect(() => {
-    if (!answerEvent) return;
-    const nowReady = answerEvent.ready_to_resolve;
-
+    // Auto-chain when all students have answered (ready_to_resolve flips true)
+    const nowReady = (polledInstance as any).ready_to_resolve ?? false;
     if (nowReady && !prevReadyToResolveRef.current) {
       listBossAnswerAttemptsByBattle(bossInstanceId, { limit: 500 })
         .then((res) => setAttempts(res.items || []))
         .catch(() => {});
 
-      if (instance?.status === "QUESTION_ACTIVE") {
-        handleResolveQuestion();
+      if (polledInstance.status === "QUESTION_ACTIVE" && !hasAutoResolvedRef.current) {
+        hasAutoResolvedRef.current = true;
+        handleAutoChain();
       }
     }
-    prevReadyToResolveRef.current = nowReady ?? null;
-  }, [answerEvent, bossInstanceId, instance?.status, handleResolveQuestion]);
+    prevReadyToResolveRef.current = nowReady;
+  }, [polledInstance, bossInstanceId, handleAutoChain]);
+
+  // Merge polled roster
+  useEffect(() => {
+    if (polledParticipants.length > 0) setParticipants(polledParticipants);
+  }, [polledParticipants]);
 
   // Live countdown for active question timer
   useEffect(() => {
@@ -446,7 +463,7 @@ export default function BossBattleMonitorTeacher() {
     hasAutoResolvedRef.current = false;
   }, [instance?.active_question_id]);
 
-  // Timer-based auto-resolve for timed questions
+  // Timer-based auto-chain for timed questions (timer expired → resolve→advance→start)
   useEffect(() => {
     if (
       instance?.status !== "QUESTION_ACTIVE" ||
@@ -456,8 +473,112 @@ export default function BossBattleMonitorTeacher() {
     ) return;
 
     hasAutoResolvedRef.current = true;
-    handleResolveQuestion();
-  }, [questionTimeLeft, instance?.status, (instance as any)?.question_ends_at, handleResolveQuestion]);
+    handleAutoChain();
+  }, [questionTimeLeft, instance?.status, (instance as any)?.question_ends_at, handleAutoChain]);
+
+  // Reset auto-start guard when countdown begins
+  useEffect(() => {
+    if (instance?.status === "COUNTDOWN") {
+      hasAutoStartedRef.current = false;
+    }
+  }, [instance?.status]);
+
+  // Auto-advance: when battle enters INTERMISSION, wait 5s then advance to next question
+  useEffect(() => {
+    if (instance?.status !== "INTERMISSION") {
+      // If status left INTERMISSION (e.g. manually advanced), cancel any pending timer
+      if (intermissionTimerRef.current !== null) {
+        clearTimeout(intermissionTimerRef.current);
+        intermissionTimerRef.current = null;
+      }
+      return;
+    }
+
+    // Guard: don't start a second timer if one is already counting down
+    if (intermissionTimerRef.current !== null) return;
+
+    intermissionTimerRef.current = setTimeout(async () => {
+      // Keep intermissionTimerRef.current non-null until all async work completes.
+      // This prevents polling from detecting the post-advance INTERMISSION state
+      // (advance keeps status as INTERMISSION when more questions remain) and
+      // starting a second timer that would double-advance the question index.
+      if (!bossInstanceId || transitionLockRef.current) {
+        intermissionTimerRef.current = null;
+        return;
+      }
+      transitionLockRef.current = true;
+      setTransitioning(true);
+      try {
+        let hasMore = true;
+        try {
+          const advanceResult = await advanceBossBattleToNextQuestion(bossInstanceId);
+          hasMore = advanceResult.has_more_questions;
+        } catch (err: any) {
+          const httpStatus = err?.status ?? err?.statusCode ?? err?.response?.status;
+          if (httpStatus !== 409) {
+            console.error("Advance failed:", err);
+            return;
+          }
+          // 409 = already advanced or status changed — fetch to decide next step
+          const fresh = await getBossBattleInstance(bossInstanceId);
+          const s = fresh?.status as string | undefined;
+          if (s === "COMPLETED" || s === "ABORTED") {
+            if (s === "COMPLETED") await finishBossBattle(bossInstanceId).catch(() => {});
+            await refresh();
+            return;
+          }
+          // Status is still INTERMISSION with updated index — proceed to startQuestion
+          hasMore = true;
+        }
+
+        if (!hasMore) {
+          await finishBossBattle(bossInstanceId).catch(() => {});
+        } else {
+          await startBossBattleQuestion(bossInstanceId);
+        }
+        await refresh();
+      } catch (err: any) {
+        console.error("Auto-advance after intermission failed:", err);
+        await refresh().catch(() => {});
+      } finally {
+        intermissionTimerRef.current = null;
+        transitionLockRef.current = false;
+        setTransitioning(false);
+      }
+    }, 5000);
+  }, [instance?.status, bossInstanceId, refresh]);
+
+  // Cleanup intermission timer on unmount
+  useEffect(() => {
+    return () => {
+      if (intermissionTimerRef.current) clearTimeout(intermissionTimerRef.current);
+    };
+  }, []);
+
+  // Live countdown timer for COUNTDOWN state
+  useEffect(() => {
+    if (instance?.status !== "COUNTDOWN") {
+      setCountdownLeft(0);
+      return;
+    }
+    const endsAt = (instance as any)?.countdown_end_at;
+    const tick = () => setCountdownLeft(getSecondsRemaining(endsAt));
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [instance?.status, (instance as any)?.countdown_end_at]);
+
+  // Countdown expiry → auto-start the first question
+  useEffect(() => {
+    if (
+      instance?.status !== "COUNTDOWN" ||
+      countdownLeft !== 0 ||
+      hasAutoStartedRef.current
+    ) return;
+
+    hasAutoStartedRef.current = true;
+    handleStartQuestion();
+  }, [countdownLeft, instance?.status, handleStartQuestion]);
 
   useEffect(() => {
     feather.replace();
@@ -533,26 +654,6 @@ export default function BossBattleMonitorTeacher() {
   const spectateCount = participants.filter((p) => p.state === "SPECTATE").length;
   const downedCount = participants.filter((p) => p.is_downed).length;
 
-  const INITIAL_HEARTS = 3;
-  const guildHpMap = useMemo(() => {
-    const map = new Map<string, { current: number; max: number }>();
-    const byGuild = new Map<string, string[]>();
-    for (const p of participants) {
-      if (!byGuild.has(p.guild_id)) byGuild.set(p.guild_id, []);
-      byGuild.get(p.guild_id)!.push(p.student_id);
-    }
-    for (const [guildId, studentIds] of byGuild) {
-      const max = studentIds.length * INITIAL_HEARTS;
-      let lost = 0;
-      for (const sid of studentIds) {
-        lost += attempts
-          .filter((a) => a.student_id === sid)
-          .reduce((sum, a) => sum + (a.hearts_lost || 0), 0);
-      }
-      map.set(guildId, { current: Math.max(0, max - lost), max });
-    }
-    return map;
-  }, [participants, attempts]);
 
   const initialHp = instance?.initial_boss_hp ?? 0;
   const currentHp = instance?.current_boss_hp ?? 0;
@@ -656,13 +757,6 @@ export default function BossBattleMonitorTeacher() {
           </div>
         </div>
 
-        {connectionStatus === "reconnecting" && (
-          <div className="bg-yellow-500/20 border border-yellow-500/40 text-yellow-100 rounded-xl p-3 mb-4 flex items-center gap-2 text-sm">
-            <i data-feather="wifi-off" className="w-4 h-4" />
-            <span>Realtime connection lost — reconnecting...</span>
-          </div>
-        )}
-
         {error && (
           <div className="bg-red-500/20 border border-red-500/40 text-red-100 rounded-xl p-4 mb-6">
             <div className="flex items-center gap-2">
@@ -705,7 +799,7 @@ export default function BossBattleMonitorTeacher() {
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm font-semibold">Boss HP</span>
                     <span className="text-sm font-semibold">
-                      {currentHp.toLocaleString()} / {initialHp.toLocaleString()} HP
+                      {initialHp > 0 ? ((currentHp / initialHp) * 100).toFixed(2) : "0.00"}%
                     </span>
                   </div>
 
@@ -793,15 +887,6 @@ export default function BossBattleMonitorTeacher() {
                   </button>
                 )}
 
-                {instance.status === "COMPLETED" && !battleResults && (
-                  <button
-                    onClick={handleComputeResults}
-                    disabled={transitioning}
-                    className="px-4 py-2 rounded-lg bg-amber-600 text-white font-semibold border-2 border-amber-800 shadow-[0_4px_0_0_#78350f] hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    Compute Results
-                  </button>
-                )}
 
                 {!["COMPLETED", "ABORTED"].includes(instance.status) && (
                   <button
@@ -1027,12 +1112,10 @@ export default function BossBattleMonitorTeacher() {
                     instance.mode_type === "RANDOMIZED_PER_GUILD" && guildId
                       ? (instance.per_guild_question_index?.[guildId] ?? 0)
                       : null;
-                  const guildHp = guildId ? guildHpMap.get(guildId) : null;
-
                   return (
                   <div key={guildName} className="bg-white rounded-xl shadow-md overflow-hidden">
                     <div className={`bg-gradient-to-r ${isActiveTurn ? "from-yellow-500 to-amber-600" : "from-blue-500 to-indigo-600"} p-5 text-white`}>
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="text-xl font-bold">{guildName}</h3>
@@ -1051,21 +1134,6 @@ export default function BossBattleMonitorTeacher() {
                             Students: {rows.length}
                           </p>
                         </div>
-
-                        {guildHp && guildHp.max > 0 && (
-                          <div className="min-w-[140px]">
-                            <div className="flex items-center justify-between text-xs text-white/80 mb-1">
-                              <span>Guild HP</span>
-                              <span>{guildHp.current}/{guildHp.max}</span>
-                            </div>
-                            <div className="w-full bg-white/20 rounded-full h-2">
-                              <div
-                                className="bg-red-400 h-full rounded-full transition-all duration-300"
-                                style={{ width: `${(guildHp.current / guildHp.max) * 100}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
 

@@ -124,11 +124,13 @@ export const handler = async (event: any) => {
         // The question plan repo loads questions by template, generates the
         // deterministic order (per-guild if RANDOMIZED_PER_GUILD), and writes
         // question_plan_id (and per_guild_question_index) onto the instance.
+        let questionCount = 0;
         try {
-            await createQuestionPlanForInstance({
+            const plan = await createQuestionPlanForInstance({
                 boss_instance_id,
                 created_by_teacher_id: instance.created_by_teacher_id,
             });
+            questionCount = plan.question_count ?? 0;
         } catch (err: any) {
             if (err.message?.includes("No questions found")) {
                 return {
@@ -154,10 +156,24 @@ export const handler = async (event: any) => {
             now.getTime() + effectiveCountdownSeconds * 1000
         ).toISOString();
 
+        // Compute initial_boss_hp = questions × participants (total possible correct answers)
+        const participantCount = joinedParticipants.length;
+        const effectiveHp = questionCount > 0 && participantCount > 0
+            ? questionCount * participantCount
+            : undefined;
+
+        // Compute passing_score from passing_score_percent (default 50%)
+        const passingScorePercent = (instance as any).passing_score_percent ?? 50;
+        const passingScore = effectiveHp !== undefined
+            ? Math.ceil((passingScorePercent / 100) * effectiveHp)
+            : undefined;
+
         const updated = await startBossBattleCountdown(
             boss_instance_id,
             countdownEndAt,
-            nowIso
+            nowIso,
+            effectiveHp,
+            passingScore
         );
 
         return {

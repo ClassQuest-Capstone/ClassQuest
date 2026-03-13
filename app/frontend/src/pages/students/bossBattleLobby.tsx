@@ -40,7 +40,7 @@ import {
 } from "../../api/bossBattleParticipants/client.js";
 import type { BossBattleParticipant } from "../../api/bossBattleParticipants/types.js";
 
-import { useBattleSubscription, useRosterSubscription } from "../../hooks/useBattleSubscription.ts";
+import { useBattlePolling, useRosterPolling } from "../../hooks/useBattlePolling.ts";
 
 // --------------------
 // Student helper
@@ -178,8 +178,8 @@ export default function BossBattleLobbyStudent() {
   const [nameMap, setNameMap] = useState<StudentNameMap>({});
   const [countdownLeft, setCountdownLeft] = useState(0);
 
-  const { battleState } = useBattleSubscription(bossInstanceId);
-  const { rosterEvent } = useRosterSubscription(bossInstanceId);
+  const polledInstance = useBattlePolling(bossInstanceId, 2500);
+  const polledParticipants = useRosterPolling(bossInstanceId, 3000);
 
   // gold display
   const { profile } = usePlayerProgression(studentId || "", classId || "");
@@ -319,20 +319,25 @@ export default function BossBattleLobbyStudent() {
     refresh();
   }, [refresh]);
 
-  // merge subscription state events into instance
+  // Merge polled instance into state
   useEffect(() => {
-    if (!battleState) return;
-    setInstance((prev) => {
-      if (!prev) return prev;
-      return { ...prev, ...battleState } as unknown as BossBattleInstance;
-    });
-  }, [battleState]);
+    if (polledInstance) setInstance(polledInstance);
+  }, [polledInstance]);
 
-  // merge roster events into participants
+  // Merge polled roster into state and hydrate any new names
   useEffect(() => {
-    if (!rosterEvent) return;
-    setParticipants(rosterEvent.participants as any);
-  }, [rosterEvent]);
+    if (polledParticipants.length > 0 || instance) setParticipants(polledParticipants);
+
+    const missingIds = polledParticipants
+      .map((p) => p.student_id)
+      .filter((id) => id && !nameMap[id]);
+
+    if (missingIds.length > 0) {
+      fetchStudentNames(missingIds).then((nm) =>
+        setNameMap((prev) => ({ ...prev, ...nm }))
+      );
+    }
+  }, [polledParticipants]);
 
   // local countdown tick
   useEffect(() => {
@@ -874,9 +879,6 @@ export default function BossBattleLobbyStudent() {
                                 <div className="font-bold text-gray-900 truncate">
                                   {name} {isMe ? "(You)" : ""}
                                 </div>
-                                <div className="text-xs text-gray-500 font-mono truncate">
-                                  {p.student_id}
-                                </div>
                                 {p.is_downed ? (
                                   <div className="mt-1 text-xs font-semibold text-red-600">
                                     DOWN
@@ -910,9 +912,6 @@ export default function BossBattleLobbyStudent() {
                               >
                                 <div className="font-bold text-gray-900 truncate">
                                   {name} {isMe ? "(You)" : ""}
-                                </div>
-                                <div className="text-xs text-gray-500 font-mono truncate">
-                                  {p.student_id}
                                 </div>
                               </div>
                             );

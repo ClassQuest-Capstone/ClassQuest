@@ -196,44 +196,42 @@ export async function resolveQuestionCore(boss_instance_id: string): Promise<Res
     }
 
     // --- 9. Determine next battle state ---
+    // Boss HP tracks total correct answers (HP = question count, damage = 1 per correct).
+    // WIN/FAIL is determined after all questions are asked in auto-advance-question.ts.
+    // The only mid-fight completion is if all guilds are downed.
     let next_status: "INTERMISSION" | "COMPLETED";
     let outcome: "WIN" | "FAIL" | undefined;
     let fail_reason: "ALL_GUILDS_DOWN" | undefined;
 
-    if (new_boss_hp === 0) {
+    const guildMemberMap = new Map<string, string[]>();
+    for (const p of joinedParticipants) {
+        if (!p.guild_id) continue;
+        if (!guildMemberMap.has(p.guild_id)) guildMemberMap.set(p.guild_id, []);
+        guildMemberMap.get(p.guild_id)!.push(p.student_id);
+    }
+
+    let allGuildsDown = guildMemberMap.size > 0;
+    for (const memberIds of guildMemberMap.values()) {
+        const guildIsDown = memberIds.every((sid) => {
+            const participant = joinedParticipants.find((p) => p.student_id === sid);
+            return (
+                participant?.is_downed === true ||
+                downedThisRound.has(sid) ||
+                (updatedHearts.get(sid) ?? 0) === 0
+            );
+        });
+        if (!guildIsDown) {
+            allGuildsDown = false;
+            break;
+        }
+    }
+
+    if (allGuildsDown) {
         next_status = "COMPLETED";
-        outcome = "WIN";
+        outcome = "FAIL";
+        fail_reason = "ALL_GUILDS_DOWN";
     } else {
-        const guildMemberMap = new Map<string, string[]>();
-        for (const p of joinedParticipants) {
-            if (!p.guild_id) continue;
-            if (!guildMemberMap.has(p.guild_id)) guildMemberMap.set(p.guild_id, []);
-            guildMemberMap.get(p.guild_id)!.push(p.student_id);
-        }
-
-        let allGuildsDown = guildMemberMap.size > 0;
-        for (const memberIds of guildMemberMap.values()) {
-            const guildIsDown = memberIds.every((sid) => {
-                const participant = joinedParticipants.find((p) => p.student_id === sid);
-                return (
-                    participant?.is_downed === true ||
-                    downedThisRound.has(sid) ||
-                    (updatedHearts.get(sid) ?? 0) === 0
-                );
-            });
-            if (!guildIsDown) {
-                allGuildsDown = false;
-                break;
-            }
-        }
-
-        if (allGuildsDown) {
-            next_status = "COMPLETED";
-            outcome = "FAIL";
-            fail_reason = "ALL_GUILDS_DOWN";
-        } else {
-            next_status = "INTERMISSION";
-        }
+        next_status = "INTERMISSION";
     }
 
     // --- 10. TODO: connect boss question resolution to configurable XP/gold reward

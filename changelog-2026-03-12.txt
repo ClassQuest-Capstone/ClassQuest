@@ -1,0 +1,126 @@
+ClassQuest Changelog — 2026-03-12
+==================================
+
+BOSS BATTLE — RESULTS & REWARDS
+---------------------------------
+- Fixed "Defeat" showing despite a WIN: fetchBossBattleResultsSafe now reads the
+  correct backend field names (outcome, guild_results, student_results).
+- Fixed XP and Gold never being applied to player state after a boss battle:
+  rewrote bossResults/repo.ts Step 6 to aggregate xp_earned from attempt records,
+  create idempotent reward transactions, and call applyXpAndGold per student.
+- Added 10-second countdown overlay ("Calculating rewards…") before the result
+  modal appears, giving the backend time to finish writing rewards for all players.
+- Added base completion rewards (base_xp_reward / base_gold_reward from template):
+  WIN = 100% of base reward, FAIL/ABORTED = 50% of base reward.
+- Added per-question XP reward field (xp_reward) to boss questions. After each
+  answer the student sees how much XP they earned.
+- Added guild damage contribution ranking at battle end:
+    1st place guild: +25% bonus on base rewards (original, not WIN/FAIL-adjusted)
+    2nd place guild: +15% bonus
+    3rd place guild: +10% bonus
+    Ties share the same rank and bonus.
+- Bonus XP/Gold is now calculated off the original base template rewards, not the
+  WIN/FAIL-multiplied amount (e.g. base 1000 XP → 1st gets +250 XP bonus always).
+- Redesigned result modal to show:
+    - WIN/FAIL/ABORTED header with guild name
+    - XP and Gold earned cards
+    - Your score and guild average
+    - Per-member breakdown (correct answers + hearts lost)
+    - Guild damage rankings with 🥇🥈🥉 badges and bonus labels
+    - Guild names now properly shown for ALL guilds (not just the current player's)
+
+BOSS BATTLE — WIN CONDITION & HP DISPLAY
+------------------------------------------
+- Win threshold changed from a raw number to a percentage (1–100%) set by the
+  teacher when assigning the boss fight.
+- initial_boss_hp is now set at countdown start as:
+    questions × participant_count  (total possible correct answers)
+- passing_score is computed at countdown start:
+    ceil(passing_score_percent / 100 × initial_boss_hp)
+- Boss HP now displayed as a percentage (XX.XX%) everywhere instead of
+  "current / initial" whole numbers:
+    - Student boss fight page
+    - Teacher monitor
+    - Student guilds tab (boss battle cards)
+    - Student boss battle lobby
+
+BOSS BATTLE — TEACHER ASSIGN MODAL (subjects.tsx / BossBattleModals.tsx)
+--------------------------------------------------------------------------
+- Replaced raw "Passing Score" number input with a 1–100% slider labelled
+  "Win Threshold — % of Boss HP to deal".
+- Description explains: meet threshold → full rewards, below → 50%.
+- Default win threshold is 50%.
+- Sends passing_score_percent to the backend (previously sent a raw number).
+- Validation no longer requires a non-zero passing score (slider always valid).
+
+GUILDS TAB (student)
+---------------------
+- Removed "Guild Hearts" stat box (hearts are now individual per player).
+- Removed "Guild Power" stat box.
+- Added "Bosses Defeated" counter — counts boss battles where outcome = WIN.
+  (Later removed in the same session at user request.)
+- Added "Total Boss Damage" stat — summed guild_total_damage_to_boss across
+  all completed battles by fetching boss results per instance.
+  (Later removed at user request — to be re-added later.)
+- Individual hearts now shown on each guild member card (fetched via getPlayerState).
+- Imported getPlayerState to fetch and display per-member hearts.
+
+GUILD DAMAGE RANKINGS
+----------------------
+- guild_total_correct used to determine contribution rank at battle end.
+- Rank and bonus stored on BossResultGuildRow (contribution_rank, contribution_bonus_pct).
+- Frontend result modal shows guild rankings for any number of guilds (≥1).
+
+LOBBY — NAME DISPLAY FIX
+--------------------------
+- Student lobby: when polled roster returns new participants, names are now
+  fetched immediately for any IDs not yet in nameMap (previously showed raw
+  user ID until manual refresh).
+- Teacher lobby: same fix applied — new joiners now show display name on first
+  poll without requiring a refresh.
+- Student lobby: removed raw student_id display from participant cards.
+- Teacher lobby: removed raw student_id display from participant cards.
+
+BOSS QUESTIONS (teacher editor — subjects.tsx bossQuestions.tsx)
+-----------------------------------------------------------------
+- Added XP Reward field per question (xp_reward, optional, non-negative).
+- XP Reward shown as a badge on question cards in the list view.
+- After answering a question, the student sees "+X XP earned!" in the
+  intermission area and in the battle log.
+
+HEARTS — INDIVIDUAL (not guild-level)
+---------------------------------------
+- Wrong answers now deduct 1 heart from the answering student only.
+- Guild-level heart damage removed entirely (hearts_delta_guild_total = 0 always).
+- submit-answer.ts updated to apply -1 heart delta only to the individual student.
+- Teacher lobby: removed "Guild HP" progress bar (was aggregate of individual hearts).
+- Teacher monitor: removed "Guild HP" progress bar from guild panels.
+
+TEACHER MONITOR
+----------------
+- Removed "Compute Results" button (results are computed automatically).
+- Removed "Guild HP" bar from guild panels.
+
+BACKEND — applyXpAndGold (playerStates/repo.ts)
+------------------------------------------------
+- New function: applyXpAndGold(class_id, student_id, xp_delta, gold_delta)
+- Does a GET + UpdateCommand to recalculate leaderboard_sort correctly
+  (leaderboard_sort is a derived field that must be recomputed on XP change).
+- Called per student at battle end from computeAndWriteBossResults.
+
+BACKEND — TYPE ADDITIONS
+--------------------------
+- BossQuestionItem: added xp_reward?: number (optional per-question XP).
+- BossAnswerAttemptItem: added xp_earned?: number.
+- BossBattleInstanceItem / CreateBossBattleInstanceInput: added passing_score_percent?: number.
+- BossResultGuildRow: added contribution_rank?: number, contribution_bonus_pct?: number.
+- Frontend API types updated to match all of the above.
+
+REMOVED
+--------
+- Guild-level hearts concept removed from all UI and logic.
+- "Compute Results" button removed from teacher monitor.
+- Raw student user IDs removed from all lobby participant cards.
+- "Max HP" stat card removed from student guilds tab boss battle cards.
+- "Total Boss Damage" stat removed from guild panel (guilds.tsx) — to be revisited.
+- getBossResults import removed from guilds.tsx after Total Boss Damage was removed.

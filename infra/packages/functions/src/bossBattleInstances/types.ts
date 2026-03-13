@@ -123,6 +123,8 @@ export type BossBattleInstanceItem = {
     // Outcome (set when completed/aborted)
     outcome?: BattleOutcome;
     fail_reason?: FailReason;
+    passing_score?: number;
+    passing_score_percent?: number;
 
     // Answer-gating runtime state (reset each StartQuestion)
     required_answer_count?: number;
@@ -158,6 +160,8 @@ export type CreateBossBattleInstanceInput = {
     freeze_on_wrong_seconds?: number;
     late_join_policy?: LateJoinPolicy;
     turn_policy?: TurnPolicy;
+    passing_score?: number;
+    passing_score_percent?: number;
 };
 
 /**
@@ -208,5 +212,7 @@ export function applyBattleDefaults(
         late_join_policy: input.late_join_policy ?? LateJoinPolicy.DISALLOW_AFTER_COUNTDOWN,
         current_question_index: 0,
         turn_policy: input.turn_policy,
+        passing_score: input.passing_score,
+        passing_score_percent: input.passing_score_percent,
     };
 }

@@ -117,9 +117,8 @@ export default function BossQuestions() {
   // TRUE_FALSE
   const [tfCorrect, setTfCorrect] = useState<boolean>(true);
 
-  const [damageBoss, setDamageBoss] = useState<number>(10);
-  const [damageGuild, setDamageGuild] = useState<number>(5);
   const [maxPoints, setMaxPoints] = useState<number>(1);
+  const [xpReward, setXpReward] = useState<number>(0);
   const [autoGradable, setAutoGradable] = useState<boolean>(true);
 
   useEffect(() => {
@@ -178,9 +177,8 @@ export default function BossQuestions() {
 
     setTfCorrect(true);
 
-    setDamageBoss(10);
-    setDamageGuild(5);
     setMaxPoints(1);
+    setXpReward(0);
     setAutoGradable(true);
   }
 
@@ -203,9 +201,8 @@ export default function BossQuestions() {
 
     setTfCorrect(normalizeCorrectAnswerToBool(q.correct_answer));
 
-    setDamageBoss(toInt(q.damage_to_boss_on_correct, 10));
-    setDamageGuild(toInt(q.damage_to_guild_on_incorrect, 5));
     setMaxPoints(toInt(q.max_points ?? 1, 1));
+    setXpReward(toInt(q.xp_reward ?? 0, 0));
     setAutoGradable(toBool(q.auto_gradable, true));
 
     setEditorOpen(true);
@@ -236,8 +233,6 @@ export default function BossQuestions() {
       if (correctIndex < 0 || correctIndex >= cleaned.length) return "Correct option is invalid.";
     }
 
-    if (damageBoss < 0) return "Damage to boss cannot be negative.";
-    if (damageGuild < 0) return "Damage to guild cannot be negative.";
     return null;
   }
 
@@ -256,9 +251,8 @@ export default function BossQuestions() {
         order_index: Number(orderIndex),
         question_text: questionText.trim(),
         question_type: questionType,
-        damage_to_boss_on_correct: Number(damageBoss),
-        damage_to_guild_on_incorrect: Number(damageGuild),
         max_points: Number(maxPoints),
+        xp_reward: Number(xpReward),
         auto_gradable: Boolean(autoGradable),
       };
 
@@ -377,14 +371,11 @@ export default function BossQuestions() {
                       <h3 className="text-lg font-bold text-gray-900 break-words">{q.question_text}</h3>
 
                       <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                        <span className="px-2 py-1 rounded-full bg-red-50 border border-red-200 text-red-700 font-semibold">
-                          Boss dmg (correct): {q.damage_to_boss_on_correct}
-                        </span>
-                        <span className="px-2 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 font-semibold">
-                          Guild dmg (wrong): {q.damage_to_guild_on_incorrect}
-                        </span>
                         <span className="px-2 py-1 rounded-full bg-gray-50 border border-gray-200 text-gray-700 font-semibold">
                           Auto-grade: {q.auto_gradable ? "Yes" : "No"}
+                        </span>
+                        <span className="px-2 py-1 rounded-full bg-yellow-50 border border-yellow-200 text-yellow-700 font-semibold">
+                          XP: {q.xp_reward ?? 0}
                         </span>
                       </div>
 
@@ -606,29 +597,7 @@ export default function BossQuestions() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Damage to Boss (correct)</label>
-                  <input
-                    className={inputBox}
-                    type="number"
-                    value={damageBoss}
-                    onChange={(e) => setDamageBoss(toInt(e.target.value, 0))}
-                    min={0}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Damage to Guild (incorrect)</label>
-                  <input
-                    className={inputBox}
-                    type="number"
-                    value={damageGuild}
-                    onChange={(e) => setDamageGuild(toInt(e.target.value, 0))}
-                    min={0}
-                  />
-                </div>
-
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Max Points</label>
                   <input
@@ -636,6 +605,17 @@ export default function BossQuestions() {
                     type="number"
                     value={maxPoints}
                     onChange={(e) => setMaxPoints(toInt(e.target.value, 1))}
+                    min={0}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">XP Reward (correct)</label>
+                  <input
+                    className={inputBox}
+                    type="number"
+                    value={xpReward}
+                    onChange={(e) => setXpReward(toInt(e.target.value, 0))}
                     min={0}
                   />
                 </div>

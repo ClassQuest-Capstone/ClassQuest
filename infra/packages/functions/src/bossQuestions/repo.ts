@@ -101,6 +101,7 @@ export async function updateQuestion(
         damage_to_boss_on_correct?: number;
         damage_to_guild_on_incorrect?: number;
         max_points?: number;
+        xp_reward?: number;
         auto_gradable?: boolean;
         time_limit_seconds?: number;
         updated_at?: string;
@@ -163,6 +164,12 @@ export async function updateQuestion(
         updateExpressions.push("#max_points = :max_points");
         expressionAttributeNames["#max_points"] = "max_points";
         expressionAttributeValues[":max_points"] = updates.max_points;
+    }
+
+    if (updates.xp_reward !== undefined) {
+        updateExpressions.push("#xp_reward = :xp_reward");
+        expressionAttributeNames["#xp_reward"] = "xp_reward";
+        expressionAttributeValues[":xp_reward"] = updates.xp_reward;
     }
 
     if (updates.auto_gradable !== undefined) {

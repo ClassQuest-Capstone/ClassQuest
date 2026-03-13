@@ -81,6 +81,46 @@ export async function setPlayerHearts(
     );
 }
 
+/**
+ * Atomically apply XP and gold deltas to a player's state.
+ * Also updates leaderboard_sort and updated_at.
+ * No-ops silently if the player state record does not exist.
+ */
+export async function applyXpAndGold(
+    class_id: string,
+    student_id: string,
+    xp_delta: number,
+    gold_delta: number
+): Promise<void> {
+    if (xp_delta === 0 && gold_delta === 0) return;
+
+    const now = new Date().toISOString();
+    const existing = await getPlayerState(class_id, student_id);
+    if (!existing) return;
+
+    const new_total_xp = existing.total_xp_earned + xp_delta;
+    const new_current_xp = existing.current_xp + xp_delta;
+    const new_gold = existing.gold + gold_delta;
+    const new_leaderboard_sort = makeLeaderboardSort(new_total_xp, student_id);
+
+    await ddb.send(
+        new UpdateCommand({
+            TableName: TABLE,
+            Key: { class_id, student_id },
+            UpdateExpression:
+                "SET total_xp_earned = :txp, current_xp = :cxp, gold = :gold, leaderboard_sort = :ls, updated_at = :now",
+            ExpressionAttributeValues: {
+                ":txp": new_total_xp,
+                ":cxp": new_current_xp,
+                ":gold": new_gold,
+                ":ls": new_leaderboard_sort,
+                ":now": now,
+            },
+            ConditionExpression: "attribute_exists(class_id)",
+        })
+    );
+}
+
 export type LeaderboardResult = {
     items: PlayerStateItem[];
     nextCursor?: string;

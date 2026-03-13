@@ -38,7 +38,7 @@ interface BossAssignModalProps {
   bossAssignModeType: string;
   bossAssignQuestionSelectionMode: string;
   bossAssignLateJoinPolicy: string;
-  bossAssignInitialBossHp: number;
+  bossAssignPassingScorePercent: number;
   bossAssignCountdownSeconds: number;
   bossAssignQuestionTimeLimit: number | "";
   bossAssignSpeedBonusEnabled: boolean;
@@ -55,7 +55,7 @@ interface BossAssignModalProps {
   onModeTypeChange: (value: string) => void;
   onQuestionSelectionModeChange: (value: string) => void;
   onLateJoinPolicyChange: (value: string) => void;
-  onInitialBossHpChange: (value: number) => void;
+  onPassingScorePercentChange: (value: number) => void;
   onCountdownSecondsChange: (value: number) => void;
   onQuestionTimeLimitChange: (value: number | "") => void;
   onSpeedBonusEnabledChange: (value: boolean) => void;
@@ -79,7 +79,7 @@ export const BossAssignModal: React.FC<BossAssignModalProps> = ({
   bossAssignModeType,
   bossAssignQuestionSelectionMode,
   bossAssignLateJoinPolicy,
-  bossAssignInitialBossHp,
+  bossAssignPassingScorePercent,
   bossAssignCountdownSeconds,
   bossAssignQuestionTimeLimit,
   bossAssignSpeedBonusEnabled,
@@ -95,7 +95,7 @@ export const BossAssignModal: React.FC<BossAssignModalProps> = ({
   onModeTypeChange,
   onQuestionSelectionModeChange,
   onLateJoinPolicyChange,
-  onInitialBossHpChange,
+  onPassingScorePercentChange,
   onCountdownSecondsChange,
   onQuestionTimeLimitChange,
   onSpeedBonusEnabledChange,
@@ -211,16 +211,23 @@ export const BossAssignModal: React.FC<BossAssignModalProps> = ({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Initial Boss Hearts <span className="text-red-500">*</span></label>
-              <select className={inputBox} value={bossAssignInitialBossHp} onChange={(e) => onInitialBossHpChange(Number(e.target.value))}>
-                <option value="0">Select Hearts</option>
-                <option value="3">3 Hearts</option>
-                <option value="5">5 Hearts</option>
-                <option value="7">7 Hearts</option>
-                <option value="10">10 Hearts</option>
-                <option value="15">15 Hearts</option>
-                <option value="20">20 Hearts</option>
-              </select>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Win Threshold <span className="text-red-500">*</span></label>
+              <div className="flex items-center gap-3 mt-1">
+                <input
+                  type="range"
+                  min={1}
+                  max={100}
+                  value={bossAssignPassingScorePercent}
+                  onChange={(e) => onPassingScorePercentChange(Number(e.target.value))}
+                  className="flex-1"
+                />
+                <span className="w-14 text-right font-bold text-purple-700 text-sm">
+                  {bossAssignPassingScorePercent}%
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Class must deal at least {bossAssignPassingScorePercent}% of boss HP to WIN and earn full rewards. Below this threshold they earn 50%.
+              </p>
             </div>
           </div>
 

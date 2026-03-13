@@ -22,6 +22,7 @@ import type { ClassItem } from "../../api/classes.js";
 
 // display names
 import { getStudentProfile } from "../../api/studentProfiles.js";
+import { getPlayerState } from "../../api/playerStates.js";
 
 // your shared http client (so we can fetch class by id safely)
 import { api } from "../../api/http.js";
@@ -253,6 +254,9 @@ const GuildPage: React.FC = () => {
   const [bossBattlesLoading, setBossBattlesLoading] = useState(false);
   const [bossBattlesError, setBossBattlesError] = useState<string | null>(null);
 
+  // Hearts cache per student
+  const [heartsByStudentId, setHeartsByStudentId] = useState<Record<string, number | null>>({});
+
   // Name cache
   const [nameByStudentId, setNameByStudentId] = useState<Record<string, string>>(
     {}
@@ -352,6 +356,23 @@ const GuildPage: React.FC = () => {
       setRoster(active);
 
       hydrateNames(active.map((m) => m.student_id));
+
+      // Load hearts for each member
+      if (classId) {
+        const heartEntries = await Promise.all(
+          active.map(async (m) => {
+            try {
+              const ps = await getPlayerState(classId, m.student_id);
+              return { sid: m.student_id, hearts: ps.hearts };
+            } catch {
+              return { sid: m.student_id, hearts: null };
+            }
+          })
+        );
+        const heartsMap: Record<string, number | null> = {};
+        for (const e of heartEntries) heartsMap[e.sid] = e.hearts;
+        setHeartsByStudentId(heartsMap);
+      }
     } catch (e: any) {
       setRosterError(e?.message ?? "Failed to load guild members.");
       setRoster([]);
@@ -419,13 +440,10 @@ const GuildPage: React.FC = () => {
     refreshBossBattles(classId);
   }, [classId, classLoading]);
 
+
   useEffect(() => {
     feather.replace();
   }, [myGuild, roster, membershipLoading, rosterLoading, bossBattles]);
-
-  // Placeholder guild stats (not implemented yet)
-  const guildPower = "—";
-  const guildHearts = "—";
 
   const classLabel = classInfoLoading
     ? "Loading..."
@@ -622,27 +640,6 @@ const GuildPage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 min-w-[220px]">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-gray-600">
-                      Guild Power
-                    </span>
-                    <span className="text-sm font-bold text-gray-900">
-                      {guildPower}
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-gray-600">
-                      Guild Hearts
-                    </span>
-                    <span className="text-sm font-bold text-gray-900">
-                      {guildHearts}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-[11px] text-gray-500">
-                    (Not implemented yet)
-                  </p>
-                </div>
               </div>
 
               <h3 className="text-lg font-medium mb-4 text-gray-800">
@@ -692,12 +689,16 @@ const GuildPage: React.FC = () => {
                           </div>
                         </div>
 
-                        <div className="mt-3 flex justify-between">
+                        <div className="mt-3 flex justify-between items-center">
                           <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                             {m.role_in_guild}
                           </span>
-                          <span className="text-xs text-gray-500">
-                            {m.is_active ? "Active" : "Inactive"}
+                          <span className="text-xs text-red-600 font-semibold">
+                            {heartsByStudentId[m.student_id] !== undefined
+                              ? heartsByStudentId[m.student_id] !== null
+                                ? `❤️ ${heartsByStudentId[m.student_id]}`
+                                : "—"
+                              : "…"}
                           </span>
                         </div>
                       </div>
@@ -805,9 +806,11 @@ const GuildPage: React.FC = () => {
                       {/* Boss Health Progress */}
                       <div className="mb-5">
                         <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-semibold">Boss Health</span>
+                          <span className="text-sm font-semibold">Boss HP</span>
                           <span className="text-sm font-semibold">
-                            {battle.current_boss_hp.toLocaleString()} / {battle.initial_boss_hp.toLocaleString()} Hearts
+                            {battle.initial_boss_hp > 0
+                              ? ((battle.current_boss_hp / battle.initial_boss_hp) * 100).toFixed(2)
+                              : "0.00"}%
                           </span>
                         </div>
                         <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
@@ -820,12 +823,6 @@ const GuildPage: React.FC = () => {
 
                       {/* Stats Grid */}
                       <div className="grid grid-cols-2 gap-4 mb-5 bg-white/10 backdrop-blur p-4 rounded-lg">
-                        <div>
-                          <p className="text-xs opacity-75 mb-1">Max HP</p>
-                          <p className="text-lg font-bold">
-                            {template?.max_hp?.toLocaleString() || "—"}
-                          </p>
-                        </div>
                         <div>
                           <p className="text-xs opacity-75 mb-1">Base XP Reward</p>
                           <p className="text-lg font-bold">

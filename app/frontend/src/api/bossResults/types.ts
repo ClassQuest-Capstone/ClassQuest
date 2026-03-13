@@ -1,63 +1,46 @@
 /**
  * Boss Results type definitions
+ * Matches the actual backend response from GET /boss-battle-instances/{id}/results
  */
 
-export type BossResultMeta = {
-    boss_instance_id: string; // PK
-    item_type: "META"; // SK
-    computed_at: string; // ISO timestamp
-    computed_by_teacher_id: string;
-    outcome: "WIN" | "FAIL" | "ABORTED";
-    fail_reason?: "TIMEOUT" | "ALL_GUILDS_DOWN" | "OUT_OF_QUESTIONS" | "ABORTED_BY_TEACHER";
-    total_students: number;
-    total_guilds: number;
-    total_damage_dealt: number;
-    boss_hp_remaining: number;
-    total_hearts_lost: number;
-    total_questions_answered: number;
-    battle_duration_seconds: number;
-    version: number;
-};
-
-export type BossResultStudent = {
-    boss_instance_id: string; // PK
-    item_type: string; // SK: STU#<student_id>
+export type BossResultStudentRow = {
     student_id: string;
     guild_id: string;
-    questions_answered: number;
-    correct_answers: number;
-    incorrect_answers: number;
-    total_damage_dealt: number;
+    total_correct: number;
+    total_incorrect: number;
+    total_attempts: number;
+    total_damage_to_boss: number;
     hearts_lost: number;
-    avg_time_to_answer_ms: number;
-    avg_speed_multiplier: number;
-    xp_earned: number;
-    gold_earned: number;
+    xp_awarded: number;
+    gold_awarded: number;
+    participation_state: string;
+    last_answered_at?: string;
 };
 
-export type BossResultGuild = {
-    boss_instance_id: string; // PK
-    item_type: string; // SK: GUILD#<guild_id>
+export type BossResultGuildRow = {
     guild_id: string;
-    members_count: number;
-    questions_answered: number;
-    correct_answers: number;
-    incorrect_answers: number;
-    total_damage_dealt: number;
-    hearts_lost: number;
-    avg_time_to_answer_ms: number;
-    avg_speed_multiplier: number;
-    xp_earned: number;
-    gold_earned: number;
+    guild_total_correct: number;
+    guild_total_incorrect: number;
+    guild_total_attempts: number;
+    guild_total_damage_to_boss: number;
+    guild_total_hearts_lost: number;
+    guild_xp_awarded_total: number;
+    guild_gold_awarded_total: number;
+    guild_members_joined: number;
+    guild_members_downed: number;
+    contribution_rank?: number;
+    contribution_bonus_pct?: number;
 };
 
 export type BossResultsResponse = {
-    meta: BossResultMeta;
-    students: BossResultStudent[];
-    guilds: BossResultGuild[];
+    outcome: "WIN" | "FAIL" | "ABORTED";
+    completed_at: string;
+    fail_reason?: string;
+    guild_results: BossResultGuildRow[];
+    student_results: BossResultStudentRow[];
 };
 
 export type BossResultStudentList = {
-    items: BossResultStudent[];
+    items: BossResultStudentRow[];
     cursor?: string;
 };

@@ -95,6 +95,7 @@ const BossClasses = () => {
 
   const [bossAssignOpen, setBossAssignOpen] = useState(false);
   const [selectedBossTemplateId, setSelectedBossTemplateId] = useState<string>("");
+  const [passingScorePercent, setPassingScorePercent] = useState<number>(50);
   const [bossAssigning, setBossAssigning] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [teacher, setTeacher] = useState<TeacherUser | null>(null);
@@ -231,6 +232,7 @@ const BossClasses = () => {
   // --------------------
   const openBossAssignModal = () => {
     setSelectedBossTemplateId("");
+    setPassingScorePercent(50);
     setBossAssignOpen(true);
   };
 
@@ -246,12 +248,11 @@ const BossClasses = () => {
     setBossError(null);
 
     try {
-      const initialHp = toInt((tmpl as any).max_hp, 100) || 100;
-
       await createBossBattleInstance({
         class_id: state!.class_id,
         boss_template_id: selectedBossTemplateId,
-        initial_boss_hp: initialHp,
+        initial_boss_hp: 1,
+        passing_score_percent: passingScorePercent,
       } as any);
 
       await refreshBossInstances();
@@ -650,6 +651,29 @@ const BossClasses = () => {
                         );
                       })}
                     </select>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Win Threshold — % of Boss HP to deal
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min={1}
+                        max={100}
+                        value={passingScorePercent}
+                        onChange={(e) => setPassingScorePercent(Number(e.target.value))}
+                        className="flex-1"
+                        disabled={bossAssigning}
+                      />
+                      <span className="w-14 text-right font-bold text-indigo-700 text-sm">
+                        {passingScorePercent}%
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      The class must collectively deal at least <span className="font-semibold">{passingScorePercent}%</span> of the boss's total HP to win and receive full rewards. Below this, they get 50%.
+                    </p>
                   </div>
 
                   <div className="flex justify-end gap-3">

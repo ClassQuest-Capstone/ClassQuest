@@ -39,6 +39,7 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             damage_to_boss_on_correct,
             damage_to_guild_on_incorrect,
             max_points,
+            xp_reward,
             auto_gradable,
             time_limit_seconds,
         } = body;
@@ -48,8 +49,6 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             order_index === undefined ||
             !question_text ||
             !question_type ||
-            damage_to_boss_on_correct === undefined ||
-            damage_to_guild_on_incorrect === undefined ||
             auto_gradable === undefined
         ) {
             return {
@@ -61,8 +60,6 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
                         "order_index",
                         "question_text",
                         "question_type",
-                        "damage_to_boss_on_correct",
-                        "damage_to_guild_on_incorrect",
                         "auto_gradable",
                     ],
                 }),
@@ -134,6 +131,7 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             damage_to_boss_on_correct,
             damage_to_guild_on_incorrect,
             max_points,
+            ...(xp_reward !== undefined && { xp_reward }),
             auto_gradable,
             ...(time_limit_seconds !== undefined && { time_limit_seconds }),
             created_at: now,

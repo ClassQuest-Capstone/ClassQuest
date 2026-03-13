@@ -84,6 +84,8 @@ export type BossResultGuildRow = {
     guild_gold_awarded_total: number;
     guild_members_joined: number;
     guild_members_downed: number;
+    contribution_rank?: number;        // 1st, 2nd, 3rd place for damage contribution
+    contribution_bonus_pct?: number;   // 0.25, 0.15, 0.10 or 0
 
     // GSI2 keys (class history) - no GSI1 for guild rows
     //class_id: string;

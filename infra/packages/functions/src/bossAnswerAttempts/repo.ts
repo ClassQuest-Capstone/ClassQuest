@@ -48,6 +48,7 @@ export async function createBossAnswerAttempt(
         damage_to_boss: input.damage_to_boss,
         hearts_delta_student: input.hearts_delta_student,
         hearts_delta_guild_total: input.hearts_delta_guild_total,
+        xp_earned: input.xp_earned,
         mode_type: input.mode_type,
         status_at_submit: input.status_at_submit,
         reward_txn_id: input.reward_txn_id,

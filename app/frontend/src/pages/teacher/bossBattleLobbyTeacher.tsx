@@ -23,7 +23,7 @@ import {
   type BossBattleParticipant,
 } from "../../api/bossBattleParticipants/client.js";
 
-import { useBattleSubscription, useRosterSubscription } from "../../hooks/useBattleSubscription.ts";
+import { useBattlePolling, useRosterPolling } from "../../hooks/useBattlePolling.ts";
 
 type TeacherUser = {
   id: string;
@@ -128,6 +128,10 @@ async function fetchAllGuildsByClass(classId: string) {
   return all;
 }
 
+function isoNowPlusSeconds(seconds: number) {
+  return new Date(Date.now() + seconds * 1000).toISOString();
+}
+
 function formatDateTime(value?: string | null) {
   if (!value) return "—";
   const d = new Date(value);
@@ -170,8 +174,8 @@ export default function BossBattleLobbyTeacher() {
   const [nameMap, setNameMap] = useState<StudentNameMap>({});
   const [countdownLeft, setCountdownLeft] = useState(0);
 
-  const { battleState } = useBattleSubscription(bossInstanceId);
-  const { rosterEvent } = useRosterSubscription(bossInstanceId);
+  const polledInstance = useBattlePolling(bossInstanceId, 2500);
+  const polledParticipants = useRosterPolling(bossInstanceId, 3000);
 
   const refresh = useCallback(async () => {
     if (!bossInstanceId) {
@@ -230,18 +234,25 @@ export default function BossBattleLobbyTeacher() {
     };
   }, [refresh]);
 
+  // Merge polled instance into state
   useEffect(() => {
-    if (!battleState) return;
-    setInstance((prev) => {
-      if (!prev) return prev;
-      return { ...prev, ...battleState } as unknown as BossBattleInstance;
-    });
-  }, [battleState]);
+    if (polledInstance) setInstance(polledInstance);
+  }, [polledInstance]);
 
+  // Merge polled roster into state and hydrate any new names
   useEffect(() => {
-    if (!rosterEvent) return;
-    setParticipants(rosterEvent.participants as any);
-  }, [rosterEvent]);
+    if (polledParticipants.length > 0 || instance) setParticipants(polledParticipants);
+
+    const missingIds = polledParticipants
+      .map((p: any) => p.student_id)
+      .filter((id: string) => id && !nameMap[id]);
+
+    if (missingIds.length > 0) {
+      fetchStudentNames(missingIds).then((nm) =>
+        setNameMap((prev) => ({ ...prev, ...nm }))
+      );
+    }
+  }, [polledParticipants]);
 
   useEffect(() => {
     feather.replace();
@@ -387,9 +398,7 @@ export default function BossBattleLobbyTeacher() {
     try {
       setBusy(true);
       setError("");
-
       await startBossBattleInstance(bossInstanceId);
-
       await refresh();
     } catch (err: any) {
       console.error("Open lobby failed:", err);
@@ -415,10 +424,8 @@ export default function BossBattleLobbyTeacher() {
     try {
       setBusy(true);
       setError("");
-
-      // This endpoint snapshots participants + generates the question plan
+      // startBossBattleCountdown snapshots participants, generates question plan, sets countdown_end_at
       await startBossBattleCountdown(bossInstanceId);
-
       await refresh();
     } catch (err: any) {
       console.error("Start countdown failed:", err);
@@ -702,9 +709,6 @@ export default function BossBattleLobbyTeacher() {
                               >
                                 <div className="min-w-0">
                                   <div className="font-bold text-gray-900 truncate">{name}</div>
-                                  <div className="text-xs text-gray-500 font-mono truncate">
-                                    {p.student_id}
-                                  </div>
                                   <div className="mt-1 text-xs text-gray-500">
                                     State: <b>{p.state || "UNKNOWN"}</b>
                                   </div>
@@ -743,9 +747,6 @@ export default function BossBattleLobbyTeacher() {
                             return (
                               <div key={p.student_id} className="border rounded-lg p-3">
                                 <div className="font-bold text-gray-900">{name}</div>
-                                <div className="text-xs text-gray-500 font-mono truncate">
-                                  {p.student_id}
-                                </div>
                                 <div className="mt-1 text-xs text-gray-500">
                                   State: <b>{p.state || "SPECTATE"}</b>
                                 </div>

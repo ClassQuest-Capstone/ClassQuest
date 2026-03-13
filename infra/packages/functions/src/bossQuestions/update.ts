@@ -38,6 +38,7 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             damage_to_boss_on_correct,
             damage_to_guild_on_incorrect,
             max_points,
+            xp_reward,
             auto_gradable,
             time_limit_seconds,
         } = body;
@@ -109,6 +110,10 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
 
         if (max_points !== undefined) {
             updates.max_points = max_points;
+        }
+
+        if (xp_reward !== undefined) {
+            updates.xp_reward = xp_reward;
         }
 
         if (auto_gradable !== undefined) {

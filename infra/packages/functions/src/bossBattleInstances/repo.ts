@@ -269,25 +269,46 @@ export async function updateBossBattleInstance(
 export async function startBossBattleCountdown(
     boss_instance_id: string,
     countdown_end_at: string,
-    updated_at: string
+    updated_at: string,
+    initial_boss_hp?: number,
+    passing_score?: number
 ): Promise<BossBattleInstanceItem> {
+    const hasHp = initial_boss_hp !== undefined && initial_boss_hp > 0;
+    const hasPassingScore = passing_score !== undefined;
+
+    let updateExpression = "SET #status = :countdown, #countdown_end_at = :countdown_end_at, #updated_at = :updated_at";
+    if (hasHp) updateExpression += ", #initial_boss_hp = :hp, #current_boss_hp = :hp";
+    if (hasPassingScore) updateExpression += ", #passing_score = :ps";
+
+    const names: Record<string, string> = {
+        "#status": "status",
+        "#countdown_end_at": "countdown_end_at",
+        "#updated_at": "updated_at",
+    };
+    const values: Record<string, any> = {
+        ":countdown": "COUNTDOWN",
+        ":countdown_end_at": countdown_end_at,
+        ":updated_at": updated_at,
+        ":lobby": "LOBBY",
+    };
+
+    if (hasHp) {
+        names["#initial_boss_hp"] = "initial_boss_hp";
+        names["#current_boss_hp"] = "current_boss_hp";
+        values[":hp"] = initial_boss_hp;
+    }
+    if (hasPassingScore) {
+        names["#passing_score"] = "passing_score";
+        values[":ps"] = passing_score;
+    }
+
     const result = await ddb.send(
         new UpdateCommand({
             TableName: TABLE,
             Key: { boss_instance_id },
-            UpdateExpression:
-                "SET #status = :countdown, #countdown_end_at = :countdown_end_at, #updated_at = :updated_at",
-            ExpressionAttributeNames: {
-                "#status": "status",
-                "#countdown_end_at": "countdown_end_at",
-                "#updated_at": "updated_at",
-            },
-            ExpressionAttributeValues: {
-                ":countdown": "COUNTDOWN",
-                ":countdown_end_at": countdown_end_at,
-                ":updated_at": updated_at,
-                ":lobby": "LOBBY",
-            },
+            UpdateExpression: updateExpression,
+            ExpressionAttributeNames: names,
+            ExpressionAttributeValues: values,
             ConditionExpression: "attribute_exists(boss_instance_id) AND #status = :lobby",
             ReturnValues: "ALL_NEW",
         })

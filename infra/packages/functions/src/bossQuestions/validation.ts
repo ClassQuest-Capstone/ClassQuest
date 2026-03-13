@@ -38,6 +38,7 @@ export function validateQuestion(input: {
     auto_gradable?: boolean;
     correct_answer?: any;
     max_points?: number;
+    xp_reward?: number;
     time_limit_seconds?: number;
 }): ValidationResult {
     // Validate order_index
@@ -101,6 +102,16 @@ export function validateQuestion(input: {
             return {
                 valid: false,
                 error: "max_points must be a non-negative number",
+            };
+        }
+    }
+
+    // Validate xp_reward
+    if (input.xp_reward !== undefined) {
+        if (typeof input.xp_reward !== "number" || input.xp_reward < 0) {
+            return {
+                valid: false,
+                error: "xp_reward must be a non-negative number",
             };
         }
     }

@@ -18,6 +18,9 @@ import {
     FailReason,
     ParticipationState,
 } from "./types.js";
+import { putTransaction } from "../rewardTransactions/repo.js";
+import { SourceType, CreatedByRole, computeGSIKeys, generateDeterministicTransactionId } from "../rewardTransactions/types.js";
+import { applyXpAndGold } from "../playerStates/repo.js";
 import {
     buildBossResultPk,
     buildStudentResultSk,
@@ -36,7 +39,7 @@ const TABLE = process.env.BOSS_RESULTS_TABLE_NAME!;
 const BOSS_INSTANCES_TABLE = process.env.BOSS_BATTLE_INSTANCES_TABLE_NAME!;
 const BOSS_PARTICIPANTS_TABLE = process.env.BOSS_BATTLE_PARTICIPANTS_TABLE_NAME!;
 const BOSS_ATTEMPTS_TABLE = process.env.BOSS_ANSWER_ATTEMPTS_TABLE_NAME!;
-const REWARD_TRANSACTIONS_TABLE = process.env.REWARD_TRANSACTIONS_TABLE_NAME!;
+const BOSS_TEMPLATES_TABLE = process.env.BOSS_BATTLE_TEMPLATES_TABLE_NAME!;
 
 /**
  * Check if results already exist (idempotency check)
@@ -119,6 +122,30 @@ export async function computeAndWriteBossResults(
     const outcome: BattleOutcome = instance.outcome || "ABORTED";
     const completedAt = instance.completed_at || new Date().toISOString();
     const failReason: FailReason | undefined = instance.fail_reason;
+
+    // Step 2b: Load template for completion rewards
+    let baseCompletionXp = 0;
+    let baseCompletionGold = 0;
+    if (instance.boss_template_id) {
+        try {
+            const templateResult = await ddb.send(
+                new GetCommand({
+                    TableName: BOSS_TEMPLATES_TABLE,
+                    Key: { boss_template_id: instance.boss_template_id },
+                })
+            );
+            if (templateResult.Item) {
+                baseCompletionXp = templateResult.Item.base_xp_reward ?? 0;
+                baseCompletionGold = templateResult.Item.base_gold_reward ?? 0;
+            }
+        } catch (err: any) {
+            console.warn("[BossResults] Failed to load template for rewards", { error: err.message });
+        }
+    }
+    // WIN = 100%, FAIL/ABORTED = 50%
+    const rewardMultiplier = outcome === "WIN" ? 1.0 : 0.5;
+    const completionXp = Math.floor(baseCompletionXp * rewardMultiplier);
+    const completionGold = Math.floor(baseCompletionGold * rewardMultiplier);
 
     // Step 3: Load participants
     const participantsResult = await ddb.send(
@@ -254,40 +281,118 @@ export async function computeAndWriteBossResults(
         }
     }
 
-    // Step 6: Query rewards from RewardTransactions
-    // NOTE: This is a simplified version - actual implementation should query GSI3
-    const rewardsResult = await ddb.send(
-        new QueryCommand({
-            TableName: REWARD_TRANSACTIONS_TABLE,
-            IndexName: "gsi3",
-            KeyConditionExpression: "gsi3_pk = :source_pk",
-            ExpressionAttributeValues: {
-                ":source_pk": `SRC#BOSS_BATTLE#${bossInstanceId}`,
-            },
-        })
-    );
+    // Step 5b: Rank guilds by damage contribution (guild_total_correct desc), award bonuses
+    // 1st: +25%, 2nd: +15%, 3rd: +10% of completion rewards. Ties share the same rank.
+    const CONTRIBUTION_BONUSES: Record<number, number> = { 1: 0.25, 2: 0.15, 3: 0.10 };
+    const guildContributionRank = new Map<string, number>();  // guildId -> rank (1-based)
 
-    const rewards = rewardsResult.Items || [];
+    if (guildAggregates.size > 1) {
+        // Sort descending by damage
+        const sorted = Array.from(guildAggregates.values())
+            .sort((a, b) => b.guild_total_damage_to_boss - a.guild_total_damage_to_boss);
 
-    // Map rewards by student
+        let rank = 1;
+        for (let i = 0; i < sorted.length; i++) {
+            if (i > 0 && sorted[i].guild_total_damage_to_boss < sorted[i - 1].guild_total_damage_to_boss) {
+                // Skip rank numbers equal to the count of tied guilds before this one
+                rank = i + 1;
+            }
+            guildContributionRank.set(sorted[i].guild_id, rank);
+        }
+    }
+
+    // Step 6: Compute and apply rewards from attempt data
+    // Each attempt stores xp_earned (set during submit-answer). Sum per student.
     const studentRewards = new Map<
         string,
         { xp: number; gold: number; reward_txn_ids: string[] }
     >();
 
-    for (const reward of rewards) {
-        if (!reward.student_id) continue;
-        if (!studentRewards.has(reward.student_id)) {
-            studentRewards.set(reward.student_id, {
-                xp: 0,
-                gold: 0,
-                reward_txn_ids: [],
+    for (const [studentId] of studentAggregates) {
+        studentRewards.set(studentId, { xp: 0, gold: 0, reward_txn_ids: [] });
+    }
+
+    for (const attempt of attempts) {
+        const rewardEntry = studentRewards.get(attempt.student_id);
+        if (!rewardEntry) continue;
+        rewardEntry.xp += (attempt as any).xp_earned ?? 0;
+    }
+
+    // Add completion bonus (from template base_xp_reward / base_gold_reward)
+    // WIN = 100%, FAIL/ABORTED = 50%, plus guild contribution rank bonus
+    for (const [studentId, reward] of studentRewards) {
+        const studentAgg = studentAggregates.get(studentId);
+        const guildId = studentAgg?.guild_id;
+        const rank = guildId ? (guildContributionRank.get(guildId) ?? 0) : 0;
+        const bonusPct = CONTRIBUTION_BONUSES[rank] ?? 0;
+        // Bonus is based on the original base rewards, not the WIN/FAIL-adjusted amount
+        const bonusXp = Math.floor(baseCompletionXp * bonusPct);
+        const bonusGold = Math.floor(baseCompletionGold * bonusPct);
+        reward.xp += completionXp + bonusXp;
+        reward.gold += completionGold + bonusGold;
+    }
+
+    // Create reward transactions and update player states
+    for (const [studentId, reward] of studentRewards) {
+        if (reward.xp <= 0 && reward.gold <= 0) continue;
+
+        const studentAgg = studentAggregates.get(studentId);
+        if (!studentAgg) continue;
+
+        const now = new Date().toISOString();
+        const transaction_id = generateDeterministicTransactionId(
+            SourceType.BOSS_BATTLE,
+            undefined,
+            studentId,
+            undefined,
+            bossInstanceId
+        );
+
+        const gsiKeys = computeGSIKeys({
+            student_id: studentId,
+            class_id: instance.class_id,
+            source_type: SourceType.BOSS_BATTLE,
+            source_id: bossInstanceId,
+            created_at: now,
+            transaction_id,
+        });
+
+        try {
+            await putTransaction({
+                transaction_id,
+                student_id: studentId,
+                class_id: instance.class_id,
+                xp_delta: reward.xp,
+                gold_delta: reward.gold,
+                hearts_delta: 0,
+                source_type: SourceType.BOSS_BATTLE,
+                source_id: bossInstanceId,
+                boss_battle_instance_id: bossInstanceId,
+                reason: `Boss battle reward`,
+                created_at: now,
+                created_by: "system",
+                created_by_role: CreatedByRole.SYSTEM,
+                ...gsiKeys,
+            });
+            reward.reward_txn_ids.push(transaction_id);
+        } catch (err: any) {
+            if (err.name !== "ConditionalCheckFailedException") {
+                console.warn("[BossResults] Failed to create reward transaction", {
+                    studentId, error: err.message,
+                });
+            }
+            // Already exists (idempotency) — still include txn id
+            reward.reward_txn_ids.push(transaction_id);
+        }
+
+        // Apply to player state
+        try {
+            await applyXpAndGold(instance.class_id, studentId, reward.xp, reward.gold);
+        } catch (err: any) {
+            console.warn("[BossResults] Failed to apply xp/gold to player state", {
+                studentId, error: err.message,
             });
         }
-        const studentReward = studentRewards.get(reward.student_id)!;
-        studentReward.xp += reward.xp_delta || 0;
-        studentReward.gold += reward.gold_delta || 0;
-        studentReward.reward_txn_ids.push(reward.transaction_id);
     }
 
     // Step 7: Write META row first (idempotency guard)
@@ -370,6 +475,9 @@ export async function computeAndWriteBossResults(
             }
         }
 
+        const contribRank = guildContributionRank.get(guildId);
+        const contribBonusPct = contribRank ? (CONTRIBUTION_BONUSES[contribRank] ?? 0) : 0;
+
         const guildRow: BossResultGuildRow = {
             boss_result_pk: buildBossResultPk(bossInstanceId),
             boss_result_sk: buildGuildResultSk(guildId),
@@ -389,6 +497,8 @@ export async function computeAndWriteBossResults(
             guild_gold_awarded_total: guildGoldTotal,
             guild_members_joined: agg.guild_members_joined,
             guild_members_downed: agg.guild_members_downed,
+            contribution_rank: contribRank,
+            contribution_bonus_pct: contribBonusPct,
             gsi2_sk: buildGsi2Sk(completedAt, bossInstanceId),
             fail_reason: failReason,
         };

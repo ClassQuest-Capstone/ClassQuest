@@ -1,6 +1,7 @@
 import { getBossBattleInstance } from "./repo.js";
 import { BossBattleStatus } from "./types.js";
 import { resolveQuestionCore, type ResolveQuestionResult } from "./resolve-question-service.js";
+import { tryAutoAdvanceAndStartNextQuestion } from "./auto-advance-question.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -110,6 +111,12 @@ export async function tryAutoResolveBossQuestion(
             outcome: result.outcome,
             student_id: context.student_id,
         });
+
+        // After resolving to INTERMISSION, immediately advance to the next question
+        // so all questions are asked without requiring the teacher monitor to be open.
+        if (result.status === "INTERMISSION") {
+            await tryAutoAdvanceAndStartNextQuestion(boss_instance_id);
+        }
 
         return { auto_resolve_status: "resolved", result };
     } catch (err: any) {

@@ -287,7 +287,7 @@ const Subjects = () => {
   const [bossAssignModeType, setBossAssignModeType] = useState<string>("");
   const [bossAssignQuestionSelectionMode, setBossAssignQuestionSelectionMode] = useState<string>("");
   const [bossAssignLateJoinPolicy, setBossAssignLateJoinPolicy] = useState<string>("");
-  const [bossAssignInitialBossHp, setBossAssignInitialBossHp] = useState<number>(5);
+  const [bossAssignPassingScorePercent, setBossAssignPassingScorePercent] = useState<number>(50);
   const [bossAssignCountdownSeconds, setBossAssignCountdownSeconds] = useState<number>(5);
   const [bossAssignQuestionTimeLimit, setBossAssignQuestionTimeLimit] = useState<number | "">("");
   const [bossAssignSpeedBonusEnabled, setBossAssignSpeedBonusEnabled] = useState<boolean>(false);
@@ -734,8 +734,8 @@ const Subjects = () => {
       return;
     }
     
-    if (!bossAssignModeType || !bossAssignQuestionSelectionMode || bossAssignInitialBossHp === 0) {
-      setBossAssignError("Please configure battle settings (mode, question selection, and boss HP)");
+    if (!bossAssignModeType || !bossAssignQuestionSelectionMode) {
+      setBossAssignError("Please configure battle settings (mode and question selection)");
       return;
     }
 
@@ -758,7 +758,7 @@ const Subjects = () => {
         mode_type: bossAssignModeType,
         question_selection_mode: bossAssignQuestionSelectionMode,
         late_join_policy: bossAssignLateJoinPolicy || undefined,
-        initial_boss_hp: bossAssignInitialBossHp,
+        initial_boss_hp: 1,
         countdown_seconds: bossAssignCountdownSeconds,
         time_limit_seconds_default: bossAssignQuestionTimeLimit === "" ? undefined : bossAssignQuestionTimeLimit,
         speed_bonus_enabled: bossAssignSpeedBonusEnabled,
@@ -780,6 +780,7 @@ const Subjects = () => {
         speed_window_seconds: payload.speed_window_seconds,
         time_limit_seconds_default: payload.time_limit_seconds_default,
         created_by_teacher_id: teacher?.id || "",
+        passing_score_percent: bossAssignPassingScorePercent,
       });
 
       // Reset form state
@@ -794,7 +795,7 @@ const Subjects = () => {
       setBossAssignModeType("");
       setBossAssignQuestionSelectionMode("");
       setBossAssignLateJoinPolicy("");
-      setBossAssignInitialBossHp(0);
+      setBossAssignPassingScorePercent(50);
       setBossAssignCountdownSeconds(0);
       setBossAssignQuestionTimeLimit("");
       setBossAssignSpeedBonusEnabled(false);
@@ -1777,7 +1778,7 @@ const Subjects = () => {
         bossAssignModeType={bossAssignModeType}
         bossAssignQuestionSelectionMode={bossAssignQuestionSelectionMode}
         bossAssignLateJoinPolicy={bossAssignLateJoinPolicy}
-        bossAssignInitialBossHp={bossAssignInitialBossHp}
+        bossAssignPassingScorePercent={bossAssignPassingScorePercent}
         bossAssignCountdownSeconds={bossAssignCountdownSeconds}
         bossAssignQuestionTimeLimit={bossAssignQuestionTimeLimit}
         bossAssignSpeedBonusEnabled={bossAssignSpeedBonusEnabled}
@@ -1793,7 +1794,7 @@ const Subjects = () => {
         onModeTypeChange={setBossAssignModeType}
         onQuestionSelectionModeChange={setBossAssignQuestionSelectionMode}
         onLateJoinPolicyChange={setBossAssignLateJoinPolicy}
-        onInitialBossHpChange={setBossAssignInitialBossHp}
+        onPassingScorePercentChange={setBossAssignPassingScorePercent}
         onCountdownSecondsChange={setBossAssignCountdownSeconds}
         onQuestionTimeLimitChange={setBossAssignQuestionTimeLimit}
         onSpeedBonusEnabledChange={setBossAssignSpeedBonusEnabled}

@@ -236,18 +236,15 @@ export const handler = async (event: any) => {
         // --- 8. Compute per-attempt effects ---
         let damage_to_boss = 0;
         let hearts_delta_student = 0;
-        let hearts_delta_guild_total = 0;
+        const hearts_delta_guild_total = 0;
 
         if (is_correct) {
-            damage_to_boss = Math.round(question.damage_to_boss_on_correct * speed_multiplier);
+            damage_to_boss = 1; // Fixed: 1 damage per correct answer; boss HP equals question count
         } else {
-            if (instance.mode_type === ModeType.TURN_BASED_GUILD) {
-                hearts_delta_guild_total = -question.damage_to_guild_on_incorrect;
-            } else {
-                // SIMULTANEOUS_ALL and RANDOMIZED_PER_GUILD
-                hearts_delta_student = -1;
-            }
+            hearts_delta_student = -1; // All modes: individual heart loss
         }
+
+        const xp_earned = is_correct ? (question.xp_reward ?? 0) : 0;
 
         // --- 9. Write attempt ---
         const attempt = await createBossAnswerAttempt({
@@ -264,6 +261,7 @@ export const handler = async (event: any) => {
             damage_to_boss,
             hearts_delta_student,
             hearts_delta_guild_total,
+            xp_earned,
             mode_type: instance.mode_type as any,
             status_at_submit: "QUESTION_ACTIVE",
         });
@@ -346,6 +344,7 @@ export const handler = async (event: any) => {
                 damage_to_boss,
                 hearts_delta_student,
                 hearts_delta_guild_total,
+                xp_earned,
                 frozen_until: frozen_until ?? null,
                 received_answer_count: updatedInstance.received_answer_count ?? 0,
                 required_answer_count: updatedInstance.required_answer_count ?? 0,
@@ -381,9 +380,24 @@ function gradeAnswer(question: BossQuestionItem, answer_raw: Record<string, any>
     const submitted = answer_raw.value;
 
     switch (question_type) {
-        case "MCQ_SINGLE":
+        case "MCQ_SINGLE": {
+            // correct_answer may be stored as { index: n } (legacy) or as the option text/value
+            let expected: string;
+            if (correct_answer !== null && typeof correct_answer === "object" && "index" in correct_answer) {
+                // Resolve the option text at the stored index
+                const idx = Number((correct_answer as any).index);
+                const opts: any[] = Array.isArray(question.options) ? question.options : [];
+                const opt = opts[idx];
+                if (opt === undefined) return false;
+                expected = String(typeof opt === "object" ? (opt.text ?? opt.value ?? opt.label ?? opt) : opt).trim();
+            } else {
+                expected = String(correct_answer).trim();
+            }
+            return String(submitted ?? "").trim() === expected;
+        }
         case "TRUE_FALSE":
-            return String(submitted ?? "").trim() === String(correct_answer).trim();
+            // correct_answer is stored as boolean true/false; submitted is "true"/"false" (lowercase)
+            return String(submitted ?? "").trim().toLowerCase() === String(correct_answer).toLowerCase();
 
         case "MCQ_MULTI": {
             if (!Array.isArray(submitted) || !Array.isArray(correct_answer)) return false;

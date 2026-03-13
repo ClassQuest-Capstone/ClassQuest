@@ -47,6 +47,7 @@ export type BossAnswerAttemptItem = {
     damage_to_boss: number;
     hearts_delta_student: number;           // Usually 0 or negative
     hearts_delta_guild_total: number;       // Usually 0 or negative (TURN_BASED_GUILD wrong)
+    xp_earned?: number;
 
     // Auditing
     mode_type: ModeType;
@@ -77,6 +78,7 @@ export type CreateBossAnswerAttemptInput = {
     damage_to_boss: number;
     hearts_delta_student: number;
     hearts_delta_guild_total: number;
+    xp_earned?: number;
     mode_type: ModeType;
     status_at_submit: BattleStatus;
     reward_txn_id?: string;

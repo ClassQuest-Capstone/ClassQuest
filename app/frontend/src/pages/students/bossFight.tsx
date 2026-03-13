@@ -10,13 +10,13 @@ import { usePlayerProgression } from "../hooks/students/usePlayerProgression.js"
 import {
   listBossBattleInstancesByClass,
   getBossBattleInstance,
-  submitBossBattleAnswer,
 } from "../../api/bossBattleInstances/client.js";
+import { submitBossBattleAnswer } from "../../api/bossBattleInstances/client.js";
+import { leaveBossBattle } from "../../api/bossBattleParticipants/client.js";
 import type { BossBattleInstance } from "../../api/bossBattleInstances/types.js";
 
 import {
   listBossBattleParticipants,
-  leaveBossBattle,
 } from "../../api/bossBattleParticipants/client.js";
 import type { BossBattleParticipant } from "../../api/bossBattleParticipants/types.js";
 
@@ -28,7 +28,8 @@ import type { BossQuestion } from "../../api/bossQuestions/types.js";
 
 import { getStudentProfile } from "../../api/studentProfiles.js";
 import { getBossResults, computeBossResults } from "../../api/bossResults/client.js";
-import { useBattleSubscription, useRosterSubscription } from "../../hooks/useBattleSubscription.ts";
+import { getGuild } from "../../api/guilds.js";
+import { useBattlePolling, useRosterPolling } from "../../hooks/useBattlePolling.ts";
 
 type StudentUser = {
   id: string;
@@ -238,72 +239,25 @@ function formatDateTime(value?: string | null) {
 }
 
 async function fetchBossBattleResultsSafe(bossInstanceId: string): Promise<BossResultsResponse> {
-  try {
+  const tryGet = async (): Promise<BossResultsResponse> => {
     const r = await getBossResults(bossInstanceId);
-    // Map API types to local BossResultsResponse shape
+    // r already matches BossResultsResponse shape from the backend
     return {
-      outcome: r.meta?.outcome,
-      completed_at: r.meta?.computed_at,
-      fail_reason: r.meta?.fail_reason,
-      guild_results: (r.guilds ?? []).map((g) => ({
-        guild_id: g.guild_id,
-        guild_total_correct: g.correct_answers,
-        guild_total_incorrect: g.incorrect_answers,
-        guild_total_attempts: g.questions_answered,
-        guild_total_damage_to_boss: g.total_damage_dealt,
-        guild_total_hearts_lost: g.hearts_lost,
-        guild_xp_awarded_total: g.xp_earned,
-        guild_gold_awarded_total: g.gold_earned,
-        guild_members_joined: g.members_count,
-        guild_members_downed: 0,
-      })),
-      student_results: (r.students ?? []).map((s) => ({
-        student_id: s.student_id,
-        guild_id: s.guild_id,
-        total_correct: s.correct_answers,
-        total_incorrect: s.incorrect_answers,
-        total_attempts: s.questions_answered,
-        total_damage_to_boss: s.total_damage_dealt,
-        hearts_lost: s.hearts_lost,
-        xp_awarded: s.xp_earned,
-        gold_awarded: s.gold_earned,
-        participation_state: "JOINED",
-      })),
+      outcome: (r as any).outcome ?? "FAIL",
+      completed_at: (r as any).completed_at ?? "",
+      fail_reason: (r as any).fail_reason,
+      guild_results: (r as any).guild_results ?? [],
+      student_results: (r as any).student_results ?? [],
     };
+  };
+
+  try {
+    return await tryGet();
   } catch {
-    // Results may not be computed yet; try to trigger computation
+    // Results may not be computed yet; trigger computation then retry
     try {
       await computeBossResults(bossInstanceId);
-      const r = await getBossResults(bossInstanceId);
-      return {
-        outcome: r.meta?.outcome,
-        completed_at: r.meta?.computed_at,
-        fail_reason: r.meta?.fail_reason,
-        guild_results: (r.guilds ?? []).map((g) => ({
-          guild_id: g.guild_id,
-          guild_total_correct: g.correct_answers,
-          guild_total_incorrect: g.incorrect_answers,
-          guild_total_attempts: g.questions_answered,
-          guild_total_damage_to_boss: g.total_damage_dealt,
-          guild_total_hearts_lost: g.hearts_lost,
-          guild_xp_awarded_total: g.xp_earned,
-          guild_gold_awarded_total: g.gold_earned,
-          guild_members_joined: g.members_count,
-          guild_members_downed: 0,
-        })),
-        student_results: (r.students ?? []).map((s) => ({
-          student_id: s.student_id,
-          guild_id: s.guild_id,
-          total_correct: s.correct_answers,
-          total_incorrect: s.incorrect_answers,
-          total_attempts: s.questions_answered,
-          total_damage_to_boss: s.total_damage_dealt,
-          hearts_lost: s.hearts_lost,
-          xp_awarded: s.xp_earned,
-          gold_awarded: s.gold_earned,
-          participation_state: "JOINED",
-        })),
-      };
+      return await tryGet();
     } catch {
       throw new Error("Results not available yet.");
     }
@@ -341,13 +295,19 @@ const BossFight: React.FC = () => {
 
   const [showResultModal, setShowResultModal] = useState(false);
   const [loadingResults, setLoadingResults] = useState(false);
+  const [resultsCountdown, setResultsCountdown] = useState<number | null>(null);
   const [bossResults, setBossResults] = useState<BossResultsResponse | null>(null);
+  const [myGuildName, setMyGuildName] = useState<string | null>(null);
+  const [guildNameMap, setGuildNameMap] = useState<Record<string, string>>({});
 
   const { profile } = usePlayerProgression(studentId || "", classId || "");
 
-  const { battleState } = useBattleSubscription(instance?.boss_instance_id ?? undefined);
-  const { rosterEvent } = useRosterSubscription(instance?.boss_instance_id ?? undefined);
+  const polledInstance = useBattlePolling(instance?.boss_instance_id ?? undefined, 2500);
+  const polledParticipants = useRosterPolling(instance?.boss_instance_id ?? undefined, 3000);
   const prevActiveQuestionIdRef = useRef<string | null | undefined>(undefined);
+  // Stores whether the student was correct on the last answered question (shown during INTERMISSION)
+  const [lastAnswerCorrect, setLastAnswerCorrect] = useState<boolean | null>(null);
+  const [lastXpEarned, setLastXpEarned] = useState<number>(0);
 
   useEffect(() => {
     if (student?.classId) {
@@ -383,6 +343,8 @@ const BossFight: React.FC = () => {
     setSelectedAnswer(null);
     setSubmitting(false);
     setHasSubmittedCurrentQuestion(false);
+    setLastAnswerCorrect(null);
+    setLastXpEarned(0);
   }, [question?.question_id]);
 
   const myParticipant = useMemo(() => {
@@ -631,16 +593,15 @@ const BossFight: React.FC = () => {
     instance,
   ]);
 
+  // Merge polled instance — also detect question changes
   useEffect(() => {
-    if (!battleState) return;
-    setInstance((prev) => {
-      if (!prev) return prev;
-      return { ...prev, ...battleState } as unknown as BossBattleInstance;
-    });
-    // RANDOMIZED_PER_GUILD: question is derived by a separate effect from allQuestions + per_guild_question_index
-    if (instance?.mode_type === "RANDOMIZED_PER_GUILD") return;
+    if (!polledInstance) return;
+    setInstance(polledInstance);
 
-    const newQId = battleState.active_question_id ?? null;
+    // RANDOMIZED_PER_GUILD: question is derived by a separate effect
+    if (polledInstance.mode_type === "RANDOMIZED_PER_GUILD") return;
+
+    const newQId = polledInstance.active_question_id ?? null;
     if (newQId !== prevActiveQuestionIdRef.current) {
       prevActiveQuestionIdRef.current = newQId;
       if (newQId) {
@@ -651,12 +612,27 @@ const BossFight: React.FC = () => {
         setQuestion(null);
       }
     }
-  }, [battleState, instance?.mode_type]);
+  }, [polledInstance]);
 
+  // Merge polled roster — update participant states without re-fetching display names
   useEffect(() => {
-    if (!rosterEvent) return;
-    setParticipants(rosterEvent.participants as any);
-  }, [rosterEvent]);
+    if (polledParticipants.length > 0) {
+      setParticipants(polledParticipants);
+      // Update display states in roster without re-fetching names
+      setRoster((prev) =>
+        prev.map((r) => {
+          const updated = polledParticipants.find((p) => p.student_id === r.studentId);
+          if (!updated) return r;
+          return {
+            ...r,
+            state: updated.state,
+            isDowned: updated.is_downed,
+            frozenUntil: updated.frozen_until,
+          };
+        })
+      );
+    }
+  }, [polledParticipants]);
 
   // Derive displayed question from per_guild_question_index for RANDOMIZED_PER_GUILD mode
   useEffect(() => {
@@ -744,22 +720,54 @@ const BossFight: React.FC = () => {
 
     (async () => {
       try {
+        // Wait 10 seconds so the backend can finish writing rewards before we read results
+        const DELAY_SECONDS = 10;
+        setResultsCountdown(DELAY_SECONDS);
+        for (let i = DELAY_SECONDS - 1; i >= 0; i--) {
+          await new Promise((r) => setTimeout(r, 1000));
+          if (!mounted) return;
+          setResultsCountdown(i);
+        }
+        setResultsCountdown(null);
+
         setLoadingResults(true);
         const res = await fetchBossBattleResultsSafe(instance.boss_instance_id);
         if (!mounted) return;
         setBossResults(res);
+
+        // Fetch names for all guilds in the results
+        const guildIds = (res.guild_results ?? []).map((g) => g.guild_id).filter(Boolean);
+        if (guildIds.length > 0) {
+          const entries = await Promise.all(
+            guildIds.map(async (gid) => {
+              try {
+                const g = await getGuild(gid);
+                return [gid, (g as any).name ?? gid] as const;
+              } catch {
+                return [gid, gid] as const;
+              }
+            })
+          );
+          const map: Record<string, string> = {};
+          for (const [gid, name] of entries) map[gid] = name;
+          if (mounted) {
+            setGuildNameMap(map);
+            if (myParticipant?.guild_id) setMyGuildName(map[myParticipant.guild_id] ?? null);
+          }
+        }
       } catch (error) {
         console.error("Failed to load boss results:", error);
         if (!mounted) return;
         setBossResults({
           outcome: (instance.outcome as any) || (status === "ABORTED" ? "ABORTED" : "FAIL"),
-          completed_at: instance.completed_at,
+          completed_at: instance.completed_at ?? "",
           fail_reason: instance.fail_reason,
           guild_results: [],
           student_results: [],
         });
       } finally {
         if (mounted) {
+          setResultsCountdown(null);
           setLoadingResults(false);
           setShowResultModal(true);
         }
@@ -810,23 +818,43 @@ const BossFight: React.FC = () => {
     setSubmitting(true);
 
     try {
+      // Build the value to submit:
+      //   MCQ  — letter key (A/B/C/D) maps back to the raw option text (opt.value)
+      //   T/F  — normalize to lowercase so the server's String(true)==="true" comparison works
+      let answerValue = selectedAnswer;
+      const qType = (question as any).question_type;
+      if (qType === "MCQ_SINGLE") {
+        const mcqLetters = ["A", "B", "C", "D", "E", "F"];
+        const idx = mcqLetters.indexOf(selectedAnswer);
+        if (idx !== -1) {
+          const opts = normalizeOptions((question as any).options);
+          if (opts[idx]) answerValue = opts[idx].value;
+        }
+      } else if (qType === "TRUE_FALSE") {
+        answerValue = selectedAnswer.toLowerCase(); // "true" / "false"
+      }
+
+      // Server reads answer_raw.value (not .answer)
       const result = await submitBossBattleAnswer(instance.boss_instance_id, {
         student_id: studentId,
-        answer_raw: { answer: selectedAnswer },
+        answer_raw: { value: answerValue },
       });
 
       setHasSubmittedCurrentQuestion(true);
+      setLastAnswerCorrect(result.is_correct);
 
       if (result.is_correct) {
+        setLastXpEarned(result.xp_earned ?? 0);
         setBattleLog((prev) => [
           ...prev,
           {
             id: `local-${Date.now()}`,
-            text: `Correct! +${result.damage_to_boss} damage to boss. Speed bonus: ${result.speed_multiplier.toFixed(2)}x`,
+            text: `Correct! ${result.xp_earned && result.xp_earned > 0 ? `+${result.xp_earned} XP. ` : ""}+${result.damage_to_boss} damage to boss.`,
             kind: "success",
           },
         ]);
       } else {
+        setLastXpEarned(0);
         const heartsLost = Math.abs(result.hearts_delta_student ?? 0);
         if (heartsLost > 0) {
           setLocalHeartsLost((prev) => prev + heartsLost);
@@ -911,9 +939,9 @@ const BossFight: React.FC = () => {
               <button
                 key={`${idx}-${opt.value}-${opt.label}`}
                 disabled={disabledBase}
-                onClick={() => setSelectedAnswer(opt.value)}
+                onClick={() => setSelectedAnswer(letters[idx] ?? String(idx))}
                 className={`${
-                  selectedAnswer === opt.value
+                  selectedAnswer === (letters[idx] ?? String(idx))
                     ? "from-yellow-500 to-yellow-700 border-yellow-300"
                     : "from-blue-600 to-blue-800 border-blue-400"
                 } bg-gradient-to-br hover:from-blue-500 hover:to-blue-700 text-white p-4 rounded-lg text-sm font-semibold transition-all transform hover:scale-105 active:scale-95 border-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
@@ -983,12 +1011,48 @@ const BossFight: React.FC = () => {
     }
 
     if (instance.status === "INTERMISSION") {
+      // Resolve correct_answer — MCQ stores { index: n }, resolve to option text
+      let correctAnswer: string | null = null;
+      if (question?.correct_answer != null) {
+        const ca = question.correct_answer as any;
+        if (typeof ca === "object" && ca !== null && "index" in ca && question.options) {
+          const opts = normalizeOptions(question.options);
+          correctAnswer = opts[ca.index]?.label ?? opts[ca.index]?.value ?? null;
+        } else {
+          correctAnswer = optionTextFromUnknown(ca) || null;
+        }
+      }
       return (
-        <div className="bg-gray-900 p-6 rounded-lg border border-gray-700 min-h-[180px] flex flex-col items-center justify-center">
-          <p className="text-cyan-300 text-lg font-bold mb-2">Intermission</p>
-          <p className="text-white text-3xl font-extrabold">
-            {formatSeconds(intermissionLeft ?? 0)}
-          </p>
+        <div className="bg-gray-900 p-6 rounded-lg border border-gray-700 min-h-[180px] flex flex-col items-center justify-center gap-3">
+          <p className="text-cyan-300 text-lg font-bold">Round Over — Next question coming soon…</p>
+
+          {lastAnswerCorrect === true && (
+            <div className="bg-green-900/60 border border-green-500 rounded-lg px-4 py-2 text-center">
+              <p className="text-green-300 font-bold text-lg">✓ You answered correctly!</p>
+              {lastXpEarned > 0 && (
+                <p className="text-yellow-300 text-sm font-semibold mt-1">+{lastXpEarned} XP earned!</p>
+              )}
+            </div>
+          )}
+          {lastAnswerCorrect === false && (
+            <div className="bg-red-900/60 border border-red-500 rounded-lg px-4 py-2 text-center">
+              <p className="text-red-300 font-bold text-lg">✗ Incorrect answer</p>
+              {correctAnswer && (
+                <p className="text-white text-sm mt-1">
+                  Correct answer: <span className="font-bold text-green-300">{correctAnswer}</span>
+                </p>
+              )}
+            </div>
+          )}
+          {lastAnswerCorrect === null && (
+            <p className="text-gray-400 text-sm">You didn't submit an answer for this question.</p>
+          )}
+
+          {correctAnswer && lastAnswerCorrect !== false && (
+            <p className="text-gray-300 text-sm">
+              Correct answer: <span className="font-bold text-green-300">{correctAnswer}</span>
+            </p>
+          )}
         </div>
       );
     }
@@ -1033,7 +1097,7 @@ const BossFight: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-yellow-300/80">
-                Question {question.order_index + 1}
+                Question {question.order_index}
               </p>
               <p className="text-sm text-gray-400 mt-1">
                 Type: {question.question_type.replaceAll("_", " ")}
@@ -1042,7 +1106,7 @@ const BossFight: React.FC = () => {
 
             <div className="flex flex-wrap gap-2">
               <span className="px-3 py-1 rounded-full bg-red-900/60 border border-red-500 text-red-200 text-xs font-semibold">
-                Boss HP: {instance.current_boss_hp} / {instance.initial_boss_hp}
+                Boss HP: {instance.initial_boss_hp > 0 ? ((instance.current_boss_hp / instance.initial_boss_hp) * 100).toFixed(2) : "0.00"}%
               </span>
 
               {questionTimeLeft !== null ? (
@@ -1097,7 +1161,7 @@ const BossFight: React.FC = () => {
 
           {hasSubmittedCurrentQuestion ? (
             <div className="mt-4 text-sm text-emerald-300">
-              Answer submitted for this question.
+              ✓ Answer submitted — waiting for all players to answer…
             </div>
           ) : null}
 
@@ -1276,8 +1340,9 @@ const BossFight: React.FC = () => {
                     Boss HP
                   </span>
                   <span className="text-white text-sm font-bold">
-                    {Number(instance?.current_boss_hp ?? 0).toLocaleString()} /{" "}
-                    {Number(instance?.initial_boss_hp ?? 0).toLocaleString()}
+                    {Number(instance?.initial_boss_hp ?? 0) > 0
+                      ? ((Number(instance?.current_boss_hp ?? 0) / Number(instance?.initial_boss_hp ?? 1)) * 100).toFixed(2)
+                      : "0.00"}%
                   </span>
                 </div>
 
@@ -1380,111 +1445,175 @@ const BossFight: React.FC = () => {
         </div>
       </div>
 
+      {resultsCountdown !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="text-center">
+            <p className="text-yellow-300 text-2xl font-bold mb-4">Battle Over!</p>
+            <p className="text-slate-300 text-lg mb-6">Calculating rewards…</p>
+            <div className="w-24 h-24 rounded-full border-4 border-yellow-500 flex items-center justify-center mx-auto">
+              <span className="text-4xl font-extrabold text-yellow-300">{resultsCountdown}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showResultModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-2xl rounded-2xl border-2 border-yellow-500 bg-gradient-to-br from-gray-900 to-slate-900 shadow-2xl text-white overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-700 to-indigo-700 px-6 py-4 border-b border-white/10">
-              <h2 className="text-2xl font-bold">
-                {bossResults?.outcome === "WIN"
-                  ? "Victory!"
-                  : bossResults?.outcome === "ABORTED"
-                  ? "Battle Aborted"
-                  : "Battle Finished"}
-              </h2>
-              <p className="text-sm text-white/80 mt-1">
-                Completed: {formatDateTime(bossResults?.completed_at || instance?.completed_at)}
+          <div className="w-full max-w-lg rounded-2xl border-2 border-yellow-500 bg-gradient-to-br from-gray-900 to-slate-900 shadow-2xl text-white overflow-hidden">
+
+            {/* Header */}
+            <div className={`px-6 py-5 border-b border-white/10 text-center ${bossResults?.outcome === "WIN" ? "bg-gradient-to-r from-emerald-700 to-green-700" : "bg-gradient-to-r from-red-800 to-rose-800"}`}>
+              <p className="text-3xl font-extrabold tracking-wide">
+                {bossResults?.outcome === "WIN" ? "Victory!" : bossResults?.outcome === "ABORTED" ? "Battle Aborted" : "Defeated"}
               </p>
+              {myGuildName && (
+                <p className="text-sm text-white/80 mt-1 font-semibold">{myGuildName}</p>
+              )}
+              <p className="text-xs text-white/60 mt-1">
+                {formatDateTime(bossResults?.completed_at || instance?.completed_at)}
+              </p>
+              {(bossResults?.fail_reason || instance?.fail_reason) ? (
+                <p className="text-xs text-white/70 mt-1">
+                  Reason: {bossResults?.fail_reason || instance?.fail_reason}
+                </p>
+              ) : null}
             </div>
 
-            <div className="p-6 space-y-5">
+            <div className="p-5 space-y-4 max-h-[65vh] overflow-y-auto">
               {loadingResults ? (
-                <div className="text-center text-slate-300">Loading results...</div>
+                <div className="text-center text-slate-300 py-8">Loading results...</div>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="rounded-xl border border-white/10 bg-black/30 p-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-yellow-300/80 mb-2">
-                        Your Result
+                  {/* Rewards */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-yellow-500/30 bg-yellow-900/20 p-4 text-center">
+                      <p className="text-xs uppercase tracking-widest text-yellow-400/70 mb-1">XP Earned</p>
+                      <p className="text-3xl font-extrabold text-yellow-300">
+                        {myStudentResult?.xp_awarded ?? 0}
                       </p>
-                      <div className="space-y-1 text-sm">
-                        <p>
-                          Correct: <span className="font-bold">{myStudentResult?.total_correct ?? 0}</span>
-                        </p>
-                        <p>
-                          Wrong: <span className="font-bold">{myStudentResult?.total_incorrect ?? 0}</span>
-                        </p>
-                        <p>
-                          Attempts: <span className="font-bold">{myStudentResult?.total_attempts ?? 0}</span>
-                        </p>
-                        <p>
-                          Damage: <span className="font-bold">{myStudentResult?.total_damage_to_boss ?? 0}</span>
-                        </p>
-                        <p>
-                          Hearts Lost: <span className="font-bold">{myStudentResult?.hearts_lost ?? 0}</span>
-                        </p>
-                        <p>
-                          XP: <span className="font-bold">{myStudentResult?.xp_awarded ?? 0}</span>
-                        </p>
-                        <p>
-                          Gold: <span className="font-bold">{myStudentResult?.gold_awarded ?? 0}</span>
-                        </p>
-                        <p>
-                          Status: <span className="font-bold">{myStudentResult?.participation_state ?? myParticipant?.state ?? "—"}</span>
-                        </p>
-                      </div>
                     </div>
-
-                    <div className="rounded-xl border border-white/10 bg-black/30 p-4">
-                      <p className="text-xs uppercase tracking-[0.2em] text-cyan-300/80 mb-2">
-                        Guild Result
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-900/20 p-4 text-center">
+                      <p className="text-xs uppercase tracking-widest text-amber-400/70 mb-1">Gold Earned</p>
+                      <p className="text-3xl font-extrabold text-amber-300">
+                        {myStudentResult?.gold_awarded ?? 0}
                       </p>
-                      <div className="space-y-1 text-sm">
-                        <p>
-                          Correct: <span className="font-bold">{myGuildResult?.guild_total_correct ?? 0}</span>
-                        </p>
-                        <p>
-                          Wrong: <span className="font-bold">{myGuildResult?.guild_total_incorrect ?? 0}</span>
-                        </p>
-                        <p>
-                          Attempts: <span className="font-bold">{myGuildResult?.guild_total_attempts ?? 0}</span>
-                        </p>
-                        <p>
-                          Damage: <span className="font-bold">{myGuildResult?.guild_total_damage_to_boss ?? 0}</span>
-                        </p>
-                        <p>
-                          Hearts Lost: <span className="font-bold">{myGuildResult?.guild_total_hearts_lost ?? 0}</span>
-                        </p>
-                        <p>
-                          Guild XP: <span className="font-bold">{myGuildResult?.guild_xp_awarded_total ?? 0}</span>
-                        </p>
-                        <p>
-                          Guild Gold: <span className="font-bold">{myGuildResult?.guild_gold_awarded_total ?? 0}</span>
-                        </p>
-                        <p>
-                          Members Downed: <span className="font-bold">{myGuildResult?.guild_members_downed ?? 0}</span>
-                        </p>
-                      </div>
                     </div>
                   </div>
 
+                  {/* Your score */}
                   <div className="rounded-xl border border-white/10 bg-black/30 p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-white/70 mb-2">
-                      Battle Outcome
-                    </p>
-                    <p className="text-lg font-bold">
-                      {bossResults?.outcome || instance?.outcome || "UNKNOWN"}
-                    </p>
-                    {(bossResults?.fail_reason || instance?.fail_reason) ? (
-                      <p className="text-sm text-slate-300 mt-2">
-                        Reason: {bossResults?.fail_reason || instance?.fail_reason}
-                      </p>
-                    ) : null}
+                    <p className="text-xs uppercase tracking-widest text-white/50 mb-2">Your Score</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl font-bold text-white">
+                        {myStudentResult?.total_correct ?? 0}
+                        <span className="text-sm font-normal text-slate-400"> correct</span>
+                      </span>
+                      <span className="text-sm text-slate-400">
+                        {myStudentResult?.total_incorrect ?? 0} wrong
+                      </span>
+                    </div>
+                    {(() => {
+                      const guildStudents = bossResults?.student_results?.filter(r => r.guild_id === myParticipant?.guild_id) ?? [];
+                      if (guildStudents.length <= 1) return null;
+                      const avg = guildStudents.length > 0
+                        ? (guildStudents.reduce((s, r) => s + r.total_correct, 0) / guildStudents.length).toFixed(1)
+                        : "0";
+                      return <p className="text-xs text-cyan-400/70 mt-1">Guild average: {avg} correct</p>;
+                    })()}
                   </div>
+
+                  {/* Guild members */}
+                  {(() => {
+                    const guildStudents = bossResults?.student_results?.filter(r => r.guild_id === myParticipant?.guild_id) ?? [];
+                    if (guildStudents.length === 0) return null;
+                    return (
+                      <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+                        <p className="text-xs uppercase tracking-widest text-cyan-400/70 mb-3">
+                          {myParticipant?.guild_id ? (guildNameMap[myParticipant.guild_id] ?? "Guild") : "Guild"} Members
+                        </p>
+                        <div className="space-y-2">
+                          {guildStudents.map(sr => {
+                            const isMe = sr.student_id === studentId;
+                            const memberName = isMe
+                              ? "You"
+                              : (roster.find(r => r.studentId === sr.student_id)?.displayName ?? sr.student_id.slice(0, 8));
+                            const heartsDisplay = sr.hearts_lost > 0
+                              ? `${sr.hearts_lost} heart${sr.hearts_lost !== 1 ? "s" : ""} lost`
+                              : "No hearts lost";
+                            return (
+                              <div
+                                key={sr.student_id}
+                                className={`flex items-center justify-between rounded-lg px-3 py-2 ${isMe ? "bg-yellow-900/30 border border-yellow-600/30" : "bg-white/5"}`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className={`text-sm font-semibold truncate ${isMe ? "text-yellow-300" : "text-white"}`}>
+                                    {memberName}
+                                  </span>
+                                  {sr.participation_state === "DOWNED" && (
+                                    <span className="text-xs text-red-400 shrink-0">(downed)</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 text-sm shrink-0">
+                                  <span className="text-emerald-400 font-bold">{sr.total_correct} correct</span>
+                                  <span className={`${sr.hearts_lost > 0 ? "text-red-400" : "text-green-400"}`}>
+                                    {heartsDisplay}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Guild contribution rankings */}
+                  {(() => {
+                    const guildResults = bossResults?.guild_results ?? [];
+                    if (guildResults.length === 0) return null;
+                    const RANK_LABELS: Record<number, string> = { 1: "🥇 1st", 2: "🥈 2nd", 3: "🥉 3rd" };
+                    const BONUS_LABELS: Record<number, string> = { 1: "+25%", 2: "+15%", 3: "+10%" };
+                    const sorted = [...guildResults].sort((a, b) => b.guild_total_damage_to_boss - a.guild_total_damage_to_boss);
+                    return (
+                      <div className="rounded-xl border border-purple-500/30 bg-purple-900/10 p-4">
+                        <p className="text-xs uppercase tracking-widest text-purple-400/70 mb-3">
+                          Guild Damage Rankings
+                        </p>
+                        <div className="space-y-2">
+                          {sorted.map(gr => {
+                            const rank = gr.contribution_rank;
+                            const isMyGuild = gr.guild_id === myParticipant?.guild_id;
+                            const bonusLabel = rank ? BONUS_LABELS[rank] : null;
+                            const rankLabel = rank ? RANK_LABELS[rank] : null;
+                            return (
+                              <div
+                                key={gr.guild_id}
+                                className={`flex items-center justify-between rounded-lg px-3 py-2 ${isMyGuild ? "bg-purple-900/40 border border-purple-500/30" : "bg-white/5"}`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold text-white">
+                                    {guildNameMap[gr.guild_id] ?? gr.guild_id.slice(0, 8)}
+                                  </span>
+                                  {rankLabel && <span className="text-xs text-yellow-300">{rankLabel}</span>}
+                                </div>
+                                <div className="flex items-center gap-3 text-sm shrink-0">
+                                  <span className="text-cyan-400">{gr.guild_total_correct} correct</span>
+                                  {bonusLabel && (
+                                    <span className="text-emerald-400 font-bold">{bonusLabel} bonus</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </>
               )}
             </div>
 
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-white/10 bg-black/20">
+            <div className="flex justify-end gap-3 px-5 py-4 border-t border-white/10 bg-black/20">
               <button
                 onClick={() => setShowResultModal(false)}
                 className="px-4 py-2 rounded-md border border-slate-500 text-slate-200 hover:bg-slate-800"
@@ -1492,9 +1621,7 @@ const BossFight: React.FC = () => {
                 Close
               </button>
               <button
-                onClick={() => {
-                  window.location.href = "/guilds";
-                }}
+                onClick={() => { window.location.href = "/guilds"; }}
                 className="px-4 py-2 rounded-md bg-emerald-600 border border-emerald-800 text-white hover:bg-emerald-700"
               >
                 Back to Guilds

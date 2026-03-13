@@ -53,6 +53,7 @@ export const handler = async (event: any) => {
             freeze_on_wrong_seconds: body.freeze_on_wrong_seconds,
             late_join_policy: body.late_join_policy,
             turn_policy: body.turn_policy,
+            passing_score_percent: body.passing_score_percent,
         };
 
         // Validate input

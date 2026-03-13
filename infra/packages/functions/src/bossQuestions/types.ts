@@ -21,9 +21,10 @@ export type BossQuestionItem = {
     question_type: BossQuestionType;        // Type of question
     options?: any;                          // Options for MCQ/matching questions
     correct_answer?: any;                   // Expected answer (for auto-gradable questions)
-    damage_to_boss_on_correct: number;      // Damage dealt to boss on correct answer
-    damage_to_guild_on_incorrect: number;   // Damage guild takes on incorrect answer
+    damage_to_boss_on_correct?: number;     // Legacy — damage is now fixed at 1
+    damage_to_guild_on_incorrect?: number;  // Legacy — hearts are now individual
     max_points?: number;                    // Optional: max points for grading
+    xp_reward?: number;                     // Optional: XP awarded on correct answer
     auto_gradable: boolean;                 // Whether system can auto-grade
     time_limit_seconds?: number;            // Optional: time limit for this question (overrides battle default)
     created_at: string;                     // ISO timestamp
@@ -46,6 +47,7 @@ export type UpdateBossQuestionInput = Partial<
         | "damage_to_boss_on_correct"
         | "damage_to_guild_on_incorrect"
         | "max_points"
+        | "xp_reward"
         | "auto_gradable"
         | "time_limit_seconds"
     >
