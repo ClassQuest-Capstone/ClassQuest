@@ -7,7 +7,7 @@ import ProfileModal from "../features/teacher/ProfileModal.js";
 import { validateJoinCode } from "../../api/classes.js";
 import { getClassEnrollments, unenrollStudent } from "../../api/classEnrollments.js";
 import { getStudentProfile, updateStudentProfile, setStudentPassword } from "../../api/studentProfiles.js";
-import { getPlayerState, upsertPlayerState } from "../../api/playerStates.js";
+import { getPlayerState, getLeaderboard, upsertPlayerState } from "../../api/playerStates.js";
 import { createTransaction } from "../../api/rewardTransactions.js";
 import xpIcon from "../../../dist/assets/icons/XP.png";
 
@@ -95,12 +95,15 @@ const Students = () => {
       return;
     }
 
+    let cancelled = false;
+
     const loadStudents = async () => {
       try {
         setGlobalError(null);
         
         // Get class info from join code
         const classInfo = await validateJoinCode(teacherClassCode);
+        if (cancelled) return;
         if (!classInfo) {
           setGlobalError("Class not found");
           setRows([]);
@@ -111,8 +114,22 @@ const Students = () => {
         // Store the class_id for later use
         setClassId(classInfo.class_id);
 
+        // Batch-fetch all player states in one request 
+        const playerStateMap = new Map<string, { total_xp_earned: number; gold: number; current_xp: number; xp_to_next_level: number; hearts: number; max_hearts: number; status: "ALIVE" | "DOWNED" | "BANNED" }>();
+        try {
+          const leaderboard = await getLeaderboard(classInfo.class_id, 200);
+          for (const ps of leaderboard.items) {
+            playerStateMap.set(ps.student_id, ps);
+          }
+        } catch {
+          // Leaderboard unavailable - all students will show default 0 values
+        }
+
+        if (cancelled) return;
+
         // Get enrolled students from backend
         const enrollments = await getClassEnrollments(classInfo.class_id);
+        if (cancelled) return;
         const activeEnrollments = enrollments.items.filter(e => e.status === "active");
 
         if (activeEnrollments.length === 0) {
@@ -120,32 +137,38 @@ const Students = () => {
           return;
         }
 
+        const defaultState = { current_xp: 0, total_xp_earned: 0, xp_to_next_level: 100, hearts: 3, max_hearts: 3, gold: 0, status: "ALIVE" as const };
+
+        // Retry helper for transient server errors
+        const fetchWithRetry = async <T,>(fn: () => Promise<T>, retries = 5, delayMs = 400): Promise<T> => {
+          for (let attempt = 0; attempt < retries; attempt++) {
+            try {
+              return await fn();
+            } catch (err: any) {
+              const isTransient = /50[0-9]|network/i.test(err?.message ?? "");
+              if (!isTransient || attempt === retries - 1) throw err;
+              await new Promise(r => setTimeout(r, delayMs * (attempt + 1)));
+            }
+          }
+          throw new Error("Unreachable");
+        };
+
         const studentPromises = activeEnrollments.map(async (enrollment) => {
           const id = enrollment.student_id;
           const enrollmentId = enrollment.enrollment_id;
           
           try {
-            // Load profile first
+            // Load profile with retry to fix transient errors
             let profile;
             try {
-              profile = await getStudentProfile(id);
+              profile = await fetchWithRetry(() => getStudentProfile(id));
             } catch (profileErr: any) {
               console.error(`Error loading profile for ${id}:`, profileErr);
               throw new Error(`Profile not found`);
             }
 
-            // Load or create player state
-            let playerState;
-            try {
-              playerState = await getPlayerState(classInfo.class_id, id);
-            } catch (stateErr: any) {
-              console.warn(`Player state not found for ${id}, using defaults`);
-              // Player state doesn't exist yet - use defaults
-              playerState = {
-                current_xp: 0,
-                gold: 0,
-              };
-            }
+            // Look up player state from the batch-fetched map
+            const playerState = playerStateMap.get(id) ?? defaultState;
 
             const row: StudentRow = {
               id,
@@ -185,14 +208,17 @@ const Students = () => {
         });
 
         const loaded = await Promise.all(studentPromises);
-        setRows(loaded);
+        if (!cancelled) setRows(loaded);
       } catch (err: any) {
-        console.error("Error loading students:", err);
-        setGlobalError(err.message);
+        if (!cancelled) {
+          console.error("Error loading students:", err);
+          setGlobalError(err.message);
+        }
       }
     };
 
     loadStudents();
+    return () => { cancelled = true; };
   }, [teacherClassCode]);
 
   // Detect if there are unsaved changes
@@ -314,17 +340,19 @@ const Students = () => {
       const playerStateUpdates = updates
         .filter((s) => s.xp !== s.originalXp || s.gold !== s.originalGold)
         .map((s) =>
-          getPlayerState(classId, s.id).then((state) =>
-            upsertPlayerState(classId, s.id, {
-              current_xp: s.xp !== s.originalXp ? s.xp : state.current_xp,
-              total_xp_earned: s.xp !== s.originalXp ? s.xp : state.total_xp_earned,
-              xp_to_next_level: state.xp_to_next_level,
-              hearts: state.hearts,
-              max_hearts: state.max_hearts,
-              gold: s.gold !== s.originalGold ? s.gold : state.gold,
-              status: state.status,
-            })
-          )
+          getPlayerState(classId, s.id)
+            .catch(() => null) // Handling player state does not exist
+            .then((state) =>
+              upsertPlayerState(classId, s.id, {
+                current_xp: s.xp !== s.originalXp ? s.xp : (state?.current_xp ?? 0),
+                total_xp_earned: s.xp !== s.originalXp ? s.xp : (state?.total_xp_earned ?? 0),
+                xp_to_next_level: state?.xp_to_next_level ?? 100,
+                hearts: state?.hearts ?? 3,
+                max_hearts: state?.max_hearts ?? 3,
+                gold: s.gold !== s.originalGold ? s.gold : (state?.gold ?? 0),
+                status: state?.status ?? "ALIVE",
+              })
+            )
         );
 
       // Execute all updates in parallel
@@ -395,7 +423,7 @@ const Students = () => {
   }, [query, rows]);
 
   return (
-    <div className="font-poppins bg-[url(/assets/background-teacher-dash.png)] bg-cover bg-center bg-no-repeat min-h-screen">
+    <div className="font-poppins bg-[url(/assets/background-teacher-dash.png)] bg-cover bg-center bg-no-repeat h-screen overflow-y-auto">
       <nav className="bg-blue-700 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">

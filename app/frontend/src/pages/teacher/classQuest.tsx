@@ -525,7 +525,7 @@ const ClassQuest = () => {
                 type="datetime-local"
                 value={extensionDueDate}
                 onChange={(e) => setExtensionDueDate(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 disabled={extensionSaving}
               />
             </div>
@@ -558,6 +558,7 @@ const ClassQuest = () => {
             isOpen={isProfileModalOpen}
             onClose={() => setIsProfileModalOpen(false)}
           />
+
     </div>
   );
 };

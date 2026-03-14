@@ -325,7 +325,7 @@ const CharacterPage: React.FC = () => {
                 ? m.image_asset_path.startsWith("data:")
                   ? m.image_asset_path
                   : `data:image/png;base64,${m.image_asset_path}`
-                : "/assets/icons/question.png",
+                : "/assets/Guild.png",
               claimedAt: new Date().toISOString(),
             };
           });
