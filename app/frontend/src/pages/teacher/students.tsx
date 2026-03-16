@@ -36,12 +36,14 @@ type StudentRow = {
   password: string;
   xp: number;
   gold: number;
+  hearts: number;
   // Track changes for dirty detection
   originalUsername: string;
   originalDisplayName: string;
   originalPassword: string;
   originalXp: number;
   originalGold: number;
+  originalHearts: number;
   // Flags for validation
   isLoading: boolean;
   error?: string;
@@ -178,11 +180,13 @@ const Students = () => {
               password: "",
               xp: playerState.total_xp_earned ?? 0,
               gold: playerState.gold ?? 0,
+              hearts: playerState.hearts ?? 3,
               originalUsername: profile.username,
               originalDisplayName: profile.display_name,
               originalPassword: "",
               originalXp: playerState.total_xp_earned ?? 0,
               originalGold: playerState.gold ?? 0,
+              originalHearts: playerState.hearts ?? 3,
               isLoading: false,
             };
             return row;
@@ -196,11 +200,13 @@ const Students = () => {
               password: "",
               xp: 0,
               gold: 0,
+              hearts: 0,
               originalUsername: "",
               originalDisplayName: "",
               originalPassword: "",
               originalXp: 0,
               originalGold: 0,
+              originalHearts: 0,
               isLoading: false,
               error: err.message,
             } as StudentRow;
@@ -229,7 +235,8 @@ const Students = () => {
         s.displayName !== s.originalDisplayName ||
         s.password !== s.originalPassword ||
         s.xp !== s.originalXp ||
-        s.gold !== s.originalGold
+        s.gold !== s.originalGold ||
+        s.hearts !== s.originalHearts
     );
   }, [rows]);
 
@@ -254,7 +261,7 @@ const Students = () => {
   // Update a field in a student row
   const updateStudentField = (
     studentId: string,
-    field: keyof Omit<StudentRow, "originalUsername" | "originalDisplayName" | "originalPassword" | "originalXp" | "originalGold" | "isLoading" | "error">,
+    field: keyof Omit<StudentRow, "originalUsername" | "originalDisplayName" | "originalPassword" | "originalXp" | "originalGold" | "originalHearts" | "isLoading" | "error">,
     value: string | number
   ) => {
     setRows((prevRows) =>
@@ -305,7 +312,8 @@ const Students = () => {
            s.displayName !== s.originalDisplayName ||
            s.password !== s.originalPassword ||
            s.xp !== s.originalXp ||
-           s.gold !== s.originalGold)
+           s.gold !== s.originalGold ||
+           s.hearts !== s.originalHearts)
       );
 
       // Update student profiles (only for rows without errors)
@@ -338,7 +346,7 @@ const Students = () => {
         throw new Error("Class ID not available");
       }
       const playerStateUpdates = updates
-        .filter((s) => s.xp !== s.originalXp || s.gold !== s.originalGold)
+        .filter((s) => s.xp !== s.originalXp || s.gold !== s.originalGold || s.hearts !== s.originalHearts)
         .map((s) =>
           getPlayerState(classId, s.id)
             .catch(() => null) // Handling player state does not exist
@@ -347,7 +355,7 @@ const Students = () => {
                 current_xp: s.xp !== s.originalXp ? s.xp : (state?.current_xp ?? 0),
                 total_xp_earned: s.xp !== s.originalXp ? s.xp : (state?.total_xp_earned ?? 0),
                 xp_to_next_level: state?.xp_to_next_level ?? 100,
-                hearts: state?.hearts ?? 3,
+                hearts: s.hearts !== s.originalHearts ? s.hearts : (state?.hearts ?? 3),
                 max_hearts: state?.max_hearts ?? 3,
                 gold: s.gold !== s.originalGold ? s.gold : (state?.gold ?? 0),
                 status: state?.status ?? "ALIVE",
@@ -360,7 +368,7 @@ const Students = () => {
 
       // Log reward transactions for teacher XP/Gold adjustments
       const statChangedStudents = updates.filter(
-        (s) => s.xp !== s.originalXp || s.gold !== s.originalGold
+        (s) => s.xp !== s.originalXp || s.gold !== s.originalGold || s.hearts !== s.originalHearts
       );
 
       if (statChangedStudents.length > 0 && classId && teacher) {
@@ -368,10 +376,12 @@ const Students = () => {
           statChangedStudents.map(async (s) => {
             const xpDelta = s.xp - s.originalXp;
             const goldDelta = s.gold - s.originalGold;
+            const heartsDelta = s.hearts - s.originalHearts;
 
             const parts: string[] = [];
             if (xpDelta !== 0) parts.push(`${xpDelta > 0 ? "+" : ""}${xpDelta} XP`);
             if (goldDelta !== 0) parts.push(`${goldDelta > 0 ? "+" : ""}${goldDelta} Gold`);
+            if (heartsDelta !== 0) parts.push(`${heartsDelta > 0 ? "+" : ""}${heartsDelta} Hearts`);
 
             try {
               await createTransaction({
@@ -379,7 +389,7 @@ const Students = () => {
                 class_id: classId,
                 xp_delta: xpDelta,
                 gold_delta: goldDelta,
-                hearts_delta: 0,
+                hearts_delta: heartsDelta,
                 source_type: "MANUAL_ADJUSTMENT",
                 reason: `Teacher adjustment: ${parts.join(", ")}`,
               });
@@ -399,6 +409,7 @@ const Students = () => {
           originalPassword: s.password,
           originalXp: s.xp,
           originalGold: s.gold,
+          originalHearts: s.hearts,
         }))
       );
 
@@ -562,6 +573,12 @@ const Students = () => {
                     >
                       Gold
                     </th>
+                     <th
+                      scope="col"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      Hearts
+                    </th>
                     <th
                       scope="col"
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
@@ -660,36 +677,51 @@ const Students = () => {
                         </div>
                       </td>
                       {/* Gold column */}
-                      <td className="px-6 py-4 whitespace-nowrap flex items-center gap-2">
-                        <img
-                          src="/assets/icons/gold-bar.png"
-                          alt="Gold"
-                          className="h-5 w-5"
-                        />
-
-                        {s.error ? (
-                          <span className="text-gray-400">—</span>
-                        ) : (
-                          <input
-                            type="number"
-                            value={s.gold}
-                            onChange={(e) =>
-                              updateStudentField(s.id, "gold", parseInt(e.target.value) || 0)
-                            }
-                            className="w-24 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 mr-1"
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <img
+                            src="/assets/icons/gold-bar.png"
+                            alt="Gold"
+                            className="h-5 w-5"
                           />
-                        )}
-
-                        <button
-                          onClick={() => handleRemoveStudent(s.id, s.enrollmentId)}
-                          className="px-2 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-700"
-                          title="Remove enrollment"
-                        >
-                          Remove
-                        </button>
+                          {s.error ? (
+                            <span className="text-gray-400">—</span>
+                          ) : (
+                            <input
+                              type="number"
+                              value={s.gold}
+                              onChange={(e) =>
+                                updateStudentField(s.id, "gold", parseInt(e.target.value) || 0)
+                              }
+                              className="w-24 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          )}
+                        </div>
                       </td>
 
-                      
+                      {/* Hearts column */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <i data-feather="heart" className="w-5 h-5 text-red-500 fill-red-500 inline" />
+                          {s.error ? (
+                            <span className="text-gray-400">—</span>
+                          ) : (
+                            <select
+                              value={s.hearts}
+                              onChange={(e) =>
+                                updateStudentField(s.id, "hearts", parseInt(e.target.value) || 0)
+                              }
+                              className="w-24 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            >
+                              {[0, 1, 2, 3, 4, 5].map((num) => (
+                                <option key={num} value={num}>
+                                  {num}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      </td>
 
                       {/* Status indicator */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -710,14 +742,33 @@ const Students = () => {
                           s.displayName !== s.originalDisplayName ||
                           s.password !== s.originalPassword ||
                           s.xp !== s.originalXp ||
-                          s.gold !== s.originalGold ? (
-                          <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-medium">
-                            Modified
-                          </span>
+                          s.gold !== s.originalGold ||
+                          s.hearts !== s.originalHearts ? (
+                          <div className="flex items-center gap-2">
+                            <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-medium">
+                              Modified
+                            </span>
+                            <button
+                              onClick={() => handleRemoveStudent(s.id, s.enrollmentId)}
+                              className="px-2 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-700"
+                              title="Remove enrollment"
+                            >
+                              Remove
+                            </button>
+                          </div>
                         ) : (
-                          <span className="px-3 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
-                            Saved
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="px-3 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
+                              Saved
+                            </span>
+                            <button
+                              onClick={() => handleRemoveStudent(s.id, s.enrollmentId)}
+                              className="px-2 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-700"
+                              title="Remove enrollment"
+                            >
+                              Remove
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>

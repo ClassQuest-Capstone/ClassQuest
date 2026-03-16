@@ -95,7 +95,7 @@ function buildTitle(cat: ActivityCategory, studentName: string, tx: RewardTransa
       const parts: string[] = [];
       if (tx.xp_delta !== 0) parts.push(`${tx.xp_delta > 0 ? "+" : ""}${tx.xp_delta} XP`);
       if (tx.gold_delta !== 0) parts.push(`${tx.gold_delta > 0 ? "+" : ""}${tx.gold_delta} Gold`);
-     // if (tx.hearts_delta !== 0) parts.push(`${tx.hearts_delta > 0 ? "+" : ""}${tx.hearts_delta} Hearts`); (future work)
+     if (tx.hearts_delta !== 0) parts.push(`${tx.hearts_delta > 0 ? "+" : ""}${tx.hearts_delta} Hearts`);
       const delta = parts.length ? parts.join(", ") : "adjustment";
       return `Adjusted ${studentName}: ${delta}`;
     }

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.js";
-import QuizStats from "../components/teacher/quizStats.tsx";
+//import QuizStats from "../components/teacher/quizStats.tsx";
 import ActivityCard from "../features/teacher/ActivityCard.js";
 import ClassLeaderboard from "../features/teacher/ClassLeaderboard.js";
 import { useTeacherActivity, ActivityCategory } from "../hooks/teacher/useTeacherActivity.js";

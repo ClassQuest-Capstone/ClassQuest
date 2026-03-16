@@ -41,7 +41,7 @@ function rewardBadge(item: ActivityItem): string | null {
   const parts: string[] = [];
   if (item.xpDelta !== 0) parts.push(`${item.xpDelta > 0 ? "+" : ""}${item.xpDelta} XP`);
   if (item.goldDelta !== 0) parts.push(`${item.goldDelta > 0 ? "+" : ""}${item.goldDelta} Gold`);
-  if (item.heartsDelta !== 0) parts.push(`${item.heartsDelta > 0 ? "+" : ""}${item.heartsDelta} ♥`);
+  if (item.heartsDelta !== 0) parts.push(`${item.heartsDelta > 0 ? "+" : ""}${item.heartsDelta} ♥ Hearts`);
   return parts.length ? parts.join(" / ") : null;
 }
 
