@@ -104,6 +104,7 @@ export async function updateQuestion(
         xp_reward?: number;
         auto_gradable?: boolean;
         time_limit_seconds?: number;
+        image_asset_key?: string | null;
         updated_at?: string;
     }
 ): Promise<void> {
@@ -190,11 +191,26 @@ export async function updateQuestion(
         expressionAttributeValues[":updated_at"] = updates.updated_at;
     }
 
-    if (updateExpressions.length === 0) {
+    if (updates.image_asset_key !== undefined) {
+        if (updates.image_asset_key === null) {
+            expressionAttributeNames["#image_asset_key"] = "image_asset_key";
+        } else {
+            updateExpressions.push("#image_asset_key = :image_asset_key");
+            expressionAttributeNames["#image_asset_key"] = "image_asset_key";
+            expressionAttributeValues[":image_asset_key"] = updates.image_asset_key;
+        }
+    }
+
+    if (updateExpressions.length === 0 && updates.image_asset_key !== null) {
         return; // Nothing to update
     }
 
-    const updateExpression = "SET " + updateExpressions.join(", ");
+    let updateExpression = updateExpressions.length > 0
+        ? "SET " + updateExpressions.join(", ")
+        : "";
+    if (updates.image_asset_key === null) {
+        updateExpression += (updateExpression ? " " : "") + "REMOVE #image_asset_key";
+    }
 
     await ddb.send(
         new UpdateCommand({
@@ -202,7 +218,9 @@ export async function updateQuestion(
             Key: { question_id },
             UpdateExpression: updateExpression,
             ExpressionAttributeNames: expressionAttributeNames,
-            ExpressionAttributeValues: expressionAttributeValues,
+            ExpressionAttributeValues: Object.keys(expressionAttributeValues).length > 0
+                ? expressionAttributeValues
+                : undefined,
             ConditionExpression: "attribute_exists(question_id)",
         })
     );

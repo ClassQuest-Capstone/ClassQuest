@@ -321,10 +321,10 @@ const CharacterPage: React.FC = () => {
               id: m.reward_id,
               name: m.title,
               slot,
-              icon: m.image_asset_path
-                ? m.image_asset_path.startsWith("data:")
-                  ? m.image_asset_path
-                  : `data:image/png;base64,${m.image_asset_path}`
+              icon: m.image_asset_key
+                ? m.image_asset_key.startsWith("data:")
+                  ? m.image_asset_key
+                  : `data:image/png;base64,${m.image_asset_key}`
                 : "/assets/Guild.png",
               claimedAt: new Date().toISOString(),
             };
@@ -610,7 +610,7 @@ const CharacterPage: React.FC = () => {
                 id: m.reward_id,
                 name: m.title,
                 slot,
-                icon: m.image_asset_path || "/assets/cards/mage.png",
+                icon: m.image_asset_key || "/assets/cards/mage.png",
                 claimedAt: new Date().toISOString(),
               };
             });

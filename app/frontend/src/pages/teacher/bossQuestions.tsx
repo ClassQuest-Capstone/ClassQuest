@@ -14,6 +14,8 @@ import {
 // ✅ matches your uploaded bossQuestions types.ts
 import type { BossQuestion, BossQuestionType } from "../../api/bossQuestions/types.js";
 
+import { createImageUploadUrl, uploadToS3 } from "../../api/imageUpload/client.js";
+
 function safeStr(val: unknown) {
   return String(val ?? "");
 }
@@ -121,6 +123,11 @@ export default function BossQuestions() {
   const [xpReward, setXpReward] = useState<number>(0);
   const [autoGradable, setAutoGradable] = useState<boolean>(true);
 
+  // Image upload state
+  const [imageAssetKey, setImageAssetKey] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+
   useEffect(() => {
     feather.replace();
   });
@@ -180,6 +187,8 @@ export default function BossQuestions() {
     setMaxPoints(1);
     setXpReward(0);
     setAutoGradable(true);
+    setImageAssetKey(null);
+    setImageFile(null);
   }
 
   function openCreate() {
@@ -204,6 +213,8 @@ export default function BossQuestions() {
     setMaxPoints(toInt(q.max_points ?? 1, 1));
     setXpReward(toInt(q.xp_reward ?? 0, 0));
     setAutoGradable(toBool(q.auto_gradable, true));
+    setImageAssetKey((q as any).image_asset_key ?? null);
+    setImageFile(null);
 
     setEditorOpen(true);
   }
@@ -247,6 +258,26 @@ export default function BossQuestions() {
     setError(null);
 
     try {
+      // Upload image if a new file was selected
+      let finalImageAssetKey = imageAssetKey;
+      if (imageFile) {
+        setImageUploading(true);
+        try {
+          const currentUser = JSON.parse(localStorage.getItem("cq_currentUser") || "{}");
+          const teacherId = currentUser.id || "";
+          const { uploadUrl, imageAssetKey: newKey } = await createImageUploadUrl({
+            teacher_id: teacherId,
+            entity_type: "boss-question",
+            content_type: imageFile.type as any,
+            file_size: imageFile.size,
+          });
+          await uploadToS3(uploadUrl, imageFile);
+          finalImageAssetKey = newKey;
+        } finally {
+          setImageUploading(false);
+        }
+      }
+
       const payload: any = {
         order_index: Number(orderIndex),
         question_text: questionText.trim(),
@@ -254,6 +285,8 @@ export default function BossQuestions() {
         max_points: Number(maxPoints),
         xp_reward: Number(xpReward),
         auto_gradable: Boolean(autoGradable),
+        // null clears the image on update; string sets it; undefined omits it on create
+        ...(finalImageAssetKey !== undefined ? { image_asset_key: finalImageAssetKey } : {}),
       };
 
       if (questionType === "MCQ_SINGLE") {
@@ -634,6 +667,55 @@ export default function BossQuestions() {
                 </div>
               </div>
 
+              {/* Image upload */}
+              <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Question Image (optional)
+                </label>
+                {imageAssetKey && !imageFile && (
+                  <div className="flex items-center gap-2 mb-2 text-sm text-gray-600">
+                    <span className="truncate max-w-xs">{imageAssetKey}</span>
+                    <button
+                      type="button"
+                      className="text-red-600 hover:text-red-800 text-xs underline shrink-0"
+                      onClick={() => setImageAssetKey(null)}
+                      disabled={saving}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+                {imageFile && (
+                  <div className="flex items-center gap-2 mb-2 text-sm text-gray-600">
+                    <span className="truncate max-w-xs">{imageFile.name}</span>
+                    <button
+                      type="button"
+                      className="text-red-600 hover:text-red-800 text-xs underline shrink-0"
+                      onClick={() => setImageFile(null)}
+                      disabled={saving}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  className="text-sm text-gray-700"
+                  disabled={saving || imageUploading}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null;
+                    setImageFile(f);
+                  }}
+                />
+                {imageUploading && (
+                  <p className="text-xs text-blue-600 mt-1">Uploading image…</p>
+                )}
+                <p className="text-xs text-gray-400 mt-1">
+                  Max 5 MB · JPEG, PNG, GIF, or WebP
+                </p>
+              </div>
+
               <div className="flex justify-end gap-3 pt-2">
                 {/* ✅ Cancel text forced to black */}
                 <button
@@ -652,7 +734,7 @@ export default function BossQuestions() {
                   type="button"
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
                   onClick={onSave}
-                  disabled={saving}
+                  disabled={saving || imageUploading}
                 >
                   {saving ? "Saving…" : "Save"}
                 </button>

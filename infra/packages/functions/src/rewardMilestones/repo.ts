@@ -130,10 +130,16 @@ export async function updateRewardMilestone(
         names["#reward_target_id"] = "reward_target_id";
         values[":reward_target_id"] = updates.reward_target_id;
     }
-    if (updates.image_asset_path !== undefined) {
-        setExprs.push("#image_asset_path = :image_asset_path");
-        names["#image_asset_path"] = "image_asset_path";
-        values[":image_asset_path"] = updates.image_asset_path;
+    if (updates.image_asset_key !== undefined) {
+        if (updates.image_asset_key === null) {
+            // null → remove the attribute from the record
+            // handled in REMOVE clause below
+            names["#image_asset_key"] = "image_asset_key";
+        } else {
+            setExprs.push("#image_asset_key = :image_asset_key");
+            names["#image_asset_key"] = "image_asset_key";
+            values[":image_asset_key"] = updates.image_asset_key;
+        }
     }
     if (updates.notes !== undefined) {
         setExprs.push("#notes = :notes");
@@ -182,11 +188,16 @@ export async function updateRewardMilestone(
         values[":teacher_sort"] = newTeacherSort;
     }
 
+    let updateExpr = "SET " + setExprs.join(", ");
+    if (updates.image_asset_key === null) {
+        updateExpr += " REMOVE #image_asset_key";
+    }
+
     await ddb.send(
         new UpdateCommand({
             TableName: TABLE,
             Key: { reward_id },
-            UpdateExpression: "SET " + setExprs.join(", "),
+            UpdateExpression: updateExpr,
             ExpressionAttributeNames: names,
             ExpressionAttributeValues: values,
             ConditionExpression: "attribute_exists(reward_id)",

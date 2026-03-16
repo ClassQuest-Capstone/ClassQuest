@@ -65,6 +65,9 @@ import { handler as rmSetStatus }                   from "../rewardMilestones/se
 import { handler as rmSoftDelete }                  from "../rewardMilestones/soft-delete.js";
 import { handler as rmRestore }                     from "../rewardMilestones/restore.js";
 
+// ImageUpload
+import { handler as imageCreateUploadUrl }          from "../imageUpload/create-upload-url.js";
+
 // Dispatch table: keys must exactly match the routeKey API Gateway sets on event.routeKey
 const ROUTES: Record<string, (event: any) => Promise<any>> = {
     // Schools
@@ -129,6 +132,9 @@ const ROUTES: Record<string, (event: any) => Promise<any>> = {
     "PATCH /teacher/rewards/{reward_id}/status":                              rmSetStatus,
     "DELETE /teacher/rewards/{reward_id}":                                    rmSoftDelete,
     "PATCH /teacher/rewards/{reward_id}/restore":                             rmRestore,
+
+    // ImageUpload
+    "POST /teacher/images/upload-url":                                        imageCreateUploadUrl,
 };
 
 export const handler = async (event: any): Promise<any> => {

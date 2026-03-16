@@ -12,7 +12,7 @@ export type RewardMilestoneItem = {
     type: RewardType;
     reward_target_type?: RewardTargetType;
     reward_target_id?: string;
-    image_asset_path: string;
+    image_asset_key?: string;
     is_active: boolean;
     is_deleted: boolean;
     created_at: string;
@@ -31,7 +31,7 @@ export type CreateRewardMilestoneInput = {
     type: RewardType;
     reward_target_type?: RewardTargetType;
     reward_target_id?: string;
-    image_asset_path?: string;
+    image_asset_key?: string;
     is_active?: boolean;
     notes?: string;
 };
@@ -43,7 +43,7 @@ export type UpdateRewardMilestoneInput = {
     type?: RewardType;
     reward_target_type?: RewardTargetType;
     reward_target_id?: string;
-    image_asset_path?: string;
+    image_asset_key?: string | null;
     notes?: string;
     updated_by_teacher_id?: string;
 };

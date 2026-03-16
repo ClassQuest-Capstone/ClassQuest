@@ -41,6 +41,7 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             xp_reward,
             auto_gradable,
             time_limit_seconds,
+            image_asset_key,
         } = body;
 
         // Step 3: Validate updates
@@ -122,6 +123,11 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
 
         if (time_limit_seconds !== undefined) {
             updates.time_limit_seconds = time_limit_seconds;
+        }
+
+        // image_asset_key: undefined = no change, null = remove, string = set
+        if (image_asset_key !== undefined) {
+            updates.image_asset_key = image_asset_key;
         }
 
         // Always set updated_at

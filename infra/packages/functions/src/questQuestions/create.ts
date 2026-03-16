@@ -55,6 +55,7 @@ export const handler = async (event: any) => {
         min_gold,
         gold_decay_per_wrong,
         decay_exempt,
+        image_asset_key,
     } = body;
 
     // Step 3: Normalize question_format (accept legacy question_type)
@@ -178,6 +179,8 @@ export const handler = async (event: any) => {
         min_gold: min_gold ?? 0,
         gold_decay_per_wrong: gold_decay_per_wrong ?? 0,
         decay_exempt: finalDecayExempt,
+        // Optional image
+        ...(image_asset_key ? { image_asset_key } : {}),
     };
 
     // Add legacy question_type for backward compatibility (optional)

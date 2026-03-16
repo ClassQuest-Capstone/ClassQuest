@@ -53,6 +53,7 @@ export const handler = async (event: any) => {
         min_gold,
         gold_decay_per_wrong,
         decay_exempt,
+        image_asset_key,
     } = body;
 
     // Step 2: Fetch existing question to get current values for validation
@@ -174,6 +175,8 @@ export const handler = async (event: any) => {
     if (min_gold !== undefined) updates.min_gold = min_gold;
     if (gold_decay_per_wrong !== undefined) updates.gold_decay_per_wrong = gold_decay_per_wrong;
     if (decay_exempt !== undefined) updates.decay_exempt = decay_exempt;
+    // image_asset_key: undefined = no change, null = remove, string = set
+    if (image_asset_key !== undefined) updates.image_asset_key = image_asset_key;
 
     // Step 7: Perform update
     try {

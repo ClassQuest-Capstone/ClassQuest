@@ -7,7 +7,7 @@ import { validateUpdateInput } from "./validation.ts";
  * If unlock_level or type changes, sort keys are recomputed automatically.
  *
  * Editable fields: title, description, unlock_level, type,
- *                  reward_target_type, reward_target_id, image_asset_path, notes
+ *                  reward_target_type, reward_target_id, image_asset_key, notes
  */
 export const handler = async (event: any) => {
     // TODO: verify teacher authorization — confirm the caller owns this reward
@@ -65,7 +65,7 @@ export const handler = async (event: any) => {
             type:               body.type,
             reward_target_type: body.reward_target_type,
             reward_target_id:   body.reward_target_id,
-            image_asset_path:   body.image_asset_path,
+            image_asset_key:    body.image_asset_key,
             notes:              body.notes,
             updated_by_teacher_id: body.updated_by_teacher_id,
             // Current values needed for sort key recomputation

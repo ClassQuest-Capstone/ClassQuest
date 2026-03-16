@@ -43,6 +43,7 @@ export type QuestQuestion = {
   min_gold: number;
   gold_decay_per_wrong: number;
   decay_exempt: boolean;
+  image_asset_key?: string;
 };
 
 export function createQuestQuestion(template_id: string, data: Omit<QuestQuestion, "question_id">) {

@@ -34,7 +34,7 @@ export type RewardMilestone = {
     type: RewardType;
     reward_target_type?: RewardTargetType;
     reward_target_id?: string;
-    image_asset_path?: string;
+    image_asset_key?: string;
     is_active: boolean;
     is_deleted: boolean;
     created_at: string;
@@ -56,7 +56,7 @@ export type StudentRewardMilestone = {
     description: string;
     unlock_level: number;
     type: RewardType;
-    image_asset_path?: string;
+    image_asset_key?: string;
     locked: boolean;
     unlocked: boolean;
     reached_level: number;
@@ -80,7 +80,7 @@ export type CreateRewardMilestoneRequest = {
     type: RewardType;
     reward_target_type?: RewardTargetType;
     reward_target_id?: string;
-    image_asset_path?: string;
+    image_asset_key?: string;
     is_active?: boolean;
     notes?: string;
 };
@@ -92,7 +92,7 @@ export type UpdateRewardMilestoneRequest = {
     type?: RewardType;
     reward_target_type?: RewardTargetType;
     reward_target_id?: string;
-    image_asset_path?: string;
+    image_asset_key?: string | null;
     notes?: string;
     /** TODO: replace with JWT claim once auth is wired. */
     updated_by_teacher_id?: string;

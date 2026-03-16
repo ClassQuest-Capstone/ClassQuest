@@ -9,7 +9,7 @@ import type { RewardMilestoneItem } from "./types.ts";
  * Create a new reward milestone for a class.
  *
  * Body: { class_id, created_by_teacher_id, title, description, unlock_level,
- *         type, reward_target_type, reward_target_id, image_asset_path?, is_active?, notes? }
+ *         type, reward_target_type, reward_target_id, image_asset_key?, is_active?, notes? }
  */
 export const handler = async (event: any) => {
     // TODO: verify teacher authorization — confirm the caller is the teacher for this class
@@ -56,7 +56,7 @@ export const handler = async (event: any) => {
         type:                  body.type,
         reward_target_type:    body.reward_target_type,
         reward_target_id:      body.reward_target_id,
-        image_asset_path:      body.image_asset_path ?? "",
+        ...(body.image_asset_key ? { image_asset_key: body.image_asset_key } : {}),
         is_active,
         is_deleted:            false,
         notes:                 body.notes,

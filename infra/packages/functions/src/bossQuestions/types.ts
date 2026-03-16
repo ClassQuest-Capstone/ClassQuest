@@ -27,6 +27,7 @@ export type BossQuestionItem = {
     xp_reward?: number;                     // Optional: XP awarded on correct answer
     auto_gradable: boolean;                 // Whether system can auto-grade
     time_limit_seconds?: number;            // Optional: time limit for this question (overrides battle default)
+    image_asset_key?: string;               // Optional S3 object key for question image
     created_at: string;                     // ISO timestamp
     updated_at: string;                     // ISO timestamp
 };
@@ -50,5 +51,6 @@ export type UpdateBossQuestionInput = Partial<
         | "xp_reward"
         | "auto_gradable"
         | "time_limit_seconds"
+        | "image_asset_key"
     >
->;
+> & { image_asset_key?: string | null };

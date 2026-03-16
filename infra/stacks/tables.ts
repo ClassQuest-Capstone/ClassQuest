@@ -493,7 +493,7 @@ export function createTables(ctx: StackContext) {
     //   type                    (string)  e.g. "HELMET", "ARMOR_SET"
     //   reward_target_type      (string)  e.g. "AVATAR"
     //   reward_target_id        (string)
-    //   image_asset_path        (string)
+    //   image_asset_key         (string, optional) — S3 object key; renamed from image_asset_path
     //   is_active               (boolean)
     //   is_deleted              (boolean)
     //   created_at              (string)  ISO timestamp

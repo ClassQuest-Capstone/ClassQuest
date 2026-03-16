@@ -25,6 +25,7 @@ export type BossQuestion = {
     xp_reward?: number;
     auto_gradable: boolean;
     time_limit_seconds?: number;
+    image_asset_key?: string;
     created_at: string;
     updated_at: string;
 };
@@ -41,9 +42,12 @@ export type CreateBossQuestionInput = {
     xp_reward?: number;
     auto_gradable: boolean;
     time_limit_seconds?: number;
+    image_asset_key?: string;
 };
 
-export type UpdateBossQuestionInput = Partial<CreateBossQuestionInput>;
+export type UpdateBossQuestionInput = Partial<CreateBossQuestionInput> & {
+    image_asset_key?: string | null;
+};
 
 export type PaginatedBossQuestions = {
     items: BossQuestion[];

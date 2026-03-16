@@ -93,6 +93,7 @@ export type QuestQuestionItem = {
     min_gold: number;              // Minimum gold after decay (default: 0)
     gold_decay_per_wrong: number;  // Gold decay per wrong attempt (default: 0)
     decay_exempt: boolean;         // True for SHORT_ANSWER/ESSAY (default: derived from format)
+    image_asset_key?: string;      // Optional S3 object key for question image
 };
 
 export type CreateQuestionInput = Omit<QuestQuestionItem, "question_id" | "order_key">;
@@ -121,8 +122,9 @@ export type UpdateQuestionInput = Partial<
         | "min_gold"
         | "gold_decay_per_wrong"
         | "decay_exempt"
+        | "image_asset_key"
     >
->;
+> & { image_asset_key?: string | null };
 
 /**
  * Map legacy question_type to new question_format

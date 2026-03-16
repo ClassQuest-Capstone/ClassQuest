@@ -89,7 +89,7 @@ export const handler = async (event: any) => {
                 description:      milestone.description,
                 unlock_level:     milestone.unlock_level,
                 type:             milestone.type,
-                image_asset_path: milestone.image_asset_path,
+                image_asset_key: milestone.image_asset_key,
                 state,
                 claimed_at:  claim?.claimed_at  ?? null,
                 unlocked_at: claim?.unlocked_at ?? null,

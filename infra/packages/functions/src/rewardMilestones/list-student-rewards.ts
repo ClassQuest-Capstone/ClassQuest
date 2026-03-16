@@ -63,7 +63,7 @@ export const handler = async (event: any) => {
             description:     reward.description,
             unlock_level:    reward.unlock_level,
             type:            reward.type,
-            image_asset_path: reward.image_asset_path,
+            image_asset_key: reward.image_asset_key,
             locked:          studentLevel < reward.unlock_level,
             unlocked:        studentLevel >= reward.unlock_level,
             reached_level:   studentLevel,

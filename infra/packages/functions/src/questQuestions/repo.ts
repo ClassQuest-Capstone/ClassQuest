@@ -95,6 +95,7 @@ export async function updateQuestion(
         min_gold?: number;
         gold_decay_per_wrong?: number;
         decay_exempt?: boolean;
+        image_asset_key?: string | null;
     }
 ): Promise<void> {
     const updateExpressions: string[] = [];
@@ -228,11 +229,26 @@ export async function updateQuestion(
         expressionAttributeValues[":decay_exempt"] = updates.decay_exempt;
     }
 
-    if (updateExpressions.length === 0) {
+    if (updates.image_asset_key !== undefined) {
+        if (updates.image_asset_key === null) {
+            expressionAttributeNames["#image_asset_key"] = "image_asset_key";
+        } else {
+            updateExpressions.push("#image_asset_key = :image_asset_key");
+            expressionAttributeNames["#image_asset_key"] = "image_asset_key";
+            expressionAttributeValues[":image_asset_key"] = updates.image_asset_key;
+        }
+    }
+
+    if (updateExpressions.length === 0 && updates.image_asset_key !== null) {
         return; // Nothing to update
     }
 
-    const updateExpression = "SET " + updateExpressions.join(", ");
+    let updateExpression = updateExpressions.length > 0
+        ? "SET " + updateExpressions.join(", ")
+        : "";
+    if (updates.image_asset_key === null) {
+        updateExpression += (updateExpression ? " " : "") + "REMOVE #image_asset_key";
+    }
 
     await ddb.send(
         new UpdateCommand({
@@ -240,7 +256,9 @@ export async function updateQuestion(
             Key: { question_id },
             UpdateExpression: updateExpression,
             ExpressionAttributeNames: expressionAttributeNames,
-            ExpressionAttributeValues: expressionAttributeValues,
+            ExpressionAttributeValues: Object.keys(expressionAttributeValues).length > 0
+                ? expressionAttributeValues
+                : undefined,
             ConditionExpression: "attribute_exists(question_id)",
         })
     );

@@ -1,6 +1,7 @@
 import { StackContext, Function } from "sst/constructs";
 import * as apigatewayv2 from "aws-cdk-lib/aws-apigatewayv2";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as s3 from "aws-cdk-lib/aws-s3";
 
 type TeacherApiStackProps = {
     apiId: string;
@@ -119,7 +120,27 @@ export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) 
         "GET /internal/student-reward-claims/{claim_id}":                                { method: "GET",  path: "/internal/student-reward-claims/{claim_id}" },
         "GET /internal/students/{student_id}/reward-claims":                             { method: "GET",  path: "/internal/students/{student_id}/reward-claims" },
         "POST /internal/students/{student_id}/reward-claims/level-up-sync":              { method: "POST", path: "/internal/students/{student_id}/reward-claims/level-up-sync" },
+
+        // ImageUpload — teacher-only presigned S3 PUT URL
+        "POST /teacher/images/upload-url": { method: "POST", path: "/teacher/images/upload-url" },
     };
+
+    // ── S3 ASSETS BUCKET (teacher image uploads) ─────────────────────────────
+    // Images are uploaded directly from the browser via presigned PUT URLs.
+    // DynamoDB records store only the S3 object key (image_asset_key), not the URL.
+    // TODO later: decide whether detached images should be deleted from S3 immediately
+    //             or cleaned up by a background job when image_asset_key is cleared.
+    const assetsBucket = new s3.Bucket(stack, "TeacherAssets", {
+        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+        cors: [
+            {
+                allowedMethods: [s3.HttpMethods.PUT],
+                allowedOrigins: ["*"],
+                allowedHeaders: ["*"],
+                maxAge: 3000,
+            },
+        ],
+    });
 
     // ── ROUTER LAMBDA (replaces individual Lambdas) ──────────────────────────
     const tableArnList = Object.values(tableArns);
@@ -145,6 +166,7 @@ export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) 
             REWARD_MILESTONES_TABLE_NAME:             tableNames.rewardMilestonesTable,
             STUDENT_REWARD_CLAIMS_TABLE_NAME:         tableNames.studentRewardClaimsTable,
             USER_POOL_ID:                             userPoolId,
+            ASSETS_BUCKET_NAME:                       assetsBucket.bucketName,
         },
         timeout: 30,
         memorySize: 512,
@@ -174,6 +196,10 @@ export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) 
                 "cognito-idp:AdminAddUserToGroup",
             ],
             resources: [userPoolArn],
+        }),
+        new iam.PolicyStatement({
+            actions: ["s3:PutObject"],
+            resources: [assetsBucket.arnForObjects("teachers/*")],
         }),
     ]);
 

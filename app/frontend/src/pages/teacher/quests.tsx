@@ -13,6 +13,7 @@ import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
 import ProfileModal from "../features/teacher/ProfileModal.js";
 import { createQuestTemplate, updateQuestTemplate, type QuestTemplate } from "../../api/questTemplates.js";
 import { createQuestQuestion, updateQuestQuestion, deleteQuestQuestion } from "../../api/questQuestions.js";
+import { createImageUploadUrl, uploadToS3 } from "../../api/imageUpload/client.js";
 
 type TeacherUser = {
   id: string;
@@ -117,6 +118,11 @@ const Quests = () => {
   const [timeLimit, setTimeLimit] = useState(120);
   const [teacher, setTeacher] = useState<TeacherUser | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  // Image upload state for quest questions
+  const [questionImageFile, setQuestionImageFile] = useState<File | null>(null);
+  const [questionImageKey, setQuestionImageKey] = useState<string | null>(null);
+  const [questionImageUploading, setQuestionImageUploading] = useState(false);
 
   useEffect(() => {
     feather.replace();
@@ -295,6 +301,8 @@ const Quests = () => {
     setEnableTimeLimit(false);
     setTimeLimit(120);
     setSelectedQuestion(null);
+    setQuestionImageFile(null);
+    setQuestionImageKey(null);
   };
 
   // create new question (enter create mode)
@@ -378,6 +386,26 @@ const Quests = () => {
 
       const autoGradable = activeTab !== "Matching";
 
+      // Upload image if a new file was selected
+      let finalImageAssetKey: string | null | undefined = questionImageKey;
+      if (questionImageFile) {
+        setQuestionImageUploading(true);
+        try {
+          const currentUser = JSON.parse(localStorage.getItem("cq_currentUser") || "{}");
+          const teacherId = currentUser.id || "";
+          const { uploadUrl, imageAssetKey: newKey } = await createImageUploadUrl({
+            teacher_id: teacherId,
+            entity_type: "quest-question",
+            content_type: questionImageFile.type as any,
+            file_size: questionImageFile.size,
+          });
+          await uploadToS3(uploadUrl, questionImageFile);
+          finalImageAssetKey = newKey;
+        } finally {
+          setQuestionImageUploading(false);
+        }
+      }
+
       if (selectedQuestion) {
         // ✅ DELETE + REPLACE (your preferred behavior)
         // This avoids "question not found" issues in some backends and guarantees the edited version is what exists.
@@ -400,7 +428,8 @@ const Quests = () => {
           hint: hint || undefined,
           explanation: explanation || undefined,
           time_limit_seconds: enableTimeLimit ? timeLimit : undefined,
-        });
+          ...(finalImageAssetKey !== undefined ? { image_asset_key: finalImageAssetKey ?? undefined } : {}),
+        } as any);
 
         const replacedId = (replaced as any)?.id || (replaced as any)?.question_id || (replaced as any)?.quest_question_id || newQuestion.id;
         const replacedQuestionWithBackendId: Question = { ...newQuestion, id: String(replacedId) };
@@ -432,7 +461,8 @@ const Quests = () => {
           hint: hint || undefined,
           explanation: explanation || undefined,
           time_limit_seconds: enableTimeLimit ? timeLimit : undefined,
-        });
+          ...(finalImageAssetKey ? { image_asset_key: finalImageAssetKey } : {}),
+        } as any);
 
         const createdId = (created as any)?.id || (created as any)?.question_id || (created as any)?.quest_question_id || newQuestion.id;
         const newQuestionWithBackendId: Question = { ...newQuestion, id: String(createdId) };
@@ -489,6 +519,8 @@ const Quests = () => {
     setTags(question.tags);
     setEnableTimeLimit(question.timeLimit > 0);
     setTimeLimit(question.timeLimit);
+    setQuestionImageKey((question as any).image_asset_key ?? null);
+    setQuestionImageFile(null);
     setIsCreating(true);
   };
 
@@ -902,6 +934,51 @@ const Quests = () => {
                         placeholder="Hint for students..."
                       />
                     </div>
+                  </div>
+
+                  {/* Image upload (optional) */}
+                  <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Question Image (optional)
+                    </label>
+                    {questionImageKey && !questionImageFile && (
+                      <div className="flex items-center gap-2 mb-2 text-sm text-gray-600">
+                        <span className="truncate max-w-xs">{questionImageKey}</span>
+                        <button
+                          type="button"
+                          className="text-red-600 hover:text-red-800 text-xs underline shrink-0"
+                          onClick={() => setQuestionImageKey(null)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                    {questionImageFile && (
+                      <div className="flex items-center gap-2 mb-2 text-sm text-gray-600">
+                        <span className="truncate max-w-xs">{questionImageFile.name}</span>
+                        <button
+                          type="button"
+                          className="text-red-600 hover:text-red-800 text-xs underline shrink-0"
+                          onClick={() => setQuestionImageFile(null)}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      className="text-sm text-gray-700"
+                      disabled={questionImageUploading}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        setQuestionImageFile(f);
+                      }}
+                    />
+                    {questionImageUploading && (
+                      <p className="text-xs text-blue-600 mt-1">Uploading image…</p>
+                    )}
+                    <p className="text-xs text-gray-400 mt-1">Max 5 MB · JPEG, PNG, GIF, or WebP</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

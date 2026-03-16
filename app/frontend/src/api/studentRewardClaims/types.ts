@@ -94,7 +94,7 @@ export type StudentRewardStateItem = {
     description: string;
     unlock_level: number;
     type: string;
-    image_asset_path?: string;
+    image_asset_key?: string;
     state: RewardStateStatus;
     claimed_at: string | null;
     unlocked_at: string | null;
