@@ -41,6 +41,8 @@ export default {
         };
     },
     stacks(app) {
+        app.setDefaultFunctionProps({ tracing: "disabled" });
+
         // Deploy stacks in order to avoid circular dependencies
         // Capture return values to pass between stacks
 
