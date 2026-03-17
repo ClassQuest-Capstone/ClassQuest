@@ -87,8 +87,8 @@ Current TODO:
 7. Boss Battle students side (Almost DONE)
 8. Leaderboards teachers side (DONE)
 9. Leader boards students side (DONE)
-10. Student's shop 
-11. Teacher's shop
+10. Student's shop (DONE)
+11. Teacher's shop (DONE)
 12. Student's rewards (DONE)
 
 
@@ -192,7 +192,9 @@ TODO: add tooltip for xp teacher side (DONE)
 
 TODO: fix issues with welcome.tsx
 
-TODO: if no image provided use default
+TODO: if no image provided use default (DONE) ?
+
+TODO: fix issue with teacher leaderboard (DONE)
 
 TODO: update studenet profile picture (DONE)
 
@@ -208,7 +210,7 @@ TODO: revisit heart logic to work with student's score (DONE)
 
 2) if at 0 heart && score < 50% Quest Completion XP is halved
 
-TODO: shop listing listing is an instance of items table will be controlled by teacher from item shop page but item should be created from sma epage but displayed on students shop page. sprite _path is the image uplaod.
+TODO: shop listing listing is an instance of items table will be controlled by teacher from item shop page but item should be created from sma epage but displayed on students shop page. sprite _path is the image uplaod. (DONE)
 
 view guilds perfromance at end like kahoot 
 
