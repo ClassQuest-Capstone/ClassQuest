@@ -61,6 +61,12 @@ const Students = () => {
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
+  // Heart regeneration settings (class-wide)
+  const [regenEnabled, setRegenEnabled] = useState(true);
+  const [regenIntervalHours, setRegenIntervalHours] = useState(3);
+  const [regenSaving, setRegenSaving] = useState(false);
+  const [regenMessage, setRegenMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+
   //  read teacher
   const teacher = useMemo<CurrentUser | null>(() => {
     const raw = localStorage.getItem("cq_currentUser");
@@ -299,6 +305,56 @@ const Students = () => {
     }
   };
 
+  // Apply heart regen settings to all students in the class
+  const handleSaveRegenSettings = async () => {
+    if (!classId) {
+      setRegenMessage({ kind: "err", text: "No class loaded." });
+      return;
+    }
+    if (rows.length === 0) {
+      setRegenMessage({ kind: "err", text: "No students to update." });
+      return;
+    }
+    const interval = Number(regenIntervalHours);
+    if (!Number.isFinite(interval) || interval <= 0) {
+      setRegenMessage({ kind: "err", text: "Interval must be a positive number." });
+      return;
+    }
+
+    setRegenSaving(true);
+    setRegenMessage(null);
+
+    try {
+      await Promise.all(
+        rows
+          .filter((s) => !s.error)
+          .map(async (s) => {
+            const state = await getPlayerState(classId, s.id).catch(() => null);
+            await upsertPlayerState(classId, s.id, {
+              current_xp: state?.current_xp ?? 0,
+              xp_to_next_level: state?.xp_to_next_level ?? 100,
+              total_xp_earned: state?.total_xp_earned ?? 0,
+              hearts: state?.hearts ?? 3,
+              max_hearts: state?.max_hearts ?? 3,
+              gold: state?.gold ?? 0,
+              status: state?.status ?? "ALIVE",
+              last_weekend_reset_at: state?.last_weekend_reset_at,
+              heart_regen_interval_hours: interval,
+              heart_regen_enabled: regenEnabled,
+            });
+          })
+      );
+      setRegenMessage({
+        kind: "ok",
+        text: `Regen settings applied to all ${rows.filter((s) => !s.error).length} student(s).`,
+      });
+    } catch (err: any) {
+      setRegenMessage({ kind: "err", text: err.message || "Failed to apply regen settings." });
+    } finally {
+      setRegenSaving(false);
+    }
+  };
+
   // Save changes to backend
   const handleSaveChanges = async () => {
     try {
@@ -504,6 +560,94 @@ const Students = () => {
             </div>
           </div>
         )}
+
+        {/* Heart Regeneration Settings */}
+        <div className="bg-white rounded-xl shadow-lg p-6 text-gray-900 mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <i data-feather="heart" className="w-5 h-5 text-red-500"></i>
+            <h2 className="text-lg font-bold">Heart Regeneration Settings</h2>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">
+            Controls how hearts regenerate for all students in this class. Changes apply to everyone when you click "Apply to All".
+          </p>
+          <div className="flex flex-wrap gap-6 items-end">
+            {/* Enable / Disable toggle */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Regeneration</label>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRegenEnabled(true)}
+                  className={`px-4 py-2 rounded-l-lg border text-sm font-medium transition-colors ${
+                    regenEnabled
+                      ? "bg-green-600 text-white border-green-600"
+                      : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  On
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRegenEnabled(false)}
+                  className={`px-4 py-2 rounded-r-lg border-t border-b border-r text-sm font-medium transition-colors ${
+                    !regenEnabled
+                      ? "bg-red-600 text-white border-red-600"
+                      : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  Off
+                </button>
+              </div>
+            </div>
+
+            {/* Interval input */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Interval (hours)
+              </label>
+              <input
+                type="number"
+                min={0.5}
+                step={0.5}
+                value={regenIntervalHours}
+                disabled={!regenEnabled}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  if (!isNaN(v) && v > 0) setRegenIntervalHours(v);
+                }}
+                className={`w-28 border rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                  !regenEnabled ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200" : "border-gray-300"
+                }`}
+              />
+              {regenEnabled && (
+                <p className="text-xs text-gray-400 mt-1">
+                  e.g. 1 = every hour, 3 = every 3 hours
+                </p>
+              )}
+            </div>
+
+            {/* Apply button */}
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                disabled={regenSaving || !classId || rows.filter((s) => !s.error).length === 0}
+                onClick={handleSaveRegenSettings}
+                className={`px-5 py-2 rounded-lg text-white font-medium text-sm transition-colors ${
+                  regenSaving || !classId || rows.filter((s) => !s.error).length === 0
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700"
+                }`}
+              >
+                {regenSaving ? "Applying..." : "Apply to All Students"}
+              </button>
+              {regenMessage && (
+                <p className={`text-xs font-medium ${regenMessage.kind === "ok" ? "text-green-600" : "text-red-600"}`}>
+                  {regenMessage.kind === "ok" ? "✓" : "✗"} {regenMessage.text}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
 
         <div className="bg-white rounded-xl shadow-lg p-6 text-gray-900">
           <div className="flex justify-between items-center mb-6 gap-4 flex-wrap">

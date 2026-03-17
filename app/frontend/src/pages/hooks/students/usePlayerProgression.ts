@@ -19,6 +19,8 @@ export interface PlayerProfile {
   claimedRewards: number[]; // reward levels that student has claimed
   equippedItems: Record<string, string | null>;
   lastHeartRegenAt?: number; // timestamp of last heart regeneration
+  heartRegenIntervalHours: number; // hours between each heart regen (teacher-configurable)
+  heartRegenEnabled: boolean;      // whether regen is active (teacher-configurable)
 }
 
 export interface Reward {
@@ -142,6 +144,8 @@ export const usePlayerProgression = (
     claimedRewards: [],
     equippedItems: {},
     lastHeartRegenAt: Date.now(),
+    heartRegenIntervalHours: 3,
+    heartRegenEnabled: true,
   });
 
   const [loading, setLoading] = useState(false);
@@ -331,15 +335,19 @@ export const usePlayerProgression = (
 
 /**
  * Regenerate hearts
- * 1 heart regenerates every 3 hours until maxHearts is reached
+ * 1 heart regenerates every N hours (configured by teacher) until maxHearts is reached
  */
   const regenerateHearts = useCallback(async () => {
+    // Skip if teacher has disabled regen
+    if (!profile.heartRegenEnabled) return;
+
     const now = Date.now();
-    const THREE_HOURS_MS = 3* 60 * 60 * 1000;
+    const intervalHours = profile.heartRegenIntervalHours > 0 ? profile.heartRegenIntervalHours : 3;
+    const REGEN_INTERVAL_MS = intervalHours * 60 * 60 * 1000;
     const lastRegenTime = profile.lastHeartRegenAt || now;
 
-    // Check if 3 hours have passed since last regen
-    if (now - lastRegenTime < THREE_HOURS_MS) {
+    // Check if enough time has passed since last regen
+    if (now - lastRegenTime < REGEN_INTERVAL_MS) {
       return; // Not enough time has passed
     }
 
@@ -574,6 +582,8 @@ export const usePlayerProgression = (
           claimedRewards: claimedRewardsLevels,
           equippedItems: {},
           lastHeartRegenAt: lastRegenAt,
+          heartRegenIntervalHours: playerState.heart_regen_interval_hours ?? 3,
+          heartRegenEnabled: playerState.heart_regen_enabled ?? true,
         });
 
         // Save to localStorage

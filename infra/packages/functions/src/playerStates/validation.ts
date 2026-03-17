@@ -70,6 +70,18 @@ export function validatePlayerState(data: any): ValidationError[] {
         });
     }
 
+    // heart_regen_interval_hours: optional positive number
+    if (data.heart_regen_interval_hours !== undefined) {
+        if (typeof data.heart_regen_interval_hours !== "number" || data.heart_regen_interval_hours <= 0) {
+            errors.push({ field: "heart_regen_interval_hours", error: "must be a positive number" });
+        }
+    }
+
+    // heart_regen_enabled: optional boolean
+    if (data.heart_regen_enabled !== undefined && typeof data.heart_regen_enabled !== "boolean") {
+        errors.push({ field: "heart_regen_enabled", error: "must be a boolean" });
+    }
+
     // ISO string validation for last_weekend_reset_at (if provided)
     if (data.last_weekend_reset_at !== undefined) {
         if (typeof data.last_weekend_reset_at !== "string") {

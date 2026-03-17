@@ -13,7 +13,6 @@ import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
 import ProfileModal from "../features/teacher/ProfileModal.js";
 import { createQuestTemplate, updateQuestTemplate, type QuestTemplate } from "../../api/questTemplates.js";
 import { createQuestQuestion, updateQuestQuestion, deleteQuestQuestion } from "../../api/questQuestions.js";
-import { createImageUploadUrl, uploadToS3 } from "../../api/imageUpload/client.js";
 
 type TeacherUser = {
   id: string;
@@ -23,7 +22,7 @@ type TeacherUser = {
   classCode?: string;
 };
 
-type QuestionType = "Multiple Choice" | "True/False" | "Short Answer" | "Matching";
+type QuestionType = "Multiple Choice" | "True/False" | "Matching";
 
 type AnswerOption = {
   id: string;
@@ -88,7 +87,7 @@ const Quests = () => {
   const editModeQuestId = location.state?.questId as string | undefined;
   const isEditMode = location.state?.editMode === true;
 
-  const questionTypes: QuestionType[] = ["Multiple Choice", "True/False", "Short Answer"]; //, "Matching"];
+  const questionTypes: QuestionType[] = ["Multiple Choice", "True/False", "Matching"];
 
   // questions list
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -119,10 +118,6 @@ const Quests = () => {
   const [teacher, setTeacher] = useState<TeacherUser | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  // Image upload state for quest questions
-  const [questionImageFile, setQuestionImageFile] = useState<File | null>(null);
-  const [questionImageKey, setQuestionImageKey] = useState<string | null>(null);
-  const [questionImageUploading, setQuestionImageUploading] = useState(false);
 
   useEffect(() => {
     feather.replace();
@@ -220,20 +215,29 @@ const Quests = () => {
       setQuestTemplateId(editModeQuestId);
       
       // Convert API questions to internal Question format
-      const convertedQuestions: Question[] = editModeQuestions.map((q: any) => ({
-        id: q.question_id,
-        type: mapFormatToType(q.question_format),
-        title: q.prompt,
-        difficulty: q.difficulty || "Medium",
-        xpValue: q.base_xp || 10,
-        questionText: q.prompt,
-        answerOptions: q.options ? normalizeOptions(q.options) : undefined,
-        correctAnswer: q.correct_answer,
-        explanation: q.explanation || "",
-        hint: q.hint || "",
-        tags: q.subject || "",
-        timeLimit: q.time_limit_seconds || 120,
-      }));
+      const convertedQuestions: Question[] = editModeQuestions.map((q: any) => {
+        const isMatching = q.question_format === "MATCHING";
+        return {
+          id: q.question_id,
+          type: mapFormatToType(q.question_format),
+          title: q.prompt,
+          difficulty: q.difficulty || "Medium",
+          xpValue: q.base_xp || 10,
+          questionText: q.prompt,
+          answerOptions: isMatching ? undefined : (q.options ? normalizeOptions(q.options) : undefined),
+          correctAnswer: q.correct_answer,
+          matchingPairs: isMatching && q.options?.left
+            ? q.options.left.map((leftItem: any) => {
+                const rightItem = (q.options.right || []).find((r: any) => r.id === leftItem.id);
+                return { id: leftItem.id, left: leftItem.text, right: rightItem?.text || "" };
+              })
+            : undefined,
+          explanation: q.explanation || "",
+          hint: q.hint || "",
+          tags: q.subject || "",
+          timeLimit: q.time_limit_seconds || 120,
+        };
+      });
       
       setQuestions(convertedQuestions);
       setIsCreating(false);
@@ -246,7 +250,6 @@ const Quests = () => {
       MCQ_SINGLE: "Multiple Choice",
       MCQ_MULTI: "Multiple Choice",
       TRUE_FALSE: "True/False",
-      SHORT_ANSWER: "Short Answer",
       MATCHING: "Matching",
     };
     return formatMap[format] || "Multiple Choice";
@@ -294,15 +297,13 @@ const Quests = () => {
       { id: "2", text: "", isCorrect: false },
     ]);
     setCorrectAnswer("");
-    setMatchingPairs([{ id: "1", left: "", right: "" }]);
+    setMatchingPairs([{ id: "1", left: "", right: "" }, { id: "2", left: "", right: "" }]);
     setExplanation("");
     setHint("");
     setTags("");
     setEnableTimeLimit(false);
     setTimeLimit(120);
     setSelectedQuestion(null);
-    setQuestionImageFile(null);
-    setQuestionImageKey(null);
   };
 
   // create new question (enter create mode)
@@ -320,10 +321,21 @@ const Quests = () => {
       return;
     }
 
+    if (activeTab === "Matching") {
+      if (matchingPairs.length < 2) {
+        setError("Matching questions require at least 2 pairs.");
+        return;
+      }
+      const incomplete = matchingPairs.some((p) => !p.left.trim() || !p.right.trim());
+      if (incomplete) {
+        setError("Please fill in both sides of every matching pair.");
+        return;
+      }
+    }
+
     const formatMap: { [key: string]: any } = {
       "Multiple Choice": "MCQ_SINGLE",
       "True/False": "TRUE_FALSE",
-      "Short Answer": "SHORT_ANSWER",
       "Matching": "MATCHING",
     };
 
@@ -346,7 +358,7 @@ const Quests = () => {
       questionText,
       answerOptions: activeTab === "Multiple Choice" ? answerOptions : undefined,
       correctAnswer:
-        activeTab === "True/False" || activeTab === "Short Answer" ? correctAnswer : undefined,
+        activeTab === "True/False" ? correctAnswer : undefined,
       matchingPairs: activeTab === "Matching" ? matchingPairs : undefined,
       explanation,
       hint,
@@ -375,8 +387,6 @@ const Quests = () => {
         backendOptions = { choices: [trueChoice, falseChoice] };
 
         backendCorrectAnswer = correctAnswer ? { choiceId: correctAnswer.toLowerCase() } : undefined;
-      } else if (activeTab === "Short Answer") {
-        backendCorrectAnswer = correctAnswer || undefined;
       } else if (activeTab === "Matching") {
         backendOptions = {
           left: matchingPairs.map((pair) => ({ id: pair.id, text: pair.left })),
@@ -385,26 +395,6 @@ const Quests = () => {
       }
 
       const autoGradable = activeTab !== "Matching";
-
-      // Upload image if a new file was selected
-      let finalImageAssetKey: string | null | undefined = questionImageKey;
-      if (questionImageFile) {
-        setQuestionImageUploading(true);
-        try {
-          const currentUser = JSON.parse(localStorage.getItem("cq_currentUser") || "{}");
-          const teacherId = currentUser.id || "";
-          const { uploadUrl, imageAssetKey: newKey } = await createImageUploadUrl({
-            teacher_id: teacherId,
-            entity_type: "quest-question",
-            content_type: questionImageFile.type as any,
-            file_size: questionImageFile.size,
-          });
-          await uploadToS3(uploadUrl, questionImageFile);
-          finalImageAssetKey = newKey;
-        } finally {
-          setQuestionImageUploading(false);
-        }
-      }
 
       if (selectedQuestion) {
         // ✅ DELETE + REPLACE (your preferred behavior)
@@ -428,7 +418,6 @@ const Quests = () => {
           hint: hint || undefined,
           explanation: explanation || undefined,
           time_limit_seconds: enableTimeLimit ? timeLimit : undefined,
-          ...(finalImageAssetKey !== undefined ? { image_asset_key: finalImageAssetKey ?? undefined } : {}),
         } as any);
 
         const replacedId = (replaced as any)?.id || (replaced as any)?.question_id || (replaced as any)?.quest_question_id || newQuestion.id;
@@ -461,7 +450,6 @@ const Quests = () => {
           hint: hint || undefined,
           explanation: explanation || undefined,
           time_limit_seconds: enableTimeLimit ? timeLimit : undefined,
-          ...(finalImageAssetKey ? { image_asset_key: finalImageAssetKey } : {}),
         } as any);
 
         const createdId = (created as any)?.id || (created as any)?.question_id || (created as any)?.quest_question_id || newQuestion.id;
@@ -519,8 +507,6 @@ const Quests = () => {
     setTags(question.tags);
     setEnableTimeLimit(question.timeLimit > 0);
     setTimeLimit(question.timeLimit);
-    setQuestionImageKey((question as any).image_asset_key ?? null);
-    setQuestionImageFile(null);
     setIsCreating(true);
   };
 
@@ -850,7 +836,7 @@ const Quests = () => {
                     </div>
                   )}
 
-                  {(activeTab === "True/False" || activeTab === "Short Answer") && (
+                  {activeTab === "True/False" && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Correct Answer</label>
                       {activeTab === "True/False" ? (
@@ -936,50 +922,6 @@ const Quests = () => {
                     </div>
                   </div>
 
-                  {/* Image upload (optional) */}
-                  <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Question Image (optional)
-                    </label>
-                    {questionImageKey && !questionImageFile && (
-                      <div className="flex items-center gap-2 mb-2 text-sm text-gray-600">
-                        <span className="truncate max-w-xs">{questionImageKey}</span>
-                        <button
-                          type="button"
-                          className="text-red-600 hover:text-red-800 text-xs underline shrink-0"
-                          onClick={() => setQuestionImageKey(null)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    )}
-                    {questionImageFile && (
-                      <div className="flex items-center gap-2 mb-2 text-sm text-gray-600">
-                        <span className="truncate max-w-xs">{questionImageFile.name}</span>
-                        <button
-                          type="button"
-                          className="text-red-600 hover:text-red-800 text-xs underline shrink-0"
-                          onClick={() => setQuestionImageFile(null)}
-                        >
-                          Clear
-                        </button>
-                      </div>
-                    )}
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp"
-                      className="text-sm text-gray-700"
-                      disabled={questionImageUploading}
-                      onChange={(e) => {
-                        const f = e.target.files?.[0] ?? null;
-                        setQuestionImageFile(f);
-                      }}
-                    />
-                    {questionImageUploading && (
-                      <p className="text-xs text-blue-600 mt-1">Uploading image…</p>
-                    )}
-                    <p className="text-xs text-gray-400 mt-1">Max 5 MB · JPEG, PNG, GIF, or WebP</p>
-                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>

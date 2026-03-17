@@ -47,6 +47,8 @@ export const handler = async (event: any) => {
             gold: body.gold,
             status: body.status,
             last_weekend_reset_at: body.last_weekend_reset_at,
+            heart_regen_interval_hours: body.heart_regen_interval_hours,
+            heart_regen_enabled: body.heart_regen_enabled,
         });
 
         return {
