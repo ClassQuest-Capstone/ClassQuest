@@ -14,4 +14,6 @@ export type PlayerStateItem = {
     leaderboard_sort: string;  // computed field
     created_at: string;
     updated_at: string;
+    heart_regen_interval_hours?: number;  // hours between each heart regen (default: 3)
+    heart_regen_enabled?: boolean;        // whether heart regen is active (default: true)
 };

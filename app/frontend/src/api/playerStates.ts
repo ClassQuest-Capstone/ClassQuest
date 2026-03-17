@@ -16,6 +16,8 @@ export type PlayerState = {
     leaderboard_sort: string;
     created_at: string;
     updated_at: string;
+    heart_regen_interval_hours?: number;
+    heart_regen_enabled?: boolean;
 };
 
 export type UpsertPlayerStateInput = {
@@ -27,6 +29,8 @@ export type UpsertPlayerStateInput = {
     gold: number;
     last_weekend_reset_at?: string;
     status: PlayerStatus;
+    heart_regen_interval_hours?: number;
+    heart_regen_enabled?: boolean;
 };
 
 export type LeaderboardResponse = {

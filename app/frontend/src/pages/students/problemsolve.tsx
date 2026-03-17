@@ -63,6 +63,7 @@ function normalizeId(v: any, fallback: string) {
 // UI model
 // --------------------
 type UiOption = { id: string; text: string; isCorrect?: boolean };
+type UiMatchingItem = { id: string; text: string };
 
 type UiQuestion = {
   id: string; // question_id
@@ -77,6 +78,10 @@ type UiQuestion = {
   tags: string;
   timeLimit: number;
   goldReward: number;
+
+  // matching
+  matchingLeft?: UiMatchingItem[];
+  matchingRight?: UiMatchingItem[];
 
   // grading metadata
   hasGradingKey: boolean;
@@ -157,10 +162,26 @@ function extractCorrectToken(q: any): string {
   return "";
 }
 
+function normalizeMatchingItems(raw: any[]): UiMatchingItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item: any, idx: number) => ({
+    id: String(item?.id ?? `item-${idx}`),
+    text: String(item?.text ?? item?.label ?? ""),
+  })).filter((item) => item.text);
+}
+
 function normalizeQuestion(q: QuestQuestion, index: number): UiQuestion {
   const anyQ: any = q as any;
 
-  const opts = normalizeOptions(anyQ.options);
+  const isMatching = (anyQ.question_format || anyQ.question_type || "").toUpperCase() === "MATCHING";
+  const matchingLeft: UiMatchingItem[] | undefined = isMatching
+    ? normalizeMatchingItems(anyQ.options?.left ?? [])
+    : undefined;
+  const matchingRight: UiMatchingItem[] | undefined = isMatching
+    ? normalizeMatchingItems(anyQ.options?.right ?? [])
+    : undefined;
+
+  const opts = isMatching ? [] : normalizeOptions(anyQ.options);
 
   let optionsWithCorrect: UiOption[] = opts;
   let hasGradingKey = false;
@@ -236,6 +257,8 @@ function normalizeQuestion(q: QuestQuestion, index: number): UiQuestion {
     tags: safeStr(anyQ.tags || ""),
     timeLimit: Number(anyQ.time_limit_seconds ?? 60) || 60,
     goldReward: Number(anyQ.gold_reward ?? 0) || 0,
+    matchingLeft,
+    matchingRight,
     hasGradingKey,
     correctOptionId,
     correctOptionText,
@@ -255,6 +278,24 @@ function getSavedTextAnswer(answer_raw: any): string | null {
   if (typeof answer_raw.text === "string") return answer_raw.text;
   if (typeof answer_raw.answer === "string") return answer_raw.answer;
   return null;
+}
+
+function getSavedMatchingAnswer(answer_raw: any): Record<string, string> | null {
+  if (!answer_raw) return null;
+  const p = answer_raw.pairs;
+  if (p && !Array.isArray(p)) {
+    return p as Record<string, string>;
+  }
+  return null;
+}
+
+function shuffleArray(arr: UiMatchingItem[]): UiMatchingItem[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
 }
 
 // --------------------
@@ -293,8 +334,11 @@ const ProblemSolve: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState<(string | null)[]>([]);
   const [shortAnswers, setShortAnswers] = useState<string[]>([]);
+  // matchingAnswers[i] maps leftId → rightId for question i
+  const [matchingAnswers, setMatchingAnswers] = useState<Record<string, string>[]>([]);
   const [showHint, setShowHint] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
+  const isPreviewModeRef = useRef(false);
 
   // Rewards awarding
   const [claimingRewards, setClaimingRewards] = useState(false);
@@ -383,6 +427,11 @@ const ProblemSolve: React.FC = () => {
     if (!questions.length) return 0;
     return Math.round((firstTryCorrectCount / questions.length) * 100);
   }, [firstTryCorrectCount, questions.length]);
+
+  // Pre-shuffle right-side items once per question load (stable across re-renders)
+  const shuffledMatchingRight = useMemo(() => {
+    return questions.map((q) => (q.matchingRight ? shuffleArray(q.matchingRight) : []));
+  }, [questions]);
 
   async function refreshResponses() {
     if (!questInstanceId || !studentId) return;
@@ -572,6 +621,7 @@ const ProblemSolve: React.FC = () => {
         setQuestions(ui);
         setSelectedOptions(ui.map(() => null));
         setShortAnswers(ui.map(() => ""));
+        setMatchingAnswers(ui.map(() => ({})));
         setRemainingXp(ui.map((q) => q.xpValue));
         setHadWrongAttempt(ui.map(() => false));
         setCurrentIndex(0);
@@ -605,6 +655,16 @@ const ProblemSolve: React.FC = () => {
               return copy;
             });
 
+            setMatchingAnswers((prev) => {
+              const copy = [...prev];
+              ui.forEach((q, idx) => {
+                const saved = byQuestion.get(q.id);
+                const pairs = getSavedMatchingAnswer(saved?.answer_raw);
+                if (pairs) copy[idx] = pairs;
+              });
+              return copy;
+            });
+
             // Rehydrate: if student ever got a question wrong, remember that.
             // This lets you compute a final score like “correct on first try”.
             setHadWrongAttempt(() => {
@@ -632,7 +692,7 @@ const ProblemSolve: React.FC = () => {
 
             const firstUnansweredIdx = ui.findIndex((q) => !byQuestion.has(q.id));
             if (firstUnansweredIdx >= 0) setCurrentIndex(firstUnansweredIdx);
-            else setIsFinished(true);
+            else setCurrentIndex(0); // All answered — start at q1 in preview/review mode
           } catch (e) {
             console.warn("prefill responses failed:", e);
           }
@@ -676,6 +736,8 @@ const ProblemSolve: React.FC = () => {
         if (timerRef.current) window.clearInterval(timerRef.current);
         timerRef.current = null;
 
+        if (isPreviewModeRef.current) return;
+
         setFeedback({ kind: "bad", msg: "Time's up! Moving to the next question." });
         setSkippedIndices((prev) => new Set(prev).add(currentIndex));
         if (currentIndex < questions.length - 1) {
@@ -713,7 +775,13 @@ const ProblemSolve: React.FC = () => {
 
   const currentQuestion = questions[currentIndex];
   const currentRemainingXp = remainingXp[currentIndex] ?? currentQuestion?.xpValue ?? 0;
-  const isPreviewMode = !!(currentQuestion && (responsesByQuestionId.has(currentQuestion.id) || skippedIndices.has(currentIndex)));
+  // Preview mode is only available after the entire quest is finished (all questions answered).
+  // Mid-quest, even previously answered questions are not shown in preview so navigation doesn't break.
+  const allAnswered = questions.length > 0 && answeredCount === questions.length;
+  const currentSavedResponse: any = currentQuestion ? responsesByQuestionId.get(currentQuestion.id) : null;
+  const lastAnswerWasWrong = currentSavedResponse?.answer_raw?.is_correct === false;
+  const isPreviewMode = allAnswered && !!(currentQuestion && ((responsesByQuestionId.has(currentQuestion.id) && !lastAnswerWasWrong) || skippedIndices.has(currentIndex)));
+  isPreviewModeRef.current = isPreviewMode;
 
   const handleSelect = (optionId: string) => {
     setFeedback(null);
@@ -761,7 +829,8 @@ const ProblemSolve: React.FC = () => {
       return;
     }
 
-    const hasChoices = (currentQuestion.answerOptions?.length || 0) > 0;
+    const isMatching = currentQuestion.type === "MATCHING" && !!(currentQuestion.matchingLeft?.length);
+    const hasChoices = !isMatching && (currentQuestion.answerOptions?.length || 0) > 0;
     const classId = (instance as any)?.class_id;
 
     if (!classId) {
@@ -782,7 +851,81 @@ const ProblemSolve: React.FC = () => {
     const existingRaw: any = existing?.answer_raw;
     const prevAttempts: any[] = Array.isArray(existingRaw?.attempts) ? existingRaw.attempts : [];
 
-    if (hasChoices) {
+    if (isMatching) {
+      const pairs = matchingAnswers[currentIndex] ?? {};
+      const leftItems = currentQuestion.matchingLeft ?? [];
+
+      // Check all left items have been matched
+      const unmatched = leftItems.filter((item) => !pairs[item.id]);
+      if (unmatched.length > 0) {
+        setFeedback({ kind: "bad", msg: `Please match all items before submitting. (${unmatched.length} remaining)` });
+        return;
+      }
+
+      // Grade: correct if every left.id maps to right.id with same value
+      const allCorrect = leftItems.every((item) => pairs[item.id] === item.id);
+
+      const attempt = {
+        ts: new Date().toISOString(),
+        pairs,
+        is_correct: allCorrect,
+      };
+
+      if (!allCorrect) {
+        const alreadyWrong = hadWrongAttempt[currentIndex] === true;
+        if (!alreadyWrong) {
+          setHadWrongAttempt((prev) => {
+            const copy = [...prev];
+            copy[currentIndex] = true;
+            return copy;
+          });
+          setRemainingXp((prev) => {
+            const copy = [...prev];
+            copy[currentIndex] = Math.max(0, (copy[currentIndex] ?? currentQuestion.xpValue ?? 0) - 1);
+            return copy;
+          });
+        }
+
+        answer_raw.pairs = pairs;
+        answer_raw.auto_graded = true;
+        answer_raw.is_correct = false;
+        answer_raw.awarded_xp = 0;
+        answer_raw.attempts = [...prevAttempts, attempt];
+        answer_raw.had_wrong_before = true;
+
+        try {
+          setSaving(true);
+          await upsertResponse(questInstanceId, currentQuestion.id, studentId, {
+            class_id: classId,
+            answer_raw,
+            is_auto_graded: true,
+            submitted_at: new Date().toISOString(),
+          });
+          await refreshResponses();
+        } catch (e: any) {
+          setFeedback({ kind: "bad", msg: e?.message || "Failed to save attempt (backend error)." });
+        } finally {
+          setSaving(false);
+        }
+
+        setFeedback({ kind: "bad", msg: "Some pairs are incorrect — try again! (-1 XP)" });
+        return;
+      }
+
+      const persistedEverWrong =
+        existingRaw?.had_wrong_before === true || prevAttempts.some((a: any) => a?.is_correct === false);
+      const everWrong = persistedEverWrong || hadWrongAttempt[currentIndex] === true;
+
+      answer_raw.pairs = pairs;
+      answer_raw.auto_graded = true;
+      answer_raw.is_correct = true;
+      answer_raw.awarded_xp = currentRemainingXp;
+      answer_raw.attempts = [...prevAttempts, attempt];
+      answer_raw.had_wrong_before = everWrong;
+      is_auto_graded = true;
+
+      setFeedback({ kind: "ok", msg: "Correct! All pairs matched." });
+    } else if (hasChoices) {
       const selectedId = selectedOptions[currentIndex];
       if (!selectedId) {
         setFeedback({ kind: "bad", msg: "Please choose an answer before continuing." });
@@ -919,6 +1062,7 @@ const ProblemSolve: React.FC = () => {
     setCurrentIndex(0);
     setSelectedOptions(questions.map(() => null));
     setShortAnswers(questions.map(() => ""));
+    setMatchingAnswers(questions.map(() => ({})));
     setRemainingXp(questions.map((q) => q.xpValue));
     setShowHint(false);
     setIsFinished(false);
@@ -1040,10 +1184,7 @@ const ProblemSolve: React.FC = () => {
                 )}
               </div>
 
-              <div className="flex flex-col sm:flex-row justify-center sm:space-x-4 space-y-3 sm:space-y-0">
-                <button type="button" onClick={handleRetry} className="px-6 py-2 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium">
-                  Retry (UI only)
-                </button>
+              <div className="flex justify-center">
                 <Link to="/character" className="px-6 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-medium text-center">
                   Back to Character
                 </Link>
@@ -1120,35 +1261,100 @@ const ProblemSolve: React.FC = () => {
                 )}
 
                 {isPreviewMode && (
-                  <div className="mb-4 bg-gray-100 border border-gray-300 text-gray-600 px-4 py-2 rounded-md text-sm">
-                    Preview only — this question has already been submitted.
+                  <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded-md text-sm">
+                    ✓ You already answered this question. Correct answer is highlighted in green.
                   </div>
                 )}
 
-                {currentQuestion.answerOptions.length > 0 ? (
+                {currentQuestion.type === "MATCHING" && currentQuestion.matchingLeft?.length ? (
+                  /* ---- MATCHING UI ---- */
+                  <div className="mb-6">
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Prompt</div>
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center">Match</div>
+                    </div>
+                    <div className="space-y-3">
+                      {(currentQuestion.matchingLeft ?? []).map((leftItem) => {
+                        const correctRightItem = (currentQuestion.matchingRight ?? []).find((r) => r.id === leftItem.id);
+                        const currentPairs = matchingAnswers[currentIndex] ?? {};
+                        const selectedRightId = currentPairs[leftItem.id] ?? "";
+                        const rightOptions = shuffledMatchingRight[currentIndex] ?? [];
+                        return (
+                          <div key={leftItem.id} className="grid grid-cols-2 gap-3 items-center">
+                            <div className="bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-3 text-gray-900 font-medium text-center">
+                              {leftItem.text}
+                            </div>
+                            {isPreviewMode ? (
+                              <div className="border border-green-500 bg-green-50 rounded-lg px-4 py-3 text-green-900 font-medium text-center">
+                                {correctRightItem?.text ?? "—"}
+                              </div>
+                            ) : (
+                              <select
+                                disabled={false}
+                                value={selectedRightId}
+                                onChange={(e) => {
+                                  setFeedback(null);
+                                  const rightId = e.target.value;
+                                  setMatchingAnswers((prev) => {
+                                    const copy = [...prev];
+                                    copy[currentIndex] = { ...copy[currentIndex], [leftItem.id]: rightId };
+                                    return copy;
+                                  });
+                                }}
+                                className={`border rounded-lg px-3 py-3 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 ${selectedRightId ? "border-indigo-400" : "border-gray-300"}`}
+                              >
+                                <option value="">— Select a match —</option>
+                                {rightOptions.map((rightItem) => (
+                                  <option key={rightItem.id} value={rightItem.id}>
+                                    {rightItem.text}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : currentQuestion.answerOptions.length > 0 ? (
+                  /* ---- MCQ / True-False UI ---- */
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     {currentQuestion.answerOptions.map((opt, i) => {
                       const isSelected = selectedOptions[currentIndex] === opt.id;
                       const letter = String.fromCharCode(65 + i);
+                      const isCorrectOpt = opt.isCorrect === true;
+                      const buttonClass = isPreviewMode
+                        ? isCorrectOpt
+                          ? "border-green-500 bg-green-50 cursor-default"
+                          : "border-gray-200 bg-white opacity-50 cursor-not-allowed"
+                        : isSelected
+                          ? "border-indigo-500 bg-indigo-50"
+                          : "border-gray-200 bg-white";
+                      const badgeClass = isPreviewMode
+                        ? isCorrectOpt
+                          ? "bg-green-500 text-white"
+                          : "bg-gray-100 text-gray-400"
+                        : isSelected
+                          ? "bg-indigo-500 text-white"
+                          : "bg-gray-100 text-gray-800";
                       return (
                         <button
                           key={opt.id}
                           type="button"
                           disabled={isPreviewMode}
-                          className={`bg-white border rounded-lg p-4 text-left flex items-start transition ${
-                            isSelected ? "border-indigo-500 bg-indigo-50" : "border-gray-200"
-                          } ${isPreviewMode ? "opacity-60 cursor-not-allowed" : ""}`}
+                          className={`border rounded-lg p-4 text-left flex items-start transition ${buttonClass}`}
                           onClick={() => !isPreviewMode && handleSelect(opt.id)}
                         >
-                          <span className={`rounded-full w-8 h-8 flex items-center justify-center mr-4 font-bold ${isSelected ? "bg-indigo-500 text-white" : "bg-gray-100 text-gray-800"}`}>
+                          <span className={`rounded-full w-8 h-8 flex items-center justify-center mr-4 font-bold ${badgeClass}`}>
                             {letter}
                           </span>
-                          <span className="font-medium text-gray-900">{opt.text}</span>
+                          <span className={`font-medium ${isPreviewMode && isCorrectOpt ? "text-green-800" : "text-gray-900"}`}>{opt.text}</span>
                         </button>
                       );
                     })}
                   </div>
                 ) : (
+                  /* ---- Short Answer / Essay UI ---- */
                   <div className="mb-6">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Your Answer</label>
                     <textarea
@@ -1174,16 +1380,39 @@ const ProblemSolve: React.FC = () => {
                   <button
                     type="button"
                     onClick={handlePrevious}
-                    disabled={currentIndex === 0 || saving}
+                    disabled={currentIndex === 0 || saving || !allAnswered}
                     className={`px-6 py-2 rounded-lg flex items-center ${
-                      currentIndex === 0 || saving ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-gray-200 hover:bg-gray-300 text-gray-900"
+                      currentIndex === 0 || saving || !allAnswered ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-gray-200 hover:bg-gray-300 text-gray-900"
                     }`}
                   >
                     <i data-feather="arrow-left" className="mr-2" />
                     <span>Previous</span>
                   </button>
 
-                  {!isPreviewMode && (
+                  {isPreviewMode ? (
+                    currentIndex === questions.length - 1 ? (
+                      <Link
+                        to="/character"
+                        className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg flex items-center"
+                      >
+                        <span>Done</span>
+                        <i data-feather="check" className="ml-2" />
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowHint(false);
+                          setFeedback(null);
+                          setCurrentIndex((idx) => Math.min(questions.length - 1, idx + 1));
+                        }}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg flex items-center"
+                      >
+                        <span>Next Question</span>
+                        <i data-feather="arrow-right" className="ml-2" />
+                      </button>
+                    )
+                  ) : (
                     <button
                       type="button"
                       onClick={handleSubmit}

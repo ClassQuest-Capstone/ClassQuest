@@ -1647,9 +1647,12 @@ const CharacterPage: React.FC = () => {
                       
                       {/* Regeneration info */}
                       <div className="mt-6 space-y-3">
-                        {profile.lastHeartRegenAt && profile.hearts < profile.maxHearts && (
+                        {!profile.heartRegenEnabled && (
+                          <p className="text-orange-300 text-sm">⛔ Heart regeneration is currently disabled by your teacher.</p>
+                        )}
+                        {profile.heartRegenEnabled && profile.lastHeartRegenAt && profile.hearts < profile.maxHearts && (
                           <p className="text-yellow-300 text-sm">
-                            ⏱️ Next regen: <span className="font-semibold">~{Math.ceil((3* 60 * 60 * 1000 - (Date.now() - profile.lastHeartRegenAt)) / (60 * 1000))} minutes</span>
+                            ⏱️ Next regen: <span className="font-semibold">~{Math.ceil(((profile.heartRegenIntervalHours ?? 3) * 60 * 60 * 1000 - (Date.now() - profile.lastHeartRegenAt)) / (60 * 1000))} minutes</span>
                           </p>
                         )}
                         <p className="text-blue-300 text-sm">
@@ -1664,7 +1667,7 @@ const CharacterPage: React.FC = () => {
                         <h3 className="font-bold text-red-300 mb-2">How Hearts Work</h3>
                         <ul className="text-sm text-gray-300 space-y-2">
                           <li>• Lose a heart when you get less than 50% on a quest</li>
-                          <li>• 💚 Hearts regenerate every 3 hours</li>
+                          <li>• 💚 Hearts regenerate every {profile.heartRegenIntervalHours ?? 3} hour{(profile.heartRegenIntervalHours ?? 3) !== 1 ? "s" : ""}{!profile.heartRegenEnabled ? " (currently disabled)" : ""}</li>
                         </ul>
                       </div>
 
