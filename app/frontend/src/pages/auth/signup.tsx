@@ -273,9 +273,9 @@ export default function Signup() {
         //   })
         // );
 
-        console.log("[signup] Student signup complete, navigating to /welcome");
+        console.log("[signup] Student signup complete, navigating to /studentlogin");
         setSuccess("Student account created! Joining class...");
-        setTimeout(() => navigate("/welcome", { replace: true }), 300);
+        setTimeout(() => navigate("/studentlogin", { replace: true }), 300);
       } catch (err: any) {
         console.error("[signup] Student signup error", {
           name: err?.name,
