@@ -2,7 +2,7 @@
 
 ### Getting Started
 
-1. [Create a ClassQuest account]()
+1. [Create a ClassQuest account](#teacher-creating-an-account)
 2. [Overview of ClassQuest features]()
 3. [Using ClassQuest as a teacher]()
 4. [Using ClassQuest as a student]()
