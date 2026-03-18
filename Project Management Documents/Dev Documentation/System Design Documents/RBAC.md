@@ -50,8 +50,8 @@ flowchart LR
 **Permissions Table**
 | Action | Student | Teacher | Admin |
 | ----------- | ----------- | ----------- | ----------- |
-| Sign up | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Log in | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| Sign up | :heavy_check_mark: | :heavy_check_mark: | :heavy_multiplication_x: |
+| Log in | :heavy_check_mark: | :heavy_check_mark: | :heavy_multiplication_x: |
 | Join Class | :heavy_check_mark: | :heavy_multiplication_x: | :heavy_multiplication_x: |
 | View Profile | :heavy_check_mark: | :heavy_check_mark: | :heavy_multiplication_x: |
 | Edit Own Profile | :heavy_multiplication_x: | :heavy_check_mark: | :heavy_check_mark: |

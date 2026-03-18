@@ -52,7 +52,7 @@ TODO:
 Teachers:
 Dashboard: 
 - profile picture to pick from 
-- dynamic recent activity feed (80% done)
+- dynamic recent activity feed (done)
 - dynamic student cards (top student)
 
 Quests (subjects):

@@ -9,7 +9,7 @@ The tutorial is divided into the following sections:
 1. A global context for managing the tutorial state.
 2. An intro modal that introduces the tutorial to the user.
 3. A step-by-step overlay that highlights important dashboard elements.
-4. A healer/Mage sprite that animates in the background.
+4. A healer/Mage sprite that animates in the tutorial.
 
 **The tutorial progresses through predefined UI sections and can be skipped or ended at any time.**
 
@@ -29,12 +29,12 @@ The tutorial dynamically adjusts its steps depending on whether the user is a St
 | Step ID       | Target Element ID | Description |
 |---------------|-------------------|-------------|
 | `Nav-Tabs`    | `nav-tab`         | Navigation tabs |
-| `Guilds`      | `guilds`          | Gold and guild information |
+| `Guilds`      | `guilds`          | XP, Gold and guild information |
 | `Equipment`   | `equipment`       | Equipped items |
 | `Appearance`  | `appear`          | Character appearance |
 | `Inventory`   | `inventory`       | Collected items |
 | `Stats`       | `stats`           | Character stats |
-| `Skills`      | `skills`          | Skills and abilities |
+| `hearts`      | `hearts`          | Available hearts |
 | `Footer`      | `footer`          | Quests and rewards |
 | `done`        | —                 | Tutorial completion |
 
