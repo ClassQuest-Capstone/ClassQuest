@@ -307,6 +307,30 @@ export default function BossBattleMonitorTeacher() {
     }
   }, [bossInstanceId]);
 
+  // Force-next: resolves immediately regardless of who has answered (unanswered = wrong)
+  const handleForceNextQuestion = useCallback(async () => {
+    if (!bossInstanceId || transitionLockRef.current) return;
+    transitionLockRef.current = true;
+    setTransitioning(true);
+    try {
+      await resolveBossBattleQuestion(bossInstanceId, { force: true });
+      // Refresh attempts immediately so the table shows wrong marks for skipped students
+      try {
+        const res = await listBossAnswerAttemptsByBattle(bossInstanceId, { limit: 500 });
+        setAttempts(res.items || []);
+      } catch {}
+    } catch (err: any) {
+      const status = err?.status ?? err?.statusCode ?? err?.response?.status;
+      if (status !== 409) {
+        console.error("Force resolve failed:", err);
+        setError(err?.message || "Failed to force resolve question.");
+      }
+    } finally {
+      transitionLockRef.current = false;
+      setTransitioning(false);
+    }
+  }, [bossInstanceId]);
+
   // Manual resolve button (kept for edge cases / teacher override)
   const handleResolveQuestion = useCallback(async () => {
     if (!bossInstanceId || transitionLockRef.current) return;
@@ -463,6 +487,21 @@ export default function BossBattleMonitorTeacher() {
     hasAutoResolvedRef.current = false;
   }, [instance?.active_question_id]);
 
+  // Poll attempts every 3 s while a question is active so the "not answered" list updates live
+  useEffect(() => {
+    if (instance?.status !== "QUESTION_ACTIVE") return;
+    const poll = async () => {
+      try {
+        const res = await listBossAnswerAttemptsByBattle(bossInstanceId, { limit: 500 });
+        setAttempts(res.items || []);
+      } catch {
+        // silent — stale data is better than an error flash
+      }
+    };
+    const timer = window.setInterval(poll, 3000);
+    return () => window.clearInterval(timer);
+  }, [instance?.status, bossInstanceId]);
+
   // Timer-based auto-chain for timed questions (timer expired → resolve→advance→start)
   useEffect(() => {
     if (
@@ -594,6 +633,14 @@ export default function BossBattleMonitorTeacher() {
     if (!question?.question_id) return [];
     return attempts.filter((a) => a.question_id === question.question_id);
   }, [attempts, question?.question_id]);
+
+  const notSubmittedStudents = useMemo(() => {
+    if (instance?.status !== "QUESTION_ACTIVE" || !question?.question_id) return [];
+    const submittedIds = new Set(questionAttempts.map((a) => a.student_id));
+    return participants
+      .filter((p) => p.state === "JOINED" && !p.is_downed && !submittedIds.has(p.student_id))
+      .map((p) => ({ studentId: p.student_id, name: nameMap[p.student_id] || p.student_id }));
+  }, [instance?.status, question?.question_id, questionAttempts, participants, nameMap]);
 
   const studentRows = useMemo<StudentRow[]>(() => {
     return participants
@@ -855,6 +902,43 @@ export default function BossBattleMonitorTeacher() {
               </div>
             </div>
 
+            {/* ── Teacher Controls ── */}
+            <div className="bg-white rounded-xl shadow-md px-6 py-4 mb-6">
+              <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3">Teacher Controls</h3>
+              <div className="flex flex-wrap gap-3 items-center">
+                <button
+                  onClick={() => window.open(`/teacher/bossfight-display/${bossInstanceId}`, "_blank")}
+                  className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                >
+                  <i data-feather="monitor" className="w-4 h-4"></i>
+                  Open Display Screen
+                </button>
+
+                <button
+                  onClick={handleForceNextQuestion}
+                  disabled={transitioning || instance?.status !== "QUESTION_ACTIVE"}
+                  title={instance?.status !== "QUESTION_ACTIVE" ? "Only available while a question is active" : "Resolve now — students who haven't answered are marked wrong"}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    transitioning || instance?.status !== "QUESTION_ACTIVE"
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-orange-500 hover:bg-orange-600 text-white"
+                  }`}
+                >
+                  <i data-feather="skip-forward" className="w-4 h-4"></i>
+                  Force Next Question
+                </button>
+
+                {transitioning && (
+                  <span className="text-xs text-purple-600 font-semibold animate-pulse">Advancing…</span>
+                )}
+              </div>
+              {instance?.status === "QUESTION_ACTIVE" && notSubmittedStudents.length > 0 && (
+                <p className="mt-2 text-xs text-gray-500">
+                  {notSubmittedStudents.length} student{notSubmittedStudents.length !== 1 ? "s" : ""} haven't answered yet — forcing will mark them wrong.
+                </p>
+              )}
+            </div>
+
             <div className="bg-white rounded-xl shadow-md p-6 mb-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Current Battle State</h3>
 
@@ -864,7 +948,7 @@ export default function BossBattleMonitorTeacher() {
                     ACTIVE QUESTION
                   </div>
                   <div className="mt-2 text-sm font-semibold text-gray-900">
-                    {question ? `Q${question.order_index + 1}` : "None"}
+                    {question ? `Q${question.order_index}` : "None"}
                   </div>
                   <div className="mt-1 text-sm text-gray-600">
                     {question?.question_text || "No active question"}
@@ -936,6 +1020,23 @@ export default function BossBattleMonitorTeacher() {
                   <div className="text-sm text-gray-700">
                     {questionAttempts.length} submission(s) recorded for this active question.
                   </div>
+                  {instance?.status === "QUESTION_ACTIVE" && notSubmittedStudents.length > 0 && (
+                    <div className="mt-3">
+                      <div className="text-xs text-red-600 font-semibold tracking-widest mb-1">
+                        NOT YET SUBMITTED ({notSubmittedStudents.length})
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {notSubmittedStudents.map((s) => (
+                          <span key={s.studentId} className="px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold border border-red-300">
+                            {s.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {instance?.status === "QUESTION_ACTIVE" && notSubmittedStudents.length === 0 && questionAttempts.length > 0 && (
+                    <div className="mt-2 text-xs text-green-700 font-semibold">All active students have submitted.</div>
+                  )}
                 </div>
               ) : null}
             </div>

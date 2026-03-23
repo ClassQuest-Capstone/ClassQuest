@@ -303,7 +303,8 @@ export default function BossBattleLobbyTeacher() {
       (instance as any)?.battle_date
   );
 
-  const canOpenLobby = !hasScheduledDate;
+  const lobbyAlreadyOpen = !["", "DRAFT", "SCHEDULED"].includes(currentStatus);
+  const canOpenLobby = !hasScheduledDate && !lobbyAlreadyOpen;
   const canStartCountdown = currentStatus === "LOBBY";
   const canAbort = [
     "",
@@ -610,18 +611,20 @@ export default function BossBattleLobbyTeacher() {
             </div>
 
             <div className="flex flex-wrap gap-2 bg-slate-100 border border-slate-300 rounded-xl p-3 shadow-inner">
-              <button
-                className="px-4 py-2 rounded-lg bg-amber-500 text-white font-semibold border-2 border-amber-700 shadow-[0_4px_0_0_#92400e] hover:bg-amber-400 hover:-translate-y-0.5 active:translate-y-0 active:shadow-[0_2px_0_0_#92400e] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none"
-                onClick={handleOpenLobby}
-                disabled={busy || loading || !canOpenLobby}
-                title={
-                  canOpenLobby
-                    ? "Open the lobby so students can join"
-                    : "Lobby cannot open because the battle already has a scheduled date"
-                }
-              >
-                Open Lobby
-              </button>
+              {!lobbyAlreadyOpen && (
+                <button
+                  className="px-4 py-2 rounded-lg bg-amber-500 text-white font-semibold border-2 border-amber-700 shadow-[0_4px_0_0_#92400e] hover:bg-amber-400 hover:-translate-y-0.5 active:translate-y-0 active:shadow-[0_2px_0_0_#92400e] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none"
+                  onClick={handleOpenLobby}
+                  disabled={busy || loading || !canOpenLobby}
+                  title={
+                    canOpenLobby
+                      ? "Open the lobby so students can join"
+                      : "Lobby cannot open because the battle already has a scheduled date"
+                  }
+                >
+                  Open Lobby
+                </button>
+              )}
 
               <button
                 className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold border-2 border-emerald-800 shadow-[0_4px_0_0_#166534] hover:bg-emerald-500 hover:-translate-y-0.5 active:translate-y-0 active:shadow-[0_2px_0_0_#166534] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none"

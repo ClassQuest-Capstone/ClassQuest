@@ -284,7 +284,7 @@ const Quests = () => {
 
   useEffect(() => {
     feather.replace();
-  }, [activeTab, questions, selectedQuestion, isCreating]);
+  }, [activeTab, questions, selectedQuestion, isCreating, answerOptions.length, matchingPairs.length]);
 
   // reset for new question
   const resetForm = () => {
@@ -887,7 +887,7 @@ const Quests = () => {
                                 onChange={(e) => handleMatchingChange(pair.id, "right", e.target.value)}
                                 placeholder="Right side"
                               />
-                              {matchingPairs.length > 1 && (
+                              {matchingPairs.length > 2 && (
                                 <button onClick={() => handleRemoveMatchingPair(pair.id)} className="text-red-500 hover:text-red-700">
                                   <i data-feather="x"></i>
                                 </button>

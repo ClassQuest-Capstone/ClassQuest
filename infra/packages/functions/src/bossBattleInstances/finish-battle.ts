@@ -120,13 +120,9 @@ export const handler = async (event: any) => {
                 outcome = "FAIL";
                 fail_reason = "ALL_GUILDS_DOWN";
             } else {
-                // TODO: support ABORTED_BY_TEACHER when caller explicitly provides a reason
-                return {
-                    statusCode: 409,
-                    body: JSON.stringify({
-                        error: "Battle is not ready to be finished — boss is alive and not all guilds are down",
-                    }),
-                };
+                // All questions exhausted but boss still alive — battle ends as FAIL
+                outcome = "FAIL";
+                fail_reason = "OUT_OF_QUESTIONS";
             }
         }
 

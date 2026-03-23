@@ -143,10 +143,55 @@ const TeacherGuilds = () => {
   const [isCreatingGuild, setIsCreatingGuild] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
+  const [studentSort, setStudentSort] = useState<"az" | "za" | "guild">("az");
+
   const selectedClass = useMemo(
     () => classes.find((c) => c.class_id === selectedClassId) || null,
     [classes, selectedClassId]
   );
+
+  // Sorted/grouped student list for the assign panel
+  type StudentGroup = { header: string | null; enrollments: typeof enrollments };
+
+  const sortedStudentGroups = useMemo((): StudentGroup[] => {
+    const sorted = [...enrollments].sort((a, b) => {
+      const na = displayName(a.student_id);
+      const nb = displayName(b.student_id);
+      return na.localeCompare(nb, undefined, { numeric: true, sensitivity: "base" });
+    });
+
+    if (studentSort === "za") {
+      sorted.reverse();
+    }
+
+    if (studentSort === "guild") {
+      const byGuild = new Map<string, typeof enrollments>();
+      for (const e of sorted) {
+        const gid = studentCurrentGuildId(e.student_id);
+        const key = gid || "__none__";
+        if (!byGuild.has(key)) byGuild.set(key, []);
+        byGuild.get(key)!.push(e);
+      }
+
+      const groups: StudentGroup[] = [];
+      // Named guilds first (alphabetical by guild name)
+      const namedKeys = [...byGuild.keys()]
+        .filter((k) => k !== "__none__")
+        .sort((a, b) =>
+          guildNameById(a).localeCompare(guildNameById(b), undefined, { numeric: true, sensitivity: "base" })
+        );
+      for (const key of namedKeys) {
+        groups.push({ header: guildNameById(key), enrollments: byGuild.get(key)! });
+      }
+      // No guild at the end
+      if (byGuild.has("__none__")) {
+        groups.push({ header: "No Guild", enrollments: byGuild.get("__none__")! });
+      }
+      return groups;
+    }
+
+    return [{ header: null, enrollments: sorted }];
+  }, [enrollments, studentSort, studentsState, guilds, studentById]);
 
   function displayName(studentId: string): string {
     const p = studentById[studentId];
@@ -229,12 +274,29 @@ const TeacherGuilds = () => {
       if (!selectedClassId) return;
       try {
         setError("");
-
-        await Promise.all([refreshGuilds(selectedClassId), refreshEnrollments(selectedClassId)]);
-
-        if (!mounted) return;
         setGuildCards({});
         setStudentsState({});
+
+        const [guildsRes, enrollmentsRes] = await Promise.all([
+          listGuildsByClass(selectedClassId, 100),
+          getClassEnrollments(selectedClassId),
+        ]);
+
+        if (!mounted) return;
+
+        const activeGuilds = (guildsRes.items || []).filter((g: any) => g.is_active !== false);
+        const activeEnrollments = (enrollmentsRes.items || []).filter((e: any) => e.status !== "dropped");
+
+        setGuilds(activeGuilds);
+        setEnrollments(activeEnrollments);
+
+        // Auto-load guild rosters
+        await Promise.all(activeGuilds.map((g: any) => loadGuildMembers(g.guild_id)));
+
+        if (!mounted) return;
+
+        // Auto-load student memberships
+        await Promise.all(activeEnrollments.map((e: any) => loadStudentMembership(e.student_id)));
       } catch (err: any) {
         console.error(err);
         if (!mounted) return;
@@ -250,7 +312,7 @@ const TeacherGuilds = () => {
   // icons
   useEffect(() => {
     feather.replace();
-  }, [loading, isCreateGuildOpen, guilds, enrollments, selectedClassId, studentById]);
+  }, [loading, isCreateGuildOpen, guilds, enrollments, selectedClassId, studentById, guildCards, studentsState]);
 
   // --------------------
   // Guild actions
@@ -616,13 +678,20 @@ const TeacherGuilds = () => {
                               <p className="text-lg font-bold text-gray-900">{g.name}</p>
                             </div>
 
-                            <button
-                              className="px-3 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
-                              onClick={() => loadGuildMembers(id)}
-                            >
-                              <i data-feather="users" className="w-4 h-4 inline mr-2"></i>
-                              {card?.loading ? "Loading..." : "Load Members"}
-                            </button>
+                            <div className="flex items-center gap-2">
+                              {card && !card.loading && (
+                                <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-1 rounded-full">
+                                  {card.members.length} member{card.members.length !== 1 ? "s" : ""}
+                                </span>
+                              )}
+                              <button
+                                className="px-3 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+                                onClick={() => loadGuildMembers(id)}
+                              >
+                                <i data-feather="refresh-cw" className="w-4 h-4 inline mr-1"></i>
+                                {card?.loading ? "Loading..." : "Refresh"}
+                              </button>
+                            </div>
                           </div>
 
                           <div className="p-4">
@@ -633,9 +702,7 @@ const TeacherGuilds = () => {
                             )}
 
                             {!card ? (
-                              <div className="text-sm text-gray-600">
-                                Click <b>Load Members</b> to view roster.
-                              </div>
+                              <div className="text-sm text-gray-600">Loading roster...</div>
                             ) : card.loading ? (
                               <div className="text-sm text-gray-600">Loading roster...</div>
                             ) : card.members.length === 0 ? (
@@ -678,7 +745,18 @@ const TeacherGuilds = () => {
                     <h2 className="text-xl font-bold">Assign Students</h2>
                     <p className="text-white/80 text-sm">Pick a student and assign them to a guild.</p>
                   </div>
-                  <i data-feather="user-check" className="w-8 h-8"></i>
+                  <div className="flex items-center gap-3">
+                    <select
+                      value={studentSort}
+                      onChange={(e) => setStudentSort(e.target.value as "az" | "za" | "guild")}
+                      className="border border-white/30 rounded-lg px-3 py-1.5 text-sm text-white bg-white/20 backdrop-blur-sm"
+                    >
+                      <option value="az" className="text-black">A → Z</option>
+                      <option value="za" className="text-black">Z → A</option>
+                      <option value="guild" className="text-black">By Guild</option>
+                    </select>
+                    <i data-feather="user-check" className="w-8 h-8"></i>
+                  </div>
                 </div>
               </div>
 
@@ -692,100 +770,56 @@ const TeacherGuilds = () => {
                     Create at least one guild before assigning students.
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {enrollments.map((e) => {
-                      const studentId = e.student_id;
-                      const row = studentsState[studentId];
-                      const assigned = isAssigned(studentId);
+                  <>
 
-                      return (
-                        <div key={studentId} className="border rounded-xl p-4 flex flex-col gap-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-bold text-gray-900">
-                                {displayName(studentId)}
-                              </p>
-                            </div>
-
-                            <button
-                              className="px-3 py-2 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800"
-                              onClick={() => loadStudentMembership(studentId)}
-                            >
-                              <i data-feather="refresh-cw" className="w-4 h-4 inline mr-2"></i>
-                              {row?.loading ? "Checking..." : "Check Guild"}
-                            </button>
-                          </div>
-
-                          {row?.error && (
-                            <div className="text-sm text-red-600 bg-red-50 p-3 rounded">{row.error}</div>
+                    <div className="space-y-1">
+                      {sortedStudentGroups.map((group) => (
+                        <div key={group.header ?? "__flat__"}>
+                          {group.header !== null && (
+                            <p className="text-xs font-semibold tracking-widest text-gray-500 uppercase mt-3 mb-1 px-1">
+                              {group.header}
+                            </p>
                           )}
+                          {group.enrollments.map((e) => {
+                            const studentId = e.student_id;
+                            const row = studentsState[studentId];
+                            const assigned = isAssigned(studentId);
 
-                          <div className="flex flex-wrap items-center gap-3">
-                            <div className="flex-1 min-w-[220px]">
-                              <label className="block text-xs font-semibold tracking-widest text-gray-500 mb-1">
-                                ASSIGN TO GUILD
-                              </label>
+                            return (
+                              <div key={studentId} className="border rounded-lg px-4 py-3 flex items-center gap-3">
+                                <p className="text-sm font-bold text-gray-900 w-32 shrink-0 truncate">
+                                  {displayName(studentId)}
+                                </p>
 
-                              <select
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black bg-white"
-                                value={studentCurrentGuildId(studentId)}
-                                onChange={(ev) => assignStudentToGuild(studentId, ev.target.value)}
-                                disabled={row?.saving}
-                              >
-                                <option value="">(Not assigned)</option>
-                                {guilds.map((g) => (
-                                  <option key={g.guild_id} value={g.guild_id}>
-                                    {g.name}
-                                  </option>
-                                ))}
-                              </select>
+                                <select
+                                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm text-black bg-white"
+                                  value={studentCurrentGuildId(studentId)}
+                                  onChange={(ev) => assignStudentToGuild(studentId, ev.target.value)}
+                                  disabled={row?.saving || row?.loading}
+                                >
+                                  <option value="">(No guild)</option>
+                                  {guilds.map((g) => (
+                                    <option key={g.guild_id} value={g.guild_id}>
+                                      {g.name}
+                                    </option>
+                                  ))}
+                                </select>
 
-                              <p className="text-xs text-gray-500 mt-1">
-                                {assigned
-                                  ? `Currently in: ${guildNameById(
-                                      (studentsState[studentId]?.membership as any)?.guild_id
-                                    )}`
-                                  : "Currently unassigned"}
-                              </p>
-                            </div>
-
-                            <div className="min-w-[140px]">
-                              <label className="block text-xs font-semibold tracking-widest text-gray-500 mb-1">
-                                STATUS
-                              </label>
-                              <div className="rounded-lg border px-3 py-2 text-sm">
-                                {row?.saving ? (
-                                  <span className="text-indigo-700 font-semibold">Saving...</span>
-                                ) : assigned ? (
-                                  <span className="text-green-700 font-semibold">Assigned</span>
-                                ) : (
-                                  <span className="text-gray-600 font-semibold">Unassigned</span>
-                                )}
+                                <button
+                                  className="px-3 py-2 text-sm rounded-lg bg-red-100 hover:bg-red-200 text-red-700 disabled:opacity-40 shrink-0"
+                                  disabled={row?.saving || !assigned}
+                                  onClick={() => removeStudentFromGuild(studentId)}
+                                  title={!assigned ? "Not in a guild" : "Remove from guild"}
+                                >
+                                  Remove
+                                </button>
                               </div>
-                            </div>
-
-                            <div className="min-w-[140px]">
-                              <label className="block text-xs font-semibold tracking-widest text-gray-500 mb-1">
-                                REMOVE
-                              </label>
-                              <button
-                                className="w-full px-3 py-2 text-sm rounded-lg bg-red-100 hover:bg-red-200 text-red-700 disabled:opacity-50"
-                                disabled={row?.saving || !assigned}
-                                onClick={() => removeStudentFromGuild(studentId)}
-                                title={!assigned ? "Student is not assigned" : "Remove from guild"}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="text-xs text-gray-500">
-                            Tip: selecting <b>(Not assigned)</b> removes them from their guild.
-                          </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
-                  </div>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             </div>

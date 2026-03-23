@@ -601,6 +601,24 @@ export const usePlayerProgression = (
     initializeProfile();
   }, [studentId, classId]);
 
+  /**
+   * Re-fetch only the player's current hearts from the server.
+   * Useful after a boss battle resolves hearts server-side (e.g. force-resolve).
+   */
+  const refreshHearts = useCallback(async () => {
+    if (!studentId || !classId) return;
+    try {
+      const ps = await getPlayerState(classId, studentId);
+      setProfile((prev) => ({
+        ...prev,
+        hearts: ps.hearts,
+        maxHearts: ps.max_hearts,
+      }));
+    } catch {
+      // silent — stale hearts are better than a visible error
+    }
+  }, [studentId, classId]);
+
   return {
     profile,
     loading,
@@ -614,5 +632,6 @@ export const usePlayerProgression = (
     regenerateHearts,
     weekendReset,
     deductHeartsForQuestScore,
+    refreshHearts,
   };
 };

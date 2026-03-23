@@ -82,37 +82,41 @@ export const handler = async (event: any) => {
 
         // --- 1b. Validate resolve readiness (answer-gating) ---
         {
+            const body = event.body ? JSON.parse(event.body) : {};
+            const force = body.force === true;
+
             const isTimed = !!instance.question_ends_at;
             const nowCheck = new Date();
             const timerExpired =
                 isTimed && nowCheck >= new Date(instance.question_ends_at!);
             const isReady = instance.ready_to_resolve === true;
 
-            // TODO: For RANDOMIZED_PER_GUILD, per-guild readiness should be checked independently
-            // once per-guild question tracking is fully supported.
-
-            if (isTimed) {
-                if (!isReady && !timerExpired) {
-                    return {
-                        statusCode: 409,
-                        body: JSON.stringify({
-                            error: "Question is still waiting for required answers or timer expiry",
-                            ready_to_resolve: false,
-                            timer_expired: false,
-                        }),
-                    };
-                }
-            } else {
-                // Untimed: must wait for all required answers
-                if (!isReady) {
-                    return {
-                        statusCode: 409,
-                        body: JSON.stringify({
-                            error: "Question cannot be resolved until all required participants have answered",
-                            received_answer_count: instance.received_answer_count ?? 0,
-                            required_answer_count: instance.required_answer_count ?? 0,
-                        }),
-                    };
+            // When force=true (teacher override), skip the readiness gate entirely.
+            // Students who have not answered will be treated as wrong by resolveQuestionCore.
+            if (!force) {
+                if (isTimed) {
+                    if (!isReady && !timerExpired) {
+                        return {
+                            statusCode: 409,
+                            body: JSON.stringify({
+                                error: "Question is still waiting for required answers or timer expiry",
+                                ready_to_resolve: false,
+                                timer_expired: false,
+                            }),
+                        };
+                    }
+                } else {
+                    // Untimed: must wait for all required answers
+                    if (!isReady) {
+                        return {
+                            statusCode: 409,
+                            body: JSON.stringify({
+                                error: "Question cannot be resolved until all required participants have answered",
+                                received_answer_count: instance.received_answer_count ?? 0,
+                                required_answer_count: instance.required_answer_count ?? 0,
+                            }),
+                        };
+                    }
                 }
             }
         }

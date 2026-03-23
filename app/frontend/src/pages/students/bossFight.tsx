@@ -289,6 +289,7 @@ const BossFight: React.FC = () => {
 
   const [allQuestions, setAllQuestions] = useState<BossQuestion[]>([]);
   const [localHeartsLost, setLocalHeartsLost] = useState(0);
+  const [heartFlash, setHeartFlash] = useState(0); // number of hearts just lost; >0 triggers flash
   const lastSubmitAtRef = useRef<number>(0);
 
   const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
@@ -300,7 +301,7 @@ const BossFight: React.FC = () => {
   const [myGuildName, setMyGuildName] = useState<string | null>(null);
   const [guildNameMap, setGuildNameMap] = useState<Record<string, string>>({});
 
-  const { profile } = usePlayerProgression(studentId || "", classId || "");
+  const { profile, refreshHearts } = usePlayerProgression(studentId || "", classId || "");
 
   const polledInstance = useBattlePolling(instance?.boss_instance_id ?? undefined, 2500);
   const polledParticipants = useRosterPolling(instance?.boss_instance_id ?? undefined, 3000);
@@ -613,6 +614,18 @@ const BossFight: React.FC = () => {
     }
   }, [polledInstance]);
 
+  // When question resolves (QUESTION_ACTIVE → anything else), sync hearts from server
+  // and reset the local optimistic delta so there's no double-counting.
+  const prevStatusRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const newStatus = instance?.status;
+    if (prevStatusRef.current === "QUESTION_ACTIVE" && newStatus !== "QUESTION_ACTIVE") {
+      refreshHearts();
+      setLocalHeartsLost(0);
+    }
+    prevStatusRef.current = newStatus;
+  }, [instance?.status, refreshHearts]);
+
   // Merge polled roster — update participant states without re-fetching display names
   useEffect(() => {
     if (polledParticipants.length > 0) {
@@ -857,6 +870,8 @@ const BossFight: React.FC = () => {
         const heartsLost = Math.abs(result.hearts_delta_student ?? 0);
         if (heartsLost > 0) {
           setLocalHeartsLost((prev) => prev + heartsLost);
+          setHeartFlash(heartsLost);
+          setTimeout(() => setHeartFlash(0), 1600);
         }
         const frozenMsg = result.frozen_until ? ` Frozen for ${instance.freeze_on_wrong_seconds}s.` : "";
         setBattleLog((prev) => [
@@ -1196,6 +1211,18 @@ const BossFight: React.FC = () => {
 
   return (
     <>
+      {/* Heart-loss flash overlay */}
+      {heartFlash > 0 && (
+        <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center">
+          <div className="animate-bounce flex flex-col items-center gap-2">
+            <span className="text-8xl drop-shadow-[0_0_20px_rgba(239,68,68,0.9)]">💔</span>
+            <span className="text-4xl font-black text-red-400 drop-shadow-[0_0_12px_rgba(239,68,68,0.8)]">
+              -{heartFlash} ❤️
+            </span>
+          </div>
+          <div className="absolute inset-0 bg-red-500/20 animate-pulse" />
+        </div>
+      )}
       <div className="font-poppins bg-[url('/assets/boss-bckgnd.png')] bg-cover bg-center bg-no-repeat min-h-screen">
         <nav className="bg-blue-700 text-white shadow-lg">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1313,15 +1340,20 @@ const BossFight: React.FC = () => {
               )}
 
               {myParticipant && myParticipant.state === "JOINED" && (
-                <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-red-900/80 border border-red-500 text-xs font-semibold">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <span
-                      key={i}
-                      className={`inline-block w-3 h-3 rounded-full ${
-                        i < Math.max(0, 3 - localHeartsLost) ? "bg-red-400" : "bg-gray-600"
-                      }`}
-                    />
-                  ))}
+                <span className={`flex items-center gap-0.5 px-3 py-1 rounded-full bg-red-900/80 border text-xs font-semibold transition-all duration-150 ${heartFlash > 0 ? "border-red-300 scale-125 shadow-[0_0_12px_4px_rgba(239,68,68,0.7)]" : "border-red-500"}`}>
+                  {Array.from({ length: profile.maxHearts || 5 }).map((_, i) => {
+                    const currentHearts = Math.max(0, (profile.hearts ?? profile.maxHearts ?? 5) - localHeartsLost);
+                    const filled = i < currentHearts;
+                    return filled ? (
+                      <svg key={i} className="w-4 h-4 text-red-400 fill-red-400" viewBox="0 0 24 24">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                      </svg>
+                    ) : (
+                      <svg key={i} className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                      </svg>
+                    );
+                  })}
                 </span>
               )}
             </div>

@@ -6,7 +6,7 @@ import {
     markParticipantDowned,
 } from "../bossBattleParticipants/repo.js";
 import { ParticipantState } from "../bossBattleParticipants/types.js";
-import { listAttemptsByBattleQuestion } from "../bossAnswerAttempts/repo.js";
+import { listAttemptsByBattleQuestion, createBossAnswerAttempt } from "../bossAnswerAttempts/repo.js";
 import type { BossAnswerAttemptItem } from "../bossAnswerAttempts/types.js";
 import { getPlayerState, setPlayerHearts } from "../playerStates/repo.js";
 
@@ -96,6 +96,69 @@ export async function resolveQuestionCore(boss_instance_id: string): Promise<Res
         nextToken = page.nextToken;
     } while (nextToken);
 
+    // --- 3b. Load JOINED participants to detect non-submitters ---
+    // Done here (before aggregation) so phantom attempts can be included in step 4.
+    const joinedEarly = await listParticipants(boss_instance_id, {
+        state: ParticipantState.JOINED,
+    });
+
+    const submittedIds = new Set(allAttempts.map((a) => a.student_id));
+    const nonSubmitters = joinedEarly.filter(
+        (p) => !p.is_downed && !submittedIds.has(p.student_id)
+    );
+
+    // Create a phantom "wrong" attempt for each non-submitter so the monitor
+    // table shows them as incorrect. No heart penalty (hearts_delta_student: 0)
+    // and no boss damage — they simply missed the question.
+    if (nonSubmitters.length > 0) {
+        await Promise.all(
+            nonSubmitters.map((p) =>
+                createBossAnswerAttempt({
+                    boss_instance_id,
+                    class_id: instance.class_id,
+                    question_id: instance.active_question_id!,
+                    student_id: p.student_id,
+                    guild_id: p.guild_id ?? "",
+                    answer_raw: { skipped: true, reason: "force_resolve" },
+                    is_correct: false,
+                    elapsed_seconds: 0,
+                    damage_to_boss: 0,
+                    hearts_delta_student: -1,
+                    hearts_delta_guild_total: 0,
+                    mode_type: ((instance as any).mode_type ?? "SIMULTANEOUS_ALL") as any,
+                    status_at_submit: "QUESTION_ACTIVE",
+                }).catch(() => {
+                    // Non-critical — if write fails, monitor just won't show the wrong mark
+                })
+            )
+        );
+
+        // Append phantom attempts to local array so step 4 aggregation includes them
+        const ts = new Date().toISOString();
+        const phantomAttempts: BossAnswerAttemptItem[] = nonSubmitters.map((p) => ({
+            boss_attempt_pk: `BI#${boss_instance_id}#Q#${instance.active_question_id}`,
+            attempt_sk: `T#${ts}#S#${p.student_id}#A#phantom`,
+            boss_instance_id,
+            class_id: instance.class_id,
+            question_id: instance.active_question_id!,
+            student_id: p.student_id,
+            guild_id: p.guild_id ?? "",
+            answer_raw: { skipped: true },
+            is_correct: false,
+            answered_at: ts,
+            elapsed_seconds: 0,
+            damage_to_boss: 0,
+            hearts_delta_student: -1,
+            hearts_delta_guild_total: 0,
+            mode_type: ((instance as any).mode_type ?? "SIMULTANEOUS_ALL") as any,
+            status_at_submit: "QUESTION_ACTIVE" as any,
+            gsi2_sk: "",
+            gsi3_pk: `${boss_instance_id}#${p.student_id}`,
+            gsi3_sk: "",
+        }));
+        allAttempts = allAttempts.concat(phantomAttempts);
+    }
+
     // --- 4. Aggregate effects from attempts ---
     let total_damage_to_boss = 0;
     const studentDeltas = new Map<string, number>(); // student_id → sum of hearts_delta_student
@@ -122,10 +185,8 @@ export async function resolveQuestionCore(boss_instance_id: string): Promise<Res
     // --- 5. Compute new boss HP ---
     const new_boss_hp = Math.max(0, instance.current_boss_hp - total_damage_to_boss);
 
-    // --- 6. Load all JOINED participants + their PlayerStates (upfront, in parallel) ---
-    const joinedParticipants = await listParticipants(boss_instance_id, {
-        state: ParticipantState.JOINED,
-    });
+    // --- 6. Use the participant list already loaded in step 3b ---
+    const joinedParticipants = joinedEarly;
 
     const playerStateMap = new Map<string, { hearts: number } | null>();
     await Promise.all(

@@ -34,6 +34,7 @@ import BossBattleLobbyTeacher from "./pages/teacher/bossBattleLobbyTeacher.js";
 
 /* 🔹 NEW IMPORT */
 import BossBattleMonitorTeacher from "./pages/teacher/bossBattleMonitorTeacher.js";
+import BossBattleDisplay from "./pages/teacher/bossBattleDisplay.js";
 
 Amplify.configure(awsExports);
 
@@ -93,6 +94,11 @@ export default function App() {
         <Route
           path="/teacher/bossfight-monitor/:bossInstanceId"
           element={<BossBattleMonitorTeacher />}
+        />
+
+        <Route
+          path="/teacher/bossfight-display/:bossInstanceId"
+          element={<BossBattleDisplay />}
         />
 
         <Route path="*" element={<Home />} />
