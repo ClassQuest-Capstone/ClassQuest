@@ -1210,10 +1210,10 @@ const ProblemSolve: React.FC = () => {
               </div>
 
               <div className="flex items-center space-x-2">
-                <div className="bg-gray-800 text-white px-3 py-1 rounded-full text-sm">⏳ {secondsLeft}s</div>
-                <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">+{currentRemainingXp} XP</div>
+                <div className="bg-gray-800 text-white px-3 py-1 rounded-full text-xl">⏳ {secondsLeft}s</div>
+                <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-lg">+{currentRemainingXp} XP</div>
                 {currentQuestion.goldReward > 0 && (
-                  <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">+{currentQuestion.goldReward} Gold</div>
+                  <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-lg">+{currentQuestion.goldReward} Gold</div>
                 )}
               </div>
             </div>

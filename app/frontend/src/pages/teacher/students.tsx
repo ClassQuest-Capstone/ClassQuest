@@ -145,7 +145,7 @@ const Students = () => {
           return;
         }
 
-        const defaultState = { current_xp: 0, total_xp_earned: 0, xp_to_next_level: 100, hearts: 3, max_hearts: 3, gold: 0, status: "ALIVE" as const };
+        const defaultState = { current_xp: 0, total_xp_earned: 0, xp_to_next_level: 100, hearts: 5, max_hearts: 5, gold: 0, status: "ALIVE" as const };
 
         // Retry helper for transient server errors
         const fetchWithRetry = async <T,>(fn: () => Promise<T>, retries = 5, delayMs = 400): Promise<T> => {
@@ -186,13 +186,13 @@ const Students = () => {
               password: "",
               xp: playerState.total_xp_earned ?? 0,
               gold: playerState.gold ?? 0,
-              hearts: playerState.hearts ?? 3,
+              hearts: playerState.hearts ?? 5,
               originalUsername: profile.username,
               originalDisplayName: profile.display_name,
               originalPassword: "",
               originalXp: playerState.total_xp_earned ?? 0,
               originalGold: playerState.gold ?? 0,
-              originalHearts: playerState.hearts ?? 3,
+              originalHearts: playerState.hearts ?? 5,
               isLoading: false,
             };
             return row;
@@ -334,8 +334,8 @@ const Students = () => {
               current_xp: state?.current_xp ?? 0,
               xp_to_next_level: state?.xp_to_next_level ?? 100,
               total_xp_earned: state?.total_xp_earned ?? 0,
-              hearts: state?.hearts ?? 3,
-              max_hearts: state?.max_hearts ?? 3,
+              hearts: state?.hearts ?? 5,
+              max_hearts: state?.max_hearts ?? 5,
               gold: state?.gold ?? 0,
               status: state?.status ?? "ALIVE",
               last_weekend_reset_at: state?.last_weekend_reset_at,
@@ -411,8 +411,8 @@ const Students = () => {
                 current_xp: s.xp !== s.originalXp ? s.xp : (state?.current_xp ?? 0),
                 total_xp_earned: s.xp !== s.originalXp ? s.xp : (state?.total_xp_earned ?? 0),
                 xp_to_next_level: state?.xp_to_next_level ?? 100,
-                hearts: s.hearts !== s.originalHearts ? s.hearts : (state?.hearts ?? 3),
-                max_hearts: state?.max_hearts ?? 3,
+                hearts: s.hearts !== s.originalHearts ? s.hearts : (state?.hearts ?? 5),
+                max_hearts: state?.max_hearts ?? 5,
                 gold: s.gold !== s.originalGold ? s.gold : (state?.gold ?? 0),
                 status: state?.status ?? "ALIVE",
               })

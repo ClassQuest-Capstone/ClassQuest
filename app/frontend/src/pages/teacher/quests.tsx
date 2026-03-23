@@ -284,7 +284,7 @@ const Quests = () => {
 
   useEffect(() => {
     feather.replace();
-  }, [activeTab, questions, selectedQuestion, isCreating]);
+  }, [activeTab, questions, selectedQuestion, isCreating, answerOptions, matchingPairs]);
 
   // reset for new question
   const resetForm = () => {
@@ -825,11 +825,9 @@ const Quests = () => {
                             {option.isCorrect && (
                               <span className="text-green-500 font-medium text-sm whitespace-nowrap">✓ Correct</span>
                             )}
-                            {answerOptions.length > 2 && (
-                              <button onClick={() => handleRemoveOption(option.id)} className="text-red-500 hover:text-red-700">
-                                <i data-feather="x"></i>
-                              </button>
-                            )}
+                            <button onClick={() => handleRemoveOption(option.id)} className="text-red-500 hover:text-red-700" disabled={answerOptions.length <= 1}>
+                              <i data-feather="x"></i>
+                            </button>
                           </div>
                         ))}
                       </div>
@@ -887,11 +885,9 @@ const Quests = () => {
                                 onChange={(e) => handleMatchingChange(pair.id, "right", e.target.value)}
                                 placeholder="Right side"
                               />
-                              {matchingPairs.length > 1 && (
-                                <button onClick={() => handleRemoveMatchingPair(pair.id)} className="text-red-500 hover:text-red-700">
-                                  <i data-feather="x"></i>
-                                </button>
-                              )}
+                              <button onClick={() => handleRemoveMatchingPair(pair.id)} className="text-red-500 hover:text-red-700" disabled={matchingPairs.length <= 1}>
+                                <i data-feather="x"></i>
+                              </button>
                             </div>
                           </div>
                         ))}
