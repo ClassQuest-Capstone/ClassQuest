@@ -242,15 +242,13 @@ export const BossAssignModal: React.FC<BossAssignModalProps> = ({
               </select>
             </div>*/}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Question Time Limit (seconds)</label>
-              <input 
-                type="number" 
-                className={inputBox} 
-                min="5" 
-                value={bossAssignQuestionTimeLimit === "" ? "" : bossAssignQuestionTimeLimit} 
-                onChange={(e) => onQuestionTimeLimitChange(e.target.value === "" ? "" : Number(e.target.value))} 
-                placeholder="Leave empty for untimed"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Question Time Limit (Seconds)</label>
+              <select className={inputBox} value={bossAssignQuestionTimeLimit} onChange={(e) => onQuestionTimeLimitChange(e.target.value === "" ? "" : Number(e.target.value))}>
+                <option value="">Select Limit</option>
+                <option value="15">15 Seconds</option>
+                <option value="30">30 Seconds</option>
+                <option value="60">1 Minute</option>
+              </select>
             </div>
           </div>
 

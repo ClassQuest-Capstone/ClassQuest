@@ -52,7 +52,7 @@ TODO:
 Teachers:
 Dashboard: 
 - profile picture to pick from 
-- dynamic recent activity feed (80% done)
+- dynamic recent activity feed (done)
 - dynamic student cards (top student)
 
 Quests (subjects):
@@ -190,11 +190,15 @@ TODO: make armours and stuff saved in bakend and connect with rewards to unlock.
 
 TODO: add tooltip for xp teacher side (DONE)
 
-TODO: fix issues with welcome.tsx
+TODO: fix issues with welcome.tsx (DONE)
 
 TODO: if no image provided use default (DONE) ?
 
+TODO: logic for character selected so that it leads to correct rewards from leveling up
+
 TODO: fix issue with teacher leaderboard (DONE)
+
+TODO: NOTE : Teachers should not primarily create items in shop but should be able to create items and add them to the shop if necessary (DONE)
 
 TODO: update studenet profile picture (DONE)
 

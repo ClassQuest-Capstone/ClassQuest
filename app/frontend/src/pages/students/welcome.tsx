@@ -108,6 +108,12 @@ export default function Welcome() {
     localStorage.setItem("selectedClass", selected);
     localStorage.setItem("selectedGender", gender);
     localStorage.setItem("selectedSkin", skin);
+    // Mark character as chosen so CharacterPage won't redirect here again
+    try {
+      const raw = localStorage.getItem("cq_currentUser");
+      const studentId = raw ? JSON.parse(raw)?.id : null;
+      if (studentId) localStorage.setItem(`cq_characterChosen_${studentId}`, "1");
+    } catch {}
     navigate("/character");
   };
 
@@ -121,6 +127,9 @@ export default function Welcome() {
         <div className="mb-6">
           <p className="text-xs tracking-[0.25em] text-gray-300/80">
             CLASSQUEST • CHARACTER SELECT
+          </p>
+          <p className="text-2xl md:text-xl font-bold mt-2 text-yellow-400">
+            Congratulations on reaching level 5
           </p>
           <h1 className="text-4xl md:text-5xl font-extrabold mt-2">
             Choose Your Character

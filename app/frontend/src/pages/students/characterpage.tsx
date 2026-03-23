@@ -1,7 +1,7 @@
 // CharacterPage.tsx
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import feather from "feather-icons";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import "../../styles/character.css";
 import { TutorialProvider } from "../components/tutorial/contextStudent.tsx";
 import { TutorialIntroModal } from "../components/tutorial/introModalStudent.tsx";
@@ -251,6 +251,7 @@ const CharacterPage: React.FC = () => {
 
   // ✅ Student from localStorage
   const student = useMemo(() => getCurrentStudent(), []);
+  const navigate = useNavigate();
   if (!student) return <Navigate to="/StudentLogin" replace />;
 
   const studentId = student.id;
@@ -574,6 +575,13 @@ const CharacterPage: React.FC = () => {
     regenerateHearts,
     weekendReset,
   } = usePlayerProgression(studentId, classId || "");
+
+  // Redirect to character selection when student first reaches level 5
+  useEffect(() => {
+    if (profile.level >= 5 && !localStorage.getItem(`cq_characterChosen_${studentId}`)) {
+      navigate("/welcome", { replace: true });
+    }
+  }, [profile.level, studentId, navigate]);
 
   // Get current XP progress for bars
   const xpProgress = getXPProgress();

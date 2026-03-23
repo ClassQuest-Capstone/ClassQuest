@@ -536,14 +536,12 @@ const ProblemSolve: React.FC = () => {
         console.log(`[Quest Complete] Score ${scorePercentage}% < 50%, deducting 1 heart. Hearts: ${cur.hearts} → ${hearts}`);
       }
 
-      // If hearts = 0 after deduction, reduce XP reward by 50% (remove 50% of completion reward)
+      // If hearts = 0 after the score deduction, halve all rewards (XP + gold)
+      const finalXp   = hearts === 0 ? Math.floor(xp   * 0.5) : xp;
+      const finalGold = hearts === 0 ? Math.floor(gold * 0.5) : gold;
       if (hearts === 0) {
-        const { baseXp } = totals.breakdown;
-        xpPenalty = baseXp * 0.5; // 50% of completion reward 
-        console.log(`[Quest Complete] Hearts = 0. Applying 50% XP penalty: -${xpPenalty.toFixed(0)} XP`);
+        console.log(`[Quest Complete] Hearts = 0. Halving rewards: XP ${xp} → ${finalXp}, Gold ${gold} → ${finalGold}`);
       }
-
-      const finalXp = Math.max(0, xp - xpPenalty);
 
       await upsertPlayerState(classId, studentId, {
         current_xp: (cur.current_xp ?? 0) + finalXp,
@@ -551,13 +549,13 @@ const ProblemSolve: React.FC = () => {
         total_xp_earned: (cur.total_xp_earned ?? 0) + finalXp,
         hearts: hearts,
         max_hearts: cur.max_hearts ?? 0,
-        gold: (cur.gold ?? 0) + gold,
+        gold: (cur.gold ?? 0) + finalGold,
         last_weekend_reset_at: cur.last_weekend_reset_at,
         status: cur.status ?? "ALIVE",
       });
 
       markRewardsClaimed(studentId, questInstanceId);
-      setClaimedRewards({ xp: finalXp, gold });
+      setClaimedRewards({ xp: finalXp, gold: finalGold });
     } catch (e: any) {
       setClaimRewardsError(e?.message || "Failed to award XP/Gold.");
     } finally {
@@ -1184,7 +1182,14 @@ const ProblemSolve: React.FC = () => {
                 )}
               </div>
 
-              <div className="flex justify-center">
+              <div className="flex justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setCurrentIndex(0); setIsFinished(false); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                  className="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                >
+                  Review Answers
+                </button>
                 <Link to="/character" className="px-6 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-medium text-center">
                   Back to Character
                 </Link>
@@ -1210,10 +1215,12 @@ const ProblemSolve: React.FC = () => {
               </div>
 
               <div className="flex items-center space-x-2">
-                <div className="bg-gray-800 text-white px-3 py-1 rounded-full text-sm">⏳ {secondsLeft}s</div>
+                <div className={`font-bold text-base px-4 py-2 rounded-full border-2 ${secondsLeft <= 10 ? "bg-red-600 text-white border-red-800 animate-pulse" : secondsLeft <= 30 ? "bg-orange-500 text-white border-orange-700" : "bg-gray-800 text-white border-gray-600"}`}>
+                  ⏱ {secondsLeft}s
+                </div>
                 <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">+{currentRemainingXp} XP</div>
                 {currentQuestion.goldReward > 0 && (
-                  <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">+{currentQuestion.goldReward} Gold</div>
+                  <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-lg">+{currentQuestion.goldReward} Gold</div>
                 )}
               </div>
             </div>
@@ -1240,10 +1247,21 @@ const ProblemSolve: React.FC = () => {
                   <span className="text-gray-300">Difficulty: {currentQuestion.difficulty}</span>
                 </div>
 
-                <button type="button" className="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full text-sm" onClick={() => setShowHint((prev) => !prev)}>
-                  <i className="inline mr-1" data-feather="help-circle" />
-                  Hint
-                </button>
+                <div className="flex items-center gap-2">
+                  {allAnswered && (
+                    <button
+                      type="button"
+                      className="bg-yellow-500 hover:bg-yellow-600 px-3 py-1 rounded-full text-sm font-semibold"
+                      onClick={() => { setIsFinished(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                    >
+                      ← Results
+                    </button>
+                  )}
+                  <button type="button" className="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full text-sm" onClick={() => setShowHint((prev) => !prev)}>
+                    <i className="inline mr-1" data-feather="help-circle" />
+                    Hint
+                  </button>
+                </div>
               </div>
 
               <div className="p-6">
