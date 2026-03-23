@@ -2,13 +2,15 @@
 
 ### Getting Started
 
-1. [Create a ClassQuest account]()
-2. [Teacher: Managing classes]()
-3. [Teacher: Quest management]()
-4. [Teacher: Activity log]()
-5. [Teacher: Guild Management]()
-6. [Using ClassQuest as a student]()
-7. [ClassQuest tutorial](https://github.com/ClassQuest-Capstone/ClassQuest/blob/main/Project%20Management%20Documents/Tutorials%20and%20User%20guide/TutorialDoc.md)
+1. [Teacher: Create a ClassQuest account](#teacher-creating-an-account)
+2. [Student: Create a ClassQuest account](#student-creating-an-account)
+3. [Teacher: Managing classes](#teacher-managing-classes)
+4. [Teacher: Quest management](#teacher-quest-management)
+5. [Teacher: Activity log](#teacher-activity-log)
+6. [Teacher: Guild Management](#teacher-guild-management)
+7. [Student: Navigation tabs](#student-navigation-tabs)
+8. [Student: Guilds & Boss Battles](#student-guilds-and-boss-battles)
+9. [ClassQuest tutorial](https://github.com/ClassQuest-Capstone/ClassQuest/blob/main/Project%20Management%20Documents/Tutorials%20and%20User%20guide/TutorialDoc.md)
 
 ### Teacher Creating an account
 
@@ -132,7 +134,7 @@ To create a quest or boss battle and assign it to a class, follow these steps:
 5. **Deleting quests and boss battles**
     - Click the "Delete" button on the quest or boss battle template to delete the template
 
-### Teacher:Activity Log
+### Teacher: Activity Log
 To view the activity log and Leaderboard across all classes, follow these steps:
 <img src="Images/teacher-activity.png" width="500" height="250" /><img src="Images/teacher-leaderboard.png" width="500" height="250" />
 
@@ -161,4 +163,38 @@ To create a guild for a class and assign students to guilds, follow these steps:
     - Click the "Create Guild" button on the modal to create the guild
 
 2. **Assign Students to Guilds**
-    - On the right side of the screen, 
+    - On the right side of the screen, it shows all students in the selected class
+    - Using the dropdown, select the guild you want to assign the student to this would automatically add the student to the guild
+    - Use the "Remove button" to remove the student from assigned guild
+    - Use the sort button to sort student list alphabetically or by guild
+
+### Student: Navigation tabs
+
+Here students can view/ complete assigned quests, claim rewards and view their current hearts.
+
+To do the above,follow these steps:
+
+<img src="Images/student-dash-quest.png" width="500" height="250" /><img src="Images/student-rewards.png" width="500" height="250" /><img src="Images/student-hearts.png" width="500" height="250" />
+
+1. **View Active Quests**
+    - Click the "Active Quests" tab to view active quests
+    - Click the "Start Quest" button to start a quest
+    - Use the "View more" button to view more quests grouped by subject
+    - Once a quest is completed, you can review it using the "review" button
+
+    if a quest is past its due date, it will not be visible on the student dashboard
+
+2. **Claim rewards**
+    - Click the "Rewards" tab to view available rewards
+    - Click the "Claim" button to claim a reward once you reach required level
+    - Once claimed reward will be visible in your inventory
+
+3. **View Hearts**
+    - Click the "Hearts" tab to view your current hearts
+    - Here you get basic information about your hearts and their regeneration logic
+
+### Student: Guilds and Boss Battles
+
+Once assigned to a guild, navigate to the guild page to view guild memebers and their current hearts.
+
+To participate in a boss battle follow these steps:
