@@ -20,7 +20,7 @@ import {
 } from "./types.js";
 import { putTransaction } from "../rewardTransactions/repo.js";
 import { SourceType, CreatedByRole, computeGSIKeys, generateDeterministicTransactionId } from "../rewardTransactions/types.js";
-import { applyXpAndGold } from "../playerStates/repo.js";
+import { applyXpAndGold, getPlayerState } from "../playerStates/repo.js";
 import {
     buildBossResultPk,
     buildStudentResultSk,
@@ -331,6 +331,23 @@ export async function computeAndWriteBossResults(
         reward.xp += completionXp + bonusXp;
         reward.gold += completionGold + bonusGold;
     }
+
+    // Step 6b: Halve rewards for students with 0 hearts (loaded fresh from player state)
+    await Promise.all(
+        Array.from(studentRewards.keys()).map(async (studentId) => {
+            try {
+                const ps = await getPlayerState(instance.class_id, studentId);
+                if (ps && ps.hearts === 0) {
+                    const reward = studentRewards.get(studentId)!;
+                    console.log(`[BossResults] Student ${studentId} has 0 hearts — halving rewards: XP ${reward.xp} → ${Math.floor(reward.xp * 0.5)}, Gold ${reward.gold} → ${Math.floor(reward.gold * 0.5)}`);
+                    reward.xp   = Math.floor(reward.xp   * 0.5);
+                    reward.gold = Math.floor(reward.gold * 0.5);
+                }
+            } catch {
+                // If lookup fails, leave rewards unchanged
+            }
+        })
+    );
 
     // Create reward transactions and update player states
     for (const [studentId, reward] of studentRewards) {

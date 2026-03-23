@@ -63,7 +63,6 @@ export enum BattleOutcome {
 export enum FailReason {
     TIMEOUT = "TIMEOUT",
     ALL_GUILDS_DOWN = "ALL_GUILDS_DOWN",
-    OUT_OF_QUESTIONS = "OUT_OF_QUESTIONS",
     ABORTED_BY_TEACHER = "ABORTED_BY_TEACHER"
 }
 
