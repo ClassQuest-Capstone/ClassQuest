@@ -176,6 +176,8 @@ export async function updateItem(
         required_level?: number;
         is_cosmetic_only?: boolean;
         sprite_path?: string;
+        gender?: string;
+        asset_key?: string;
         // Recomputed GSI keys — must be provided when any indexed field changes
         gsi1pk?: string;
         gsi1sk?: string;
@@ -204,6 +206,8 @@ export async function updateItem(
     if (updates.required_level     !== undefined) addField("required_level",     updates.required_level);
     if (updates.is_cosmetic_only   !== undefined) addField("is_cosmetic_only",   updates.is_cosmetic_only);
     if (updates.sprite_path        !== undefined) addField("sprite_path",        updates.sprite_path);
+    if (updates.gender             !== undefined) addField("gender",             updates.gender);
+    if (updates.asset_key          !== undefined) addField("asset_key",          updates.asset_key);
     if (updates.gsi1pk             !== undefined) addField("gsi1pk",             updates.gsi1pk);
     if (updates.gsi1sk             !== undefined) addField("gsi1sk",             updates.gsi1sk);
     if (updates.gsi2pk             !== undefined) addField("gsi2pk",             updates.gsi2pk);

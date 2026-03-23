@@ -31,6 +31,8 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             is_cosmetic_only,
             sprite_path,
             is_active,
+            gender,
+            asset_key,
         } = body;
 
         // Step 2: Required-field check
@@ -79,6 +81,8 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             is_cosmetic_only,
             sprite_path,
             is_active,
+            gender,
+            asset_key,
         });
 
         if (!validation.valid) {
@@ -116,6 +120,8 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             is_cosmetic_only,
             sprite_path:      sprite_path.trim(),
             is_active,
+            ...(gender    !== undefined && { gender }),
+            ...(asset_key !== undefined && { asset_key: asset_key.trim() }),
             created_at: now,
             updated_at: now,
         };

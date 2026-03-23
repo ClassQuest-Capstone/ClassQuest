@@ -1,4 +1,4 @@
-import type { ShopRarity } from "./types.ts";
+import type { ShopRarity, ShopGearGender } from "./types.ts";
 
 export const VALID_RARITIES: ShopRarity[] = [
     "COMMON",
@@ -7,6 +7,11 @@ export const VALID_RARITIES: ShopRarity[] = [
     "EPIC",
     "LEGENDARY",
 ];
+
+export const VALID_GENDERS: ShopGearGender[] = ["MALE", "FEMALE", "UNISEX"];
+
+// Gear categories — items in these categories require gender and asset_key
+export const GEAR_CATEGORIES: string[] = ["HELMET", "ARMOUR", "SHIELD", "PET", "BACKGROUND"];
 
 export type ValidationResult =
     | { valid: true }
@@ -27,6 +32,8 @@ export function validateShopItem(input: {
     is_cosmetic_only?: boolean;
     sprite_path?: string;
     is_active?: boolean;
+    gender?: string;
+    asset_key?: string;
 }): ValidationResult {
     if (input.item_id !== undefined) {
         if (typeof input.item_id !== "string" || input.item_id.trim().length === 0) {
@@ -112,6 +119,31 @@ export function validateShopItem(input: {
     if (input.is_active !== undefined) {
         if (typeof input.is_active !== "boolean") {
             return { valid: false, error: "is_active must be a boolean" };
+        }
+    }
+
+    if (input.gender !== undefined) {
+        if (!VALID_GENDERS.includes(input.gender as ShopGearGender)) {
+            return {
+                valid: false,
+                error: `gender must be one of: ${VALID_GENDERS.join(", ")}`,
+            };
+        }
+    }
+
+    if (input.asset_key !== undefined) {
+        if (typeof input.asset_key !== "string" || input.asset_key.trim().length === 0) {
+            return { valid: false, error: "asset_key must be a non-empty string" };
+        }
+    }
+
+    // Cross-field: gear categories require gender and asset_key
+    if (input.category !== undefined && GEAR_CATEGORIES.includes(input.category)) {
+        if (input.gender === undefined) {
+            return { valid: false, error: "Gear items require gender (MALE, FEMALE, or UNISEX)" };
+        }
+        if (input.asset_key === undefined) {
+            return { valid: false, error: "Gear items require asset_key" };
         }
     }
 

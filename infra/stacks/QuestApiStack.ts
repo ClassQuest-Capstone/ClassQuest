@@ -30,6 +30,8 @@ type QuestApiStackProps = {
         bossBattleQuestionPlansTable: string;
         shopItemsTable: string;
         shopListingsTable: string;
+        avatarBasesTable: string;
+        playerAvatarsTable: string;
     };
     tableArns: {
         usersTable: string;
@@ -58,6 +60,8 @@ type QuestApiStackProps = {
         shopItemsTable: string;
         shopListingsTable: string;
         inventoryItemsTable: string;
+        avatarBasesTable: string;
+        playerAvatarsTable: string;
     };
     userPoolId: string;
     userPoolArn: string;
@@ -207,6 +211,21 @@ export function QuestApiStack(ctx: StackContext, props: QuestApiStackProps) {
         "PATCH /shop-items/{item_id}":                   { method: "PATCH", path: "/shop-items/{item_id}" },
         "PATCH /shop-items/{item_id}/deactivate":        { method: "PATCH", path: "/shop-items/{item_id}/deactivate" },
         "PATCH /shop-items/{item_id}/activate":          { method: "PATCH", path: "/shop-items/{item_id}/activate" },
+
+        // AvatarBases
+        "POST /avatar-bases":                                    { method: "POST",  path: "/avatar-bases" },
+        "GET /avatar-bases":                                     { method: "GET",   path: "/avatar-bases" },
+        "GET /avatar-bases/{avatar_base_id}":                    { method: "GET",   path: "/avatar-bases/{avatar_base_id}" },
+        "PATCH /avatar-bases/{avatar_base_id}":                  { method: "PATCH", path: "/avatar-bases/{avatar_base_id}" },
+
+        // PlayerAvatars
+        "POST /player-avatars":                                                                  { method: "POST",  path: "/player-avatars" },
+        "GET /player-avatars/class/{class_id}":                                                  { method: "GET",   path: "/player-avatars/class/{class_id}" },
+        "GET /player-avatars/class/{class_id}/student/{student_id}":                             { method: "GET",   path: "/player-avatars/class/{class_id}/student/{student_id}" },
+        "GET /player-avatars/{player_avatar_id}":                                                { method: "GET",   path: "/player-avatars/{player_avatar_id}" },
+        "PATCH /player-avatars/{player_avatar_id}":                                              { method: "PATCH", path: "/player-avatars/{player_avatar_id}" },
+        "POST /player-avatars/{player_avatar_id}/equip":                                         { method: "POST",  path: "/player-avatars/{player_avatar_id}/equip" },
+        "POST /player-avatars/{player_avatar_id}/unequip":                                       { method: "POST",  path: "/player-avatars/{player_avatar_id}/unequip" },
     };
 
     // ── ROUTER LAMBDA (replaces individual Lambdas) ──────────────────────────
@@ -241,6 +260,8 @@ export function QuestApiStack(ctx: StackContext, props: QuestApiStackProps) {
             SHOP_ITEMS_TABLE_NAME:                     tableNames.shopItemsTable,
             SHOP_LISTINGS_TABLE_NAME:                  tableNames.shopListingsTable,
             INVENTORY_ITEMS_TABLE_NAME:                tableNames.inventoryItemsTable,
+            AVATAR_BASES_TABLE_NAME:                   tableNames.avatarBasesTable,
+            PLAYER_AVATARS_TABLE_NAME:                 tableNames.playerAvatarsTable,
             USER_POOL_ID:                              userPoolId,
             // debug-create.ts reads TABLE_NAME (non-standard); point to usersTable
             TABLE_NAME:                                tableNames.usersTable,
