@@ -10,7 +10,6 @@ export type BattleOutcome = "WIN" | "FAIL" | "ABORTED";
 export type FailReason =
     | "TIMEOUT"
     | "ALL_GUILDS_DOWN"
-    | "OUT_OF_QUESTIONS"
     | "ABORTED_BY_TEACHER";
 
 // Participation state (derived from BossBattleParticipants)

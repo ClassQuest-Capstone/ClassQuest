@@ -290,6 +290,8 @@ const BossFight: React.FC = () => {
   const [allQuestions, setAllQuestions] = useState<BossQuestion[]>([]);
   const [localHeartsLost, setLocalHeartsLost] = useState(0);
   const [heartFlash, setHeartFlash] = useState(0); // number of hearts just lost; >0 triggers flash
+  const pendingHeartFlashRef = useRef(0); // hearts lost this question — shown at INTERMISSION, not on submit
+  const [intermissionCountdown, setIntermissionCountdown] = useState<number | null>(null);
   const lastSubmitAtRef = useRef<number>(0);
 
   const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
@@ -300,6 +302,7 @@ const BossFight: React.FC = () => {
   const [bossResults, setBossResults] = useState<BossResultsResponse | null>(null);
   const [myGuildName, setMyGuildName] = useState<string | null>(null);
   const [guildNameMap, setGuildNameMap] = useState<Record<string, string>>({});
+  const [resultStudentNameMap, setResultStudentNameMap] = useState<Record<string, string>>({});
 
   const { profile, refreshHearts } = usePlayerProgression(studentId || "", classId || "");
 
@@ -346,6 +349,7 @@ const BossFight: React.FC = () => {
     setHasSubmittedCurrentQuestion(false);
     setLastAnswerCorrect(null);
     setLastXpEarned(0);
+    // NOTE: do NOT clear pendingHeartFlashRef here — it must survive until INTERMISSION renders
   }, [question?.question_id]);
 
   const myParticipant = useMemo(() => {
@@ -614,17 +618,52 @@ const BossFight: React.FC = () => {
     }
   }, [polledInstance]);
 
-  // When question resolves (QUESTION_ACTIVE → anything else), sync hearts from server
-  // and reset the local optimistic delta so there's no double-counting.
+  // When INTERMISSION starts: fire heart-loss flash + start 3-second countdown.
+  // This fires once per INTERMISSION entry. The countdown is cosmetic — actual
+  // question advance is driven by the teacher monitor.
   const prevStatusRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     const newStatus = instance?.status;
-    if (prevStatusRef.current === "QUESTION_ACTIVE" && newStatus !== "QUESTION_ACTIVE") {
-      refreshHearts();
-      setLocalHeartsLost(0);
-    }
+    const wasActive = prevStatusRef.current === "QUESTION_ACTIVE";
     prevStatusRef.current = newStatus;
-  }, [instance?.status, refreshHearts]);
+
+    if (!wasActive || newStatus !== "INTERMISSION") return;
+
+    // --- Fire heart-loss flash ---
+    if (pendingHeartFlashRef.current > 0) {
+      // Student submitted a wrong answer this round
+      const lost = pendingHeartFlashRef.current;
+      pendingHeartFlashRef.current = 0;
+      setHeartFlash(lost);
+      setTimeout(() => setHeartFlash(0), 1600);
+    } else {
+      // No local submission — check if server deducted hearts (force-skip)
+      const displayedBefore = Math.max(0, (profile.hearts ?? 0) - localHeartsLost);
+      refreshHearts().then((newHearts) => {
+        if (newHearts !== null && newHearts < displayedBefore) {
+          const lost = displayedBefore - newHearts;
+          setHeartFlash(lost);
+          setTimeout(() => setHeartFlash(0), 1600);
+        }
+      });
+    }
+    setLocalHeartsLost(0);
+
+    // --- 3-second countdown ---
+    setIntermissionCountdown(3);
+  }, [instance?.status]);
+
+  // Tick the intermission countdown down every second
+  useEffect(() => {
+    if (intermissionCountdown === null || intermissionCountdown <= 0) return;
+    const t = setTimeout(() => setIntermissionCountdown((c) => (c !== null ? c - 1 : null)), 1000);
+    return () => clearTimeout(t);
+  }, [intermissionCountdown]);
+
+  // Clear countdown when status moves away from INTERMISSION
+  useEffect(() => {
+    if (instance?.status !== "INTERMISSION") setIntermissionCountdown(null);
+  }, [instance?.status]);
 
   // Merge polled roster — update participant states without re-fetching display names
   useEffect(() => {
@@ -747,10 +786,14 @@ const BossFight: React.FC = () => {
         if (!mounted) return;
         setBossResults(res);
 
-        // Fetch names for all guilds in the results
+        // Fetch guild names and student names for the results screen in parallel
         const guildIds = (res.guild_results ?? []).map((g) => g.guild_id).filter(Boolean);
-        if (guildIds.length > 0) {
-          const entries = await Promise.all(
+        const resultStudentIds = Array.from(
+          new Set((res.student_results ?? []).map((s) => s.student_id).filter(Boolean))
+        );
+
+        const [guildEntries, studentEntries] = await Promise.all([
+          Promise.all(
             guildIds.map(async (gid) => {
               try {
                 const g = await getGuild(gid);
@@ -759,13 +802,37 @@ const BossFight: React.FC = () => {
                 return [gid, gid] as const;
               }
             })
-          );
-          const map: Record<string, string> = {};
-          for (const [gid, name] of entries) map[gid] = name;
-          if (mounted) {
-            setGuildNameMap(map);
-            if (myParticipant?.guild_id) setMyGuildName(map[myParticipant.guild_id] ?? null);
-          }
+          ),
+          Promise.all(
+            resultStudentIds.map(async (sid) => {
+              // Prefer the name already in roster (already fetched)
+              const fromRoster = roster.find((r) => r.studentId === sid)?.displayName;
+              if (fromRoster) return [sid, fromRoster] as const;
+              try {
+                const sp = await getStudentProfile(sid);
+                const name =
+                  (sp as any).display_name ||
+                  (sp as any).displayName ||
+                  (sp as any).username ||
+                  (sp as any).name ||
+                  sid;
+                return [sid, name] as const;
+              } catch {
+                return [sid, sid] as const;
+              }
+            })
+          ),
+        ]);
+
+        if (mounted) {
+          const guildMap: Record<string, string> = {};
+          for (const [gid, name] of guildEntries) guildMap[gid] = name;
+          setGuildNameMap(guildMap);
+          if (myParticipant?.guild_id) setMyGuildName(guildMap[myParticipant.guild_id] ?? null);
+
+          const studentMap: Record<string, string> = {};
+          for (const [sid, name] of studentEntries) studentMap[sid] = name;
+          setResultStudentNameMap(studentMap);
         }
       } catch (error) {
         console.error("Failed to load boss results:", error);
@@ -870,8 +937,8 @@ const BossFight: React.FC = () => {
         const heartsLost = Math.abs(result.hearts_delta_student ?? 0);
         if (heartsLost > 0) {
           setLocalHeartsLost((prev) => prev + heartsLost);
-          setHeartFlash(heartsLost);
-          setTimeout(() => setHeartFlash(0), 1600);
+          // Store — flash fires at INTERMISSION (when right/wrong is revealed), not here
+          pendingHeartFlashRef.current += heartsLost;
         }
         const frozenMsg = result.frozen_until ? ` Frozen for ${instance.freeze_on_wrong_seconds}s.` : "";
         setBattleLog((prev) => [
@@ -1038,7 +1105,12 @@ const BossFight: React.FC = () => {
       }
       return (
         <div className="bg-gray-900 p-6 rounded-lg border border-gray-700 min-h-[180px] flex flex-col items-center justify-center gap-3">
-          <p className="text-cyan-300 text-lg font-bold">Round Over — Next question coming soon…</p>
+          <p className="text-cyan-300 text-lg font-bold">
+            Round Over —{" "}
+            {intermissionCountdown !== null && intermissionCountdown > 0
+              ? `Next question in ${intermissionCountdown}…`
+              : "Next question coming soon…"}
+          </p>
 
           {lastAnswerCorrect === true && (
             <div className="bg-green-900/60 border border-green-500 rounded-lg px-4 py-2 text-center">
@@ -1561,7 +1633,7 @@ const BossFight: React.FC = () => {
                             const isMe = sr.student_id === studentId;
                             const memberName = isMe
                               ? "You"
-                              : (roster.find(r => r.studentId === sr.student_id)?.displayName ?? sr.student_id.slice(0, 8));
+                              : (resultStudentNameMap[sr.student_id] || roster.find(r => r.studentId === sr.student_id)?.displayName || sr.student_id.slice(0, 8));
                             const heartsDisplay = sr.hearts_lost > 0
                               ? `${sr.hearts_lost} heart${sr.hearts_lost !== 1 ? "s" : ""} lost`
                               : "No hearts lost";
@@ -1617,7 +1689,7 @@ const BossFight: React.FC = () => {
                               >
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-semibold text-white">
-                                    {guildNameMap[gr.guild_id] ?? gr.guild_id.slice(0, 8)}
+                                    {guildNameMap[gr.guild_id] ?? "Guild"}
                                   </span>
                                   {rankLabel && <span className="text-xs text-yellow-300">{rankLabel}</span>}
                                 </div>

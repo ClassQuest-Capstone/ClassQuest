@@ -536,14 +536,12 @@ const ProblemSolve: React.FC = () => {
         console.log(`[Quest Complete] Score ${scorePercentage}% < 50%, deducting 1 heart. Hearts: ${cur.hearts} → ${hearts}`);
       }
 
-      // If hearts = 0 after deduction, reduce XP reward by 50% (remove 50% of completion reward)
+      // If hearts = 0 after the score deduction, halve all rewards (XP + gold)
+      const finalXp   = hearts === 0 ? Math.floor(xp   * 0.5) : xp;
+      const finalGold = hearts === 0 ? Math.floor(gold * 0.5) : gold;
       if (hearts === 0) {
-        const { baseXp } = totals.breakdown;
-        xpPenalty = baseXp * 0.5; // 50% of completion reward 
-        console.log(`[Quest Complete] Hearts = 0. Applying 50% XP penalty: -${xpPenalty.toFixed(0)} XP`);
+        console.log(`[Quest Complete] Hearts = 0. Halving rewards: XP ${xp} → ${finalXp}, Gold ${gold} → ${finalGold}`);
       }
-
-      const finalXp = Math.max(0, xp - xpPenalty);
 
       await upsertPlayerState(classId, studentId, {
         current_xp: (cur.current_xp ?? 0) + finalXp,
@@ -551,13 +549,13 @@ const ProblemSolve: React.FC = () => {
         total_xp_earned: (cur.total_xp_earned ?? 0) + finalXp,
         hearts: hearts,
         max_hearts: cur.max_hearts ?? 0,
-        gold: (cur.gold ?? 0) + gold,
+        gold: (cur.gold ?? 0) + finalGold,
         last_weekend_reset_at: cur.last_weekend_reset_at,
         status: cur.status ?? "ALIVE",
       });
 
       markRewardsClaimed(studentId, questInstanceId);
-      setClaimedRewards({ xp: finalXp, gold });
+      setClaimedRewards({ xp: finalXp, gold: finalGold });
     } catch (e: any) {
       setClaimRewardsError(e?.message || "Failed to award XP/Gold.");
     } finally {

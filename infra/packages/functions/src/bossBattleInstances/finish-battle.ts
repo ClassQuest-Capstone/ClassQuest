@@ -1,7 +1,5 @@
 import { getBossBattleInstance, finishBattle as finishBattleRepo } from "./repo.js";
 import { BossBattleStatus } from "./types.js";
-import { listParticipants } from "../bossBattleParticipants/repo.js";
-import { ParticipantState } from "../bossBattleParticipants/types.js";
 import { computeAndWriteBossResults } from "../bossResults/repo.js";
 
 /**
@@ -92,39 +90,17 @@ export const handler = async (event: any) => {
         }
 
         // --- 2. Determine final outcome ---
+        // Outcome is purely threshold-based: WIN if damage dealt >= passing_score.
+        // passing_score is set by the teacher when assigning the battle (default 50% of initial HP).
+        // Guild/player state does not affect win/fail.
         let outcome: "WIN" | "FAIL";
-        let fail_reason: "ALL_GUILDS_DOWN" | "OUT_OF_QUESTIONS" | "ABORTED_BY_TEACHER" | undefined;
 
-        if (instance.current_boss_hp === 0) {
-            // Boss HP depleted — battle is won
-            outcome = "WIN";
-        } else {
-            // Check whether all JOINED guilds are fully downed
-            const joinedParticipants = await listParticipants(boss_instance_id, {
-                state: ParticipantState.JOINED,
-            });
+        const initialHp = instance.initial_boss_hp ?? 0;
+        const currentHp = instance.current_boss_hp ?? 0;
+        const passingScore = instance.passing_score ?? Math.ceil(initialHp * 0.5);
+        const damageDealt = initialHp - currentHp;
 
-            // Build per-guild downed status: true when every member in the guild is downed
-            const guildDownedMap = new Map<string, boolean>();
-            for (const p of joinedParticipants) {
-                if (!p.guild_id) continue;
-                if (!guildDownedMap.has(p.guild_id)) guildDownedMap.set(p.guild_id, true);
-                if (!p.is_downed) guildDownedMap.set(p.guild_id, false);
-            }
-
-            const allGuildsDown =
-                guildDownedMap.size > 0 &&
-                [...guildDownedMap.values()].every((v) => v);
-
-            if (allGuildsDown) {
-                outcome = "FAIL";
-                fail_reason = "ALL_GUILDS_DOWN";
-            } else {
-                // All questions exhausted but boss still alive — battle ends as FAIL
-                outcome = "FAIL";
-                fail_reason = "OUT_OF_QUESTIONS";
-            }
-        }
+        outcome = damageDealt >= passingScore ? "WIN" : "FAIL";
 
         // --- 3. Conditionally transition instance to COMPLETED ---
         const now = new Date().toISOString();
@@ -132,7 +108,6 @@ export const handler = async (event: any) => {
         try {
             updatedInstance = await finishBattleRepo(boss_instance_id, {
                 outcome,
-                fail_reason,
                 completed_at: now,
                 updated_at: now,
             });

@@ -605,8 +605,8 @@ export const usePlayerProgression = (
    * Re-fetch only the player's current hearts from the server.
    * Useful after a boss battle resolves hearts server-side (e.g. force-resolve).
    */
-  const refreshHearts = useCallback(async () => {
-    if (!studentId || !classId) return;
+  const refreshHearts = useCallback(async (): Promise<number | null> => {
+    if (!studentId || !classId) return null;
     try {
       const ps = await getPlayerState(classId, studentId);
       setProfile((prev) => ({
@@ -614,8 +614,10 @@ export const usePlayerProgression = (
         hearts: ps.hearts,
         maxHearts: ps.max_hearts,
       }));
+      return ps.hearts;
     } catch {
       // silent — stale hearts are better than a visible error
+      return null;
     }
   }, [studentId, classId]);
 
