@@ -1183,7 +1183,7 @@ const BossFight: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-yellow-300/80">
-                Question {question.order_index}
+                Question {(instance?.current_question_index ?? 0) + 1}
               </p>
               <p className="text-sm text-gray-400 mt-1">
                 Type: {question.question_type.replaceAll("_", " ")}

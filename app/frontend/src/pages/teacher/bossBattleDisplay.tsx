@@ -174,7 +174,7 @@ export default function BossBattleDisplay() {
           <div className="absolute bottom-0 left-0 right-0 bg-black/80 px-4 py-3 border-t-2 border-yellow-500 z-20 flex items-center gap-6">
             {status === "QUESTION_ACTIVE" && timeLeft > 0 && (
               <span className={`text-sm font-bold ${timeLeft <= 10 ? "text-red-400 animate-pulse" : "text-slate-300"}`}>
-                ⏱ {timeLeft}s — Q{question?.order_index ?? "?"}
+                ⏱ {timeLeft}s — Q{instance ? (instance.current_question_index + 1) : "?"}
               </span>
             )}
             {status === "INTERMISSION" && (
@@ -205,7 +205,7 @@ export default function BossBattleDisplay() {
             {/* Question number + text */}
             <div className="bg-black/70 border border-white/20 rounded-2xl px-6 py-5 mb-5 text-center shadow-2xl">
               <p className="text-yellow-400 text-sm font-bold uppercase tracking-widest mb-2">
-                Question {question.order_index}
+                Question {(instance?.current_question_index ?? 0) + 1}
               </p>
               <p className="text-white text-2xl md:text-3xl font-bold leading-snug">
                 {question.question_text}

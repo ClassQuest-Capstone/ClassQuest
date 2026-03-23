@@ -984,7 +984,7 @@ export default function BossBattleMonitorTeacher() {
                     ACTIVE QUESTION
                   </div>
                   <div className="mt-2 text-sm font-semibold text-gray-900">
-                    {question ? `Q${question.order_index}` : "None"}
+                    {question ? `Q${(instance?.current_question_index ?? 0) + 1}` : "None"}
                   </div>
                   <div className="mt-1 text-sm text-gray-600">
                     {question?.question_text || "No active question"}
