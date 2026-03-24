@@ -617,7 +617,7 @@ const rewards = () => {
                       value={shopType}
                       onChange={(e) => setShopType(e.target.value)}
                       required
-                      placeholder="Enter item type. e.g 5mins Phone Time"
+                      placeholder="Enter item type. e.g Phone Time"
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
                   </div>
                   {/* Description Input */}

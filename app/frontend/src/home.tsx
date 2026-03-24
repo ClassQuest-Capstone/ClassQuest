@@ -288,17 +288,17 @@ export default function Home() {
         <div className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
-              { title: 'Product', links: ['Features'] },
-              { title: 'Resources', links: ['Documentation'] },
-              { title: 'Company', links: ['About'] },
-              { title: 'Legal', links: ['Privacy'] }
+              { title: 'Product', links: [{ label: 'Features', href: "https://github.com/ClassQuest-Capstone/ClassQuest?tab=readme-ov-file#-key-features" }] },
+              { title: 'Resources', links: [{ label: 'Guide', href: "https://github.com/ClassQuest-Capstone/ClassQuest/blob/main/Project%20Management%20Documents/Tutorials%20and%20User%20guide/userGuide.md" }] },
+              { title: 'Company', links: [{ label: 'About', href: "https://github.com/ClassQuest-Capstone/ClassQuest#classquest" }] },
+              { title: 'Legal', links: [{ label: 'Privacy', href: '/privacy' }] }
             ].map((section, idx) => (
               <div key={idx}>
                 <h3 className="text-sm font-semibold text-white tracking-wider uppercase">{section.title}</h3>
                 <div className="mt-4 flex flex-col gap-4">
                   {section.links.map((link, linkIdx) => (
-                    <a key={linkIdx} href="#" className="text-base text-gray-300 hover:text-white">
-                      {link}
+                    <a key={linkIdx} href={link.href} className="text-base text-gray-300 hover:text-white">
+                      {link.label}
                     </a>
                   ))}
                 </div>
