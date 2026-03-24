@@ -130,6 +130,21 @@ import { handler as siUpdate }                 from "../shopItems/update.js";
 import { handler as siDeactivate }             from "../shopItems/deactivate.js";
 import { handler as siActivate }               from "../shopItems/activate.js";
 
+// AvatarBases
+import { handler as abCreate }                 from "../avatarBases/create.js";
+import { handler as abGet }                    from "../avatarBases/get.js";
+import { handler as abList }                   from "../avatarBases/list.js";
+import { handler as abUpdate }                 from "../avatarBases/update.js";
+
+// PlayerAvatars
+import { handler as paCreate }                 from "../playerAvatars/create.js";
+import { handler as paGet }                    from "../playerAvatars/get.js";
+import { handler as paGetByClassStudent }      from "../playerAvatars/get-by-class-student.js";
+import { handler as paUpdate }                 from "../playerAvatars/update.js";
+import { handler as paListByClass }            from "../playerAvatars/list-by-class.js";
+import { handler as paEquip }                  from "../playerAvatars/equip.js";
+import { handler as paUnequip }                from "../playerAvatars/unequip.js";
+
 // Dispatch table: keys must exactly match the routeKey API Gateway sets on event.routeKey
 // Format: "METHOD /path" with {param} placeholders verbatim
 const ROUTES: Record<string, (event: any) => Promise<any>> = {
@@ -261,6 +276,21 @@ const ROUTES: Record<string, (event: any) => Promise<any>> = {
     "PATCH /shop-items/{item_id}":                                                                                                           siUpdate,
     "PATCH /shop-items/{item_id}/deactivate":                                                                                                siDeactivate,
     "PATCH /shop-items/{item_id}/activate":                                                                                                  siActivate,
+
+    // AvatarBases
+    "POST /avatar-bases":                                                                                                                    abCreate,
+    "GET /avatar-bases":                                                                                                                     abList,
+    "GET /avatar-bases/{avatar_base_id}":                                                                                                    abGet,
+    "PATCH /avatar-bases/{avatar_base_id}":                                                                                                  abUpdate,
+
+    // PlayerAvatars
+    "POST /player-avatars":                                                                                                                  paCreate,
+    "GET /player-avatars/class/{class_id}":                                                                                                  paListByClass,
+    "GET /player-avatars/class/{class_id}/student/{student_id}":                                                                             paGetByClassStudent,
+    "GET /player-avatars/{player_avatar_id}":                                                                                                paGet,
+    "PATCH /player-avatars/{player_avatar_id}":                                                                                              paUpdate,
+    "POST /player-avatars/{player_avatar_id}/equip":                                                                                         paEquip,
+    "POST /player-avatars/{player_avatar_id}/unequip":                                                                                       paUnequip,
 };
 
 export const handler = async (event: any): Promise<any> => {

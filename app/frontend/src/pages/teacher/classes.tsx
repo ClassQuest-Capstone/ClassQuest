@@ -448,7 +448,13 @@ const Classes = () => {
                       <i data-feather="eye" className="mr-1 w-4 h-4"></i>{" "}
                       View Quests
                     </button>
-
+                    {/* TODO: add edit class functionality*/ }
+                    <button
+                              className="col-span-2 bg-gray-100 hover:bg-blue-100 text-gray-900 border border-gray-300 px-2 py-2 rounded-lg text-sm flex items-center justify-center"
+                              onClick={() => handleEditClass(c.class_id)}
+                            >
+                              <i data-feather="edit" className="mr-1 w-4 h-4"></i> Edit
+                            </button>
                     <button
                       className="col-span-2 bg-gray-100 hover:bg-gray-200 text-red-600 border border-red-600 px-2 py-2 rounded-lg text-sm flex items-center justify-center"
                       onClick={() => handleDeleteClass(c.class_id)}

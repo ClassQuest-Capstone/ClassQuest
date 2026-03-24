@@ -307,6 +307,66 @@ export default function BossBattleMonitorTeacher() {
     }
   }, [bossInstanceId]);
 
+  // Force-next: resolves immediately regardless of who has answered (unanswered = wrong),
+  // then immediately advances. If it was the last question, finishes the battle.
+  const handleForceNextQuestion = useCallback(async () => {
+    if (!bossInstanceId || transitionLockRef.current) return;
+    transitionLockRef.current = true;
+    setTransitioning(true);
+    try {
+      // Step 1: force-resolve (phantom wrong for non-submitters, QUESTION_ACTIVE → INTERMISSION)
+      try {
+        await resolveBossBattleQuestion(bossInstanceId, { force: true });
+      } catch (err: any) {
+        const status = err?.status ?? err?.statusCode ?? err?.response?.status;
+        if (status !== 409) throw err; // 409 = already resolved, continue
+      }
+
+      // Refresh attempts so the table shows wrong marks for skipped students
+      try {
+        const res = await listBossAnswerAttemptsByBattle(bossInstanceId, { limit: 500 });
+        setAttempts(res.items || []);
+      } catch {}
+
+      // Step 2: advance to next question (or detect last question)
+      let hasMore = true;
+      try {
+        const advanceResult = await advanceBossBattleToNextQuestion(bossInstanceId);
+        hasMore = advanceResult.has_more_questions;
+      } catch (err: any) {
+        const httpStatus = err?.status ?? err?.statusCode ?? err?.response?.status;
+        if (httpStatus !== 409) throw err;
+        // 409 = already advanced; check current status
+        const fresh = await getBossBattleInstance(bossInstanceId);
+        if (fresh?.status === "COMPLETED" || fresh?.status === "ABORTED") {
+          await refresh();
+          return;
+        }
+        hasMore = true;
+      }
+
+      // Step 3: wait 4 seconds so students can see INTERMISSION (heart flash + correct/wrong)
+      // before we advance to the next question or finish the battle.
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+
+      // Step 4: if no more questions, finish; otherwise start next question
+      if (!hasMore) {
+        await finishBossBattle(bossInstanceId).catch(() => {});
+      } else {
+        await startBossBattleQuestion(bossInstanceId);
+      }
+
+      await refresh();
+    } catch (err: any) {
+      console.error("Force next question failed:", err);
+      setError(err?.message || "Failed to force next question.");
+      await refresh().catch(() => {});
+    } finally {
+      transitionLockRef.current = false;
+      setTransitioning(false);
+    }
+  }, [bossInstanceId, refresh]);
+
   // Manual resolve button (kept for edge cases / teacher override)
   const handleResolveQuestion = useCallback(async () => {
     if (!bossInstanceId || transitionLockRef.current) return;
@@ -463,6 +523,21 @@ export default function BossBattleMonitorTeacher() {
     hasAutoResolvedRef.current = false;
   }, [instance?.active_question_id]);
 
+  // Poll attempts every 3 s while a question is active so the "not answered" list updates live
+  useEffect(() => {
+    if (instance?.status !== "QUESTION_ACTIVE") return;
+    const poll = async () => {
+      try {
+        const res = await listBossAnswerAttemptsByBattle(bossInstanceId, { limit: 500 });
+        setAttempts(res.items || []);
+      } catch {
+        // silent — stale data is better than an error flash
+      }
+    };
+    const timer = window.setInterval(poll, 3000);
+    return () => window.clearInterval(timer);
+  }, [instance?.status, bossInstanceId]);
+
   // Timer-based auto-chain for timed questions (timer expired → resolve→advance→start)
   useEffect(() => {
     if (
@@ -594,6 +669,14 @@ export default function BossBattleMonitorTeacher() {
     if (!question?.question_id) return [];
     return attempts.filter((a) => a.question_id === question.question_id);
   }, [attempts, question?.question_id]);
+
+  const notSubmittedStudents = useMemo(() => {
+    if (instance?.status !== "QUESTION_ACTIVE" || !question?.question_id) return [];
+    const submittedIds = new Set(questionAttempts.map((a) => a.student_id));
+    return participants
+      .filter((p) => p.state === "JOINED" && !p.is_downed && !submittedIds.has(p.student_id))
+      .map((p) => ({ studentId: p.student_id, name: nameMap[p.student_id] || p.student_id }));
+  }, [instance?.status, question?.question_id, questionAttempts, participants, nameMap]);
 
   const studentRows = useMemo<StudentRow[]>(() => {
     return participants
@@ -840,7 +923,7 @@ export default function BossBattleMonitorTeacher() {
                       : instance.status === "INTERMISSION"
                       ? "Intermission — next question loading…"
                       : instance.status === "COMPLETED"
-                      ? (battleResults?.meta?.outcome === "WIN" ? "⚔️ Victory!" : "💀 Defeat")
+                      ? (battleResults?.outcome === "WIN" ? "⚔️ Victory!" : "💀 Defeat")
                       : instance.status === "LOBBY"
                       ? "Waiting for students to join…"
                       : instance.status}
@@ -855,6 +938,43 @@ export default function BossBattleMonitorTeacher() {
               </div>
             </div>
 
+            {/* ── Teacher Controls ── */}
+            <div className="bg-white rounded-xl shadow-md px-6 py-4 mb-6">
+              <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3">Teacher Controls</h3>
+              <div className="flex flex-wrap gap-3 items-center">
+                <button
+                  onClick={() => window.open(`/teacher/bossfight-display/${bossInstanceId}`, "_blank")}
+                  className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                >
+                  <i data-feather="monitor" className="w-4 h-4"></i>
+                  Open Display Screen
+                </button>
+
+                <button
+                  onClick={handleForceNextQuestion}
+                  disabled={transitioning || instance?.status !== "QUESTION_ACTIVE"}
+                  title={instance?.status !== "QUESTION_ACTIVE" ? "Only available while a question is active" : "Resolve now — students who haven't answered are marked wrong"}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    transitioning || instance?.status !== "QUESTION_ACTIVE"
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-orange-500 hover:bg-orange-600 text-white"
+                  }`}
+                >
+                  <i data-feather="skip-forward" className="w-4 h-4"></i>
+                  Force Next Question
+                </button>
+
+                {transitioning && (
+                  <span className="text-xs text-purple-600 font-semibold animate-pulse">Advancing…</span>
+                )}
+              </div>
+              {instance?.status === "QUESTION_ACTIVE" && notSubmittedStudents.length > 0 && (
+                <p className="mt-2 text-xs text-gray-500">
+                  {notSubmittedStudents.length} student{notSubmittedStudents.length !== 1 ? "s" : ""} haven't answered yet — forcing will mark them wrong.
+                </p>
+              )}
+            </div>
+
             <div className="bg-white rounded-xl shadow-md p-6 mb-6">
               <h3 className="text-xl font-bold text-gray-900 mb-4">Current Battle State</h3>
 
@@ -864,7 +984,7 @@ export default function BossBattleMonitorTeacher() {
                     ACTIVE QUESTION
                   </div>
                   <div className="mt-2 text-sm font-semibold text-gray-900">
-                    {question ? `Q${question.order_index + 1}` : "None"}
+                    {question ? `Q${(instance?.current_question_index ?? 0) + 1}` : "None"}
                   </div>
                   <div className="mt-1 text-sm text-gray-600">
                     {question?.question_text || "No active question"}
@@ -936,6 +1056,23 @@ export default function BossBattleMonitorTeacher() {
                   <div className="text-sm text-gray-700">
                     {questionAttempts.length} submission(s) recorded for this active question.
                   </div>
+                  {instance?.status === "QUESTION_ACTIVE" && notSubmittedStudents.length > 0 && (
+                    <div className="mt-3">
+                      <div className="text-xs text-red-600 font-semibold tracking-widest mb-1">
+                        NOT YET SUBMITTED ({notSubmittedStudents.length})
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {notSubmittedStudents.map((s) => (
+                          <span key={s.studentId} className="px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold border border-red-300">
+                            {s.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {instance?.status === "QUESTION_ACTIVE" && notSubmittedStudents.length === 0 && questionAttempts.length > 0 && (
+                    <div className="mt-2 text-xs text-green-700 font-semibold">All active students have submitted.</div>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -943,18 +1080,13 @@ export default function BossBattleMonitorTeacher() {
             {/* Battle Results (shown when COMPLETED) */}
             {instance.status === "COMPLETED" && battleResults && (
               <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-                <div className={`text-center py-4 rounded-lg mb-6 ${battleResults.meta.outcome === "WIN" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                <div className={`text-center py-4 rounded-lg mb-6 ${battleResults.outcome === "WIN" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
                   <div className="text-3xl font-bold">
-                    {battleResults.meta.outcome === "WIN" ? "⚔️ VICTORY!" : "💀 DEFEAT"}
+                    {battleResults.outcome === "WIN" ? "⚔️ VICTORY!" : "💀 DEFEAT"}
                   </div>
-                  {battleResults.meta.fail_reason && (
-                    <div className="text-sm mt-1">{battleResults.meta.fail_reason.replace(/_/g, " ")}</div>
+                  {battleResults.fail_reason && (
+                    <div className="text-sm mt-1 opacity-70">{battleResults.fail_reason.replace(/_/g, " ")}</div>
                   )}
-                  <div className="text-sm mt-2">
-                    Boss HP remaining: {battleResults.meta.boss_hp_remaining} ·
-                    Total damage: {battleResults.meta.total_damage_dealt} ·
-                    Questions answered: {battleResults.meta.total_questions_answered}
-                  </div>
                 </div>
 
                 <h4 className="text-lg font-bold text-gray-900 mb-3">Student Results</h4>
@@ -972,15 +1104,15 @@ export default function BossBattleMonitorTeacher() {
                       </tr>
                     </thead>
                     <tbody>
-                      {battleResults.students.map((s) => (
+                      {(battleResults.student_results || []).map((s) => (
                         <tr key={s.student_id} className="border-t">
                           <td className="px-4 py-2 font-semibold">{nameMap[s.student_id] || s.student_id}</td>
                           <td className="px-4 py-2">{(guildById.get(s.guild_id) as any)?.name || s.guild_id}</td>
-                          <td className="px-4 py-2 text-green-700 font-bold">{s.correct_answers}</td>
-                          <td className="px-4 py-2 text-red-700 font-bold">{s.incorrect_answers}</td>
-                          <td className="px-4 py-2">{s.total_damage_dealt}</td>
-                          <td className="px-4 py-2 text-purple-700 font-bold">+{s.xp_earned}</td>
-                          <td className="px-4 py-2 text-yellow-700 font-bold">+{s.gold_earned}</td>
+                          <td className="px-4 py-2 text-green-700 font-bold">{s.total_correct}</td>
+                          <td className="px-4 py-2 text-red-700 font-bold">{s.total_incorrect}</td>
+                          <td className="px-4 py-2">{s.total_damage_to_boss}</td>
+                          <td className="px-4 py-2 text-purple-700 font-bold">+{s.xp_awarded}</td>
+                          <td className="px-4 py-2 text-yellow-700 font-bold">+{s.gold_awarded}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1002,15 +1134,15 @@ export default function BossBattleMonitorTeacher() {
                       </tr>
                     </thead>
                     <tbody>
-                      {battleResults.guilds.map((g) => (
+                      {(battleResults.guild_results || []).map((g) => (
                         <tr key={g.guild_id} className="border-t">
                           <td className="px-4 py-2 font-semibold">{(guildById.get(g.guild_id) as any)?.name || g.guild_id}</td>
-                          <td className="px-4 py-2">{g.members_count}</td>
-                          <td className="px-4 py-2 text-green-700 font-bold">{g.correct_answers}</td>
-                          <td className="px-4 py-2 text-red-700 font-bold">{g.incorrect_answers}</td>
-                          <td className="px-4 py-2">{g.total_damage_dealt}</td>
-                          <td className="px-4 py-2 text-purple-700 font-bold">+{g.xp_earned}</td>
-                          <td className="px-4 py-2 text-yellow-700 font-bold">+{g.gold_earned}</td>
+                          <td className="px-4 py-2">{g.guild_members_joined}</td>
+                          <td className="px-4 py-2 text-green-700 font-bold">{g.guild_total_correct}</td>
+                          <td className="px-4 py-2 text-red-700 font-bold">{g.guild_total_incorrect}</td>
+                          <td className="px-4 py-2">{g.guild_total_damage_to_boss}</td>
+                          <td className="px-4 py-2 text-purple-700 font-bold">+{g.guild_xp_awarded_total}</td>
+                          <td className="px-4 py-2 text-yellow-700 font-bold">+{g.guild_gold_awarded_total}</td>
                         </tr>
                       ))}
                     </tbody>

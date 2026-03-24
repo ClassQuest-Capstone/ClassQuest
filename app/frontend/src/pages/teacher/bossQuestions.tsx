@@ -386,79 +386,74 @@ export default function BossQuestions() {
             No questions yet. Click <b>Add Question</b> to create the first one.
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {questions.map((q) => {
               const coercedType = coerceAllowedType(q.question_type as any);
               const opts = normalizeOptionsToArray(q.options);
               const ci = normalizeCorrectAnswerToIndex(q.correct_answer);
-              const correctText = opts[ci]?.text ?? "(not set)";
               const tfVal = normalizeCorrectAnswerToBool(q.correct_answer);
 
               return (
-                <div key={q.question_id} className="bg-white rounded-xl shadow-md p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-sm text-gray-500 uppercase tracking-wide">
-                        Order {q.order_index} • {coercedType}
-                      </p>
-                      <h3 className="text-lg font-bold text-gray-900 break-words">{q.question_text}</h3>
-
-                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                        <span className="px-2 py-1 rounded-full bg-gray-50 border border-gray-200 text-gray-700 font-semibold">
-                          Auto-grade: {q.auto_gradable ? "Yes" : "No"}
+                <div key={q.question_id} className="bg-white rounded-xl shadow-md p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      {/* Header row */}
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="text-xs font-bold text-gray-400">#{q.order_index}</span>
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                          {coercedType === "MCQ_SINGLE" ? "MCQ" : "True / False"}
                         </span>
-                        <span className="px-2 py-1 rounded-full bg-yellow-50 border border-yellow-200 text-yellow-700 font-semibold">
-                          XP: {q.xp_reward ?? 0}
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
+                          {q.xp_reward ?? 0} XP
                         </span>
                       </div>
 
-                      {coercedType === "MCQ_SINGLE" && opts.length > 0 ? (
-                        <div className="mt-3">
-                          <p className="text-sm font-semibold text-gray-700 mb-2">Options</p>
-                          <ul className="space-y-2">
-                            {opts.map((o, i) => (
-                              <li
-                                key={`${q.question_id}-${i}`}
-                                className={`p-3 rounded-lg border ${
-                                  i === ci ? "border-green-300 bg-green-50" : "border-gray-200 bg-gray-50"
-                                }`}
-                              >
-                                <span className="text-sm text-gray-800">{o.text}</span>
-                                {i === ci ? (
-                                  <span className="ml-2 text-xs font-semibold text-green-700">(Correct)</span>
-                                ) : null}
-                              </li>
-                            ))}
-                          </ul>
-                          <p className="text-xs text-gray-500 mt-2">
-                            Correct answer: <span className="text-gray-800">{correctText}</span>
-                          </p>
-                        </div>
-                      ) : null}
+                      {/* Question text */}
+                      <p className="text-sm font-bold text-gray-900 mb-2">{q.question_text}</p>
 
-                      {coercedType === "TRUE_FALSE" ? (
-                        <div className="mt-3">
-                          <p className="text-sm font-semibold text-gray-700">Correct answer:</p>
-                          <p className="text-sm text-gray-900 mt-1">{tfVal ? "True" : "False"}</p>
+                      {/* MCQ options in a 2-column grid */}
+                      {coercedType === "MCQ_SINGLE" && opts.length > 0 && (
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {opts.map((o, i) => (
+                            <div
+                              key={`${q.question_id}-${i}`}
+                              className={`flex items-start gap-1.5 px-2 py-1.5 rounded-lg border text-xs min-w-0 ${
+                                i === ci
+                                  ? "border-green-300 bg-green-50 text-green-800 font-semibold"
+                                  : "border-gray-200 bg-gray-50 text-gray-700"
+                              }`}
+                            >
+                              <span className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${i === ci ? "border-green-500 bg-green-500" : "border-gray-400"}`}>
+                                {i === ci && <span className="text-white text-xs leading-none">✓</span>}
+                              </span>
+                              <span className="break-words min-w-0 overflow-hidden">{o.text}</span>
+                            </div>
+                          ))}
                         </div>
-                      ) : null}
+                      )}
+
+                      {/* True/False answer */}
+                      {coercedType === "TRUE_FALSE" && (
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${tfVal ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                          Answer: {tfVal ? "True" : "False"}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="flex gap-2 shrink-0">
+                    {/* Actions */}
+                    <div className="flex flex-col gap-1.5 shrink-0">
                       <button
-                        className="bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-300 px-3 py-2 rounded-lg text-sm flex items-center justify-center"
+                        className="bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-300 px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"
                         onClick={() => openEdit(q)}
                       >
-                        <i data-feather="edit" className="mr-2 w-4 h-4"></i>
+                        <i data-feather="edit" className="w-3.5 h-3.5"></i>
                         Edit
                       </button>
-
-                      {/* ✅ Delete text forced to black */}
                       <button
-                        className="bg-gray-100 hover:bg-gray-200 text-black border border-red-600 px-3 py-2 rounded-lg text-sm flex items-center justify-center"
+                        className="bg-gray-100 hover:bg-red-50 text-red-600 border border-red-300 px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"
                         onClick={() => onDelete(q)}
                       >
-                        <i data-feather="trash-2" className="mr-2 w-4 h-4"></i>
+                        <i data-feather="trash-2" className="w-3.5 h-3.5"></i>
                         Delete
                       </button>
                     </div>
@@ -472,9 +467,10 @@ export default function BossQuestions() {
 
       {/* Editor Modal */}
       {editorOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-center overflow-y-auto p-4">
-          <div className="w-full max-w-2xl mt-10 bg-white rounded-xl shadow-lg p-6">
-            <div className="flex items-center justify-between mb-4">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg flex flex-col max-h-[90vh]">
+            {/* Modal header — always visible */}
+            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100 shrink-0">
               <h2 className="text-xl font-bold text-gray-900">
                 {editing ? "Edit Boss Question" : "Add Boss Question"}
               </h2>
@@ -490,6 +486,8 @@ export default function BossQuestions() {
               </button>
             </div>
 
+            {/* Scrollable content */}
+            <div className="overflow-y-auto flex-1 px-6 py-4">
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -716,29 +714,31 @@ export default function BossQuestions() {
                 </p>
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
-                {/* ✅ Cancel text forced to black */}
-                <button
-                  type="button"
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-500 text-black"
-                  onClick={() => {
-                    setEditorOpen(false);
-                    resetEditor();
-                  }}
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
+            </div>
+            </div>
 
-                <button
-                  type="button"
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
-                  onClick={onSave}
-                  disabled={saving || imageUploading}
-                >
-                  {saving ? "Saving…" : "Save"}
-                </button>
-              </div>
+            {/* Modal footer — always visible */}
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
+              <button
+                type="button"
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-500 text-black"
+                onClick={() => {
+                  setEditorOpen(false);
+                  resetEditor();
+                }}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold"
+                onClick={onSave}
+                disabled={saving || imageUploading}
+              >
+                {saving ? "Saving…" : "Save Question"}
+              </button>
             </div>
           </div>
         </div>

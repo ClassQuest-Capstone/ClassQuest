@@ -51,6 +51,21 @@ function makeLocalId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+// Password validation helpers
+const passwordValidation = {
+  hasMinLength: (pwd: string) => pwd.length >= 8,
+  hasUppercase: (pwd: string) => /[A-Z]/.test(pwd),
+  hasLowercase: (pwd: string) => /[a-z]/.test(pwd),
+  hasNumber: (pwd: string) => /[0-9]/.test(pwd),
+  hasSpecialChar: (pwd: string) => /[!@#$%^&*]/.test(pwd),
+  isComplete: (pwd: string) => 
+    passwordValidation.hasMinLength(pwd) &&
+    passwordValidation.hasUppercase(pwd) &&
+    passwordValidation.hasLowercase(pwd) &&
+    passwordValidation.hasNumber(pwd) &&
+    passwordValidation.hasSpecialChar(pwd),
+};
+
 export default function Signup() {
   const navigate = useNavigate();
 
@@ -580,6 +595,38 @@ export default function Signup() {
                       className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                       placeholder="Enter your password"
                     />
+                    {!passwordValidation.isComplete(password) && password && (
+                      <div className="text-xs text-gray-600 mt-2 space-y-1">
+                        <p className={passwordValidation.hasMinLength(password) ? "text-green-600" : "text-red-500"}>
+                          {passwordValidation.hasMinLength(password) ? "✓" : "○"} At least 8 characters
+                        </p>
+                        <p className={passwordValidation.hasUppercase(password) ? "text-green-600" : "text-red-500"}>
+                          {passwordValidation.hasUppercase(password) ? "✓" : "○"} One uppercase letter
+                        </p>
+                        <p className={passwordValidation.hasLowercase(password) ? "text-green-600" : "text-red-500"}>
+                          {passwordValidation.hasLowercase(password) ? "✓" : "○"} One lowercase letter
+                        </p>
+                        <p className={passwordValidation.hasNumber(password) ? "text-green-600" : "text-red-500"}>
+                          {passwordValidation.hasNumber(password) ? "✓" : "○"} One number
+                        </p>
+                        <p className={passwordValidation.hasSpecialChar(password) ? "text-green-600" : "text-red-500"}>
+                          {passwordValidation.hasSpecialChar(password) ? "✓" : "○"} One special character (! @ # $ % ^ & *)
+                        </p>
+                      </div>
+                    )}
+                    {!password && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Password must be at least 8 characters long & contain at least: 
+                        <br />
+                        ○ one uppercase letter
+                        <br />
+                        ○ one lowercase letter
+                        <br />
+                        ○ one number
+                        <br />
+                        ○ one special character: ! @ # $ % ^ & *
+                      </p>
+                    )}
                   </div>
 
                   <div>

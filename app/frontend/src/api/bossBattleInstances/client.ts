@@ -166,10 +166,13 @@ export function advanceBossBattleToNextQuestion(bossInstanceId: string) {
     );
 }
 
-export function resolveBossBattleQuestion(bossInstanceId: string) {
+export function resolveBossBattleQuestion(bossInstanceId: string, options?: { force?: boolean }) {
     return api<ResolveQuestionResponse>(
         `/boss-battle-instances/${encodeURIComponent(bossInstanceId)}/resolve-question`,
-        { method: "POST" }
+        {
+            method: "POST",
+            body: options?.force ? JSON.stringify({ force: true }) : undefined,
+        }
     );
 }
 

@@ -39,7 +39,6 @@ export type BattleOutcome =
 export type FailReason =
     | "TIMEOUT"
     | "ALL_GUILDS_DOWN"
-    | "OUT_OF_QUESTIONS"
     | "ABORTED_BY_TEACHER";
 
 export type BossBattleInstance = {
@@ -144,7 +143,7 @@ export type FinishBattleResponse = {
     boss_instance_id: string;
     status: BossBattleStatus;
     outcome: "WIN" | "FAIL" | null;
-    fail_reason: "ALL_GUILDS_DOWN" | "OUT_OF_QUESTIONS" | "ABORTED_BY_TEACHER" | null;
+    fail_reason: "ALL_GUILDS_DOWN" | "ABORTED_BY_TEACHER" | null;
     completed_at: string;
     results_written: boolean;
 };
@@ -155,7 +154,7 @@ export type AdvanceQuestionResponse = {
     current_question_index: number;
     per_guild_question_index: Record<string, number> | null;
     outcome: "WIN" | "FAIL" | null;
-    fail_reason: "OUT_OF_QUESTIONS" | null;
+    fail_reason: null;
     has_more_questions: boolean;
 };
 

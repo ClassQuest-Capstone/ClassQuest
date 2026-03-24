@@ -256,6 +256,64 @@ describe("validation — validateShopItem", () => {
         const result = validationModule.validateShopItem({ category: "ARMOR_SET" });
         expect(result.valid).toBe(true);
     });
+
+    it("rejects unknown gender", () => {
+        const result = validationModule.validateShopItem({ gender: "UNKNOWN" });
+        expect(result.valid).toBe(false);
+        expect((result as any).error).toMatch(/gender/);
+    });
+
+    it("accepts all valid genders", () => {
+        for (const gender of validationModule.VALID_GENDERS) {
+            // Need asset_key too when testing standalone gender via a non-gear category
+            const result = validationModule.validateShopItem({ gender });
+            expect(result.valid).toBe(true);
+        }
+    });
+
+    it("rejects empty asset_key", () => {
+        const result = validationModule.validateShopItem({ asset_key: "  " });
+        expect(result.valid).toBe(false);
+        expect((result as any).error).toMatch(/asset_key/);
+    });
+
+    it("rejects gear category without gender", () => {
+        const result = validationModule.validateShopItem({
+            category:  "HELMET",
+            asset_key: "gear/helmets/iron_helm.png",
+        });
+        expect(result.valid).toBe(false);
+        expect((result as any).error).toMatch(/gender/);
+    });
+
+    it("rejects gear category without asset_key", () => {
+        const result = validationModule.validateShopItem({
+            category: "ARMOUR",
+            gender:   "MALE",
+        });
+        expect(result.valid).toBe(false);
+        expect((result as any).error).toMatch(/asset_key/);
+    });
+
+    it("accepts a valid gear item with all required gear fields", () => {
+        const result = validationModule.validateShopItem({
+            category:  "HELMET",
+            gender:    "MALE",
+            asset_key: "gear/helmets/iron_helm.png",
+        });
+        expect(result.valid).toBe(true);
+    });
+
+    it("accepts all gear categories with required gear fields", () => {
+        for (const category of validationModule.GEAR_CATEGORIES) {
+            const result = validationModule.validateShopItem({
+                category,
+                gender:    "UNISEX",
+                asset_key: "gear/some_item.png",
+            });
+            expect(result.valid).toBe(true);
+        }
+    });
 });
 
 // ---------------------------------------------------------------------------
@@ -389,6 +447,43 @@ describe("create handler", () => {
         const res = await createHandler(makeEvent({}, makeCreateBody()) as any);
         expect(res.statusCode).toBe(409);
     });
+
+    it("returns 201 when creating a valid gear item", async () => {
+        mockSend.mockResolvedValueOnce({});
+
+        const res = await createHandler(makeEvent({}, makeCreateBody({
+            item_id:  "helmet_iron_01",
+            name:     "Iron Helmet",
+            category: "HELMET",
+            gender:   "MALE",
+            asset_key: "gear/helmets/iron_helmet.png",
+        })) as any);
+        expect(res.statusCode).toBe(201);
+    });
+
+    it("returns 400 when gear item is missing gender", async () => {
+        const res = await createHandler(makeEvent({}, makeCreateBody({
+            item_id:   "helmet_iron_01",
+            name:      "Iron Helmet",
+            category:  "HELMET",
+            asset_key: "gear/helmets/iron_helmet.png",
+            // gender intentionally omitted
+        })) as any);
+        expect(res.statusCode).toBe(400);
+        expect(JSON.parse(res.body).error).toMatch(/gender/);
+    });
+
+    it("returns 400 when gear item is missing asset_key", async () => {
+        const res = await createHandler(makeEvent({}, makeCreateBody({
+            item_id:  "helmet_iron_01",
+            name:     "Iron Helmet",
+            category: "HELMET",
+            gender:   "MALE",
+            // asset_key intentionally omitted
+        })) as any);
+        expect(res.statusCode).toBe(400);
+        expect(JSON.parse(res.body).error).toMatch(/asset_key/);
+    });
 });
 
 // ---------------------------------------------------------------------------
@@ -413,6 +508,18 @@ describe("get handler", () => {
 
         const res = await getHandler(makeEvent({ pathParameters: { item_id: "nonexistent" } }) as any);
         expect(res.statusCode).toBe(404);
+    });
+
+    it("returns gear fields when item is a gear item", async () => {
+        mockSend.mockResolvedValueOnce({
+            Item: makeItemRaw({ category: "HELMET", gender: "MALE", asset_key: "gear/helmets/iron_helm.png" }),
+        });
+
+        const res = await getHandler(makeEvent({ pathParameters: { item_id: "hat_iron_01" } }) as any);
+        expect(res.statusCode).toBe(200);
+        const body = JSON.parse(res.body);
+        expect(body.gender).toBe("MALE");
+        expect(body.asset_key).toBe("gear/helmets/iron_helm.png");
     });
 });
 
@@ -542,6 +649,36 @@ describe("update handler", () => {
             makeEvent({ pathParameters: { item_id: "ghost" } }, { name: "X" }) as any
         );
         expect(res.statusCode).toBe(404);
+    });
+
+    it("returns 200 when updating gear fields on an existing item", async () => {
+        const updated = makeItemRaw({ gender: "FEMALE", asset_key: "gear/helmets/silver_helm.png" });
+        mockSend.mockResolvedValueOnce({ Attributes: updated });
+
+        const res = await updateHandler(
+            makeEvent(
+                { pathParameters: { item_id: "hat_iron_01" } },
+                { gender: "FEMALE", asset_key: "gear/helmets/silver_helm.png" }
+            ) as any
+        );
+        expect(res.statusCode).toBe(200);
+        const body = JSON.parse(res.body);
+        expect(body.gender).toBe("FEMALE");
+        expect(body.asset_key).toBe("gear/helmets/silver_helm.png");
+    });
+
+    it("non-gear item update still works without gear fields", async () => {
+        const updated = makeItemRaw({ name: "Updated Helm" });
+        mockSend.mockResolvedValueOnce({ Attributes: updated });
+
+        const res = await updateHandler(
+            makeEvent(
+                { pathParameters: { item_id: "hat_iron_01" } },
+                { name: "Updated Helm" }
+            ) as any
+        );
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).name).toBe("Updated Helm");
     });
 });
 

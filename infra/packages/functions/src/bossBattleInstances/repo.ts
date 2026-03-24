@@ -448,7 +448,6 @@ export async function finishBattle(
     boss_instance_id: string,
     params: {
         outcome: "WIN" | "FAIL";
-        fail_reason?: "ALL_GUILDS_DOWN" | "OUT_OF_QUESTIONS" | "ABORTED_BY_TEACHER";
         completed_at: string;
         updated_at: string;
     }
@@ -529,7 +528,6 @@ export async function advanceToNextQuestion(
         next_per_guild_question_index?: Record<string, number>;
         next_status: "INTERMISSION" | "COMPLETED";
         outcome?: "FAIL";
-        fail_reason?: "OUT_OF_QUESTIONS";
         completed_at?: string;
         updated_at: string;
     }

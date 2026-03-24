@@ -4,9 +4,28 @@
 export type ShopRarity = "COMMON" | "UNCOMMON" | "RARE" | "EPIC" | "LEGENDARY";
 
 /**
- * ShopItem categories
+ * Avatar gear gender — UNISEX items can be equipped by any avatar.
  */
-export type ShopCategory = "CLASS_ITEMS" | "COSMETIC" | "POWER_UPS" | "OTHER";
+export type ShopGearGender = "MALE" | "FEMALE" | "UNISEX";
+
+/**
+ * ShopItem categories — includes gear categories (HELMET, ARMOUR, SHIELD, PET, BACKGROUND)
+ * and general shop categories.
+ */
+export type ShopCategory =
+    | "CLASS_ITEMS"
+    | "COSMETIC"
+    | "POWER_UPS"
+    | "OTHER"
+    | "HELMET"
+    | "ARMOUR"
+    | "SHIELD"
+    | "PET"
+    | "BACKGROUND";
+
+/** Gear categories that require gender and asset_key */
+export const GEAR_CATEGORIES: ShopCategory[] = ["HELMET", "ARMOUR", "SHIELD", "PET", "BACKGROUND"];
+
 /**
  * ShopItem as returned by the API.
  */
@@ -21,6 +40,9 @@ export type ShopItem = {
     is_cosmetic_only: boolean;
     sprite_path: string;
     is_active: boolean;
+    // Gear-only fields — present only on gear items
+    gender?: ShopGearGender;
+    asset_key?: string;
     created_at: string;
     updated_at: string;
 };
@@ -36,6 +58,8 @@ export type CreateShopItemInput = {
     is_cosmetic_only: boolean;
     sprite_path: string;
     is_active?: boolean;
+    gender?: ShopGearGender;
+    asset_key?: string;
 };
 
 export type UpdateShopItemInput = Partial<{
@@ -47,6 +71,8 @@ export type UpdateShopItemInput = Partial<{
     required_level: number;
     is_cosmetic_only: boolean;
     sprite_path: string;
+    gender: ShopGearGender;
+    asset_key: string;
 }>;
 
 export type PaginatedShopItems = {

@@ -212,6 +212,7 @@ async function updateBossInstanceDatesBestEffort(instanceId: string, dates: { du
 
 const Subjects = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [extraSubjects, setExtraSubjects] = useState<string[]>([]);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -428,15 +429,22 @@ const Subjects = () => {
     setBossError(null);
 
     try {
-      const [ownedRes, publicRes] = await Promise.all([
+      const [ownedResult, publicResult] = await Promise.allSettled([
         listBossBattleTemplatesByOwner(teacher.id),
         listPublicBossBattleTemplates({ limit: 100 } as any),
       ]);
 
-      const merged: BossBattleTemplate[] = [
-        ...(((ownedRes as any)?.items as BossBattleTemplate[]) ?? []),
-        ...(((publicRes as any)?.items as BossBattleTemplate[]) ?? []),
-      ];
+      const ownedItems: BossBattleTemplate[] =
+        ownedResult.status === "fulfilled"
+          ? (((ownedResult.value as any)?.items as BossBattleTemplate[]) ?? [])
+          : [];
+
+      const publicItems: BossBattleTemplate[] =
+        publicResult.status === "fulfilled"
+          ? (((publicResult.value as any)?.items as BossBattleTemplate[]) ?? [])
+          : [];
+
+      const merged = [...ownedItems, ...publicItems];
 
       const unique = new Map<string, BossBattleTemplate>();
       for (const t of merged) {
@@ -455,6 +463,10 @@ const Subjects = () => {
         });
 
       setBossTemplates(list);
+
+      if (ownedResult.status === "rejected" && publicResult.status === "rejected") {
+        setBossError("Failed to load boss battle templates");
+      }
     } catch (e: any) {
       setBossError(e?.message || "Failed to load boss battle templates");
       setBossTemplates([]);
@@ -536,6 +548,16 @@ const Subjects = () => {
     }
   }, [bossTemplates, loadBossInstances]);
 
+  const usedSubjects = useMemo(() => {
+    const subjects = new Set<string>();
+    templates.forEach((t) => {
+      const s = safeStr((t as any).subject).trim();
+      if (s) subjects.add(s);
+    });
+    extraSubjects.forEach((s) => { if (s) subjects.add(s); });
+    return Array.from(subjects).sort();
+  }, [templates, extraSubjects]);
+
   const templatesBySubject = useMemo(() => {
     const map = new Map<string, QuestTemplate[]>();
 
@@ -612,6 +634,9 @@ const Subjects = () => {
           safeStr(created?.data?.boss_template_id);
 
         setIsModalOpen(false);
+        if (subject && !usedSubjects.includes(subject)) {
+          setExtraSubjects((prev) => [...prev, subject]);
+        }
         await loadBossTemplates();
 
         if (newId) {
@@ -625,6 +650,11 @@ const Subjects = () => {
         setError(e?.message || "Failed to create boss battle template");
         return;
       }
+    }
+
+    // Track the subject for the dropdown in this session
+    if (subject && !usedSubjects.includes(subject)) {
+      setExtraSubjects((prev) => [...prev, subject]);
     }
 
     // Normal quest flow
@@ -1690,12 +1720,19 @@ const Subjects = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                <select name="subject" className="w-full border border-gray-300 rounded-lg px-4 py-2" required defaultValue="Mathematics">
-                  <option value="Mathematics">Mathematics</option>
-                  <option value="Science">Science</option>
-                  <option value="Social Studies">Social Studies</option>
-                  <option value="Health Education">Health Education</option>
-                </select>
+                <input
+                  type="text"
+                  name="subject"
+                  list="subject-suggestions"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                  placeholder="Type a subject..."
+                  required
+                />
+                <datalist id="subject-suggestions">
+                  {usedSubjects.map((s) => (
+                    <option key={s} value={s} />
+                  ))}
+                </datalist>
               </div>
 
               <div>

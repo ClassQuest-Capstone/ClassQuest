@@ -704,6 +704,76 @@ export function createTables(ctx: StackContext) {
         },
     });
 
+    // PlayerAvatars table — student avatar state (one record per student per class)
+    //
+    // PK: player_avatar_id (server-generated UUID)
+    // GSI1: gsi1pk (CLASS#{class_id}) / gsi1sk (STUDENT#{student_id})
+    //
+    // Attributes (stored dynamically):
+    //   player_avatar_id             (string)  PK
+    //   class_id                     (string)  student's class
+    //   student_id                   (string)  the student
+    //   avatar_base_id               (string)  references AvatarBases.avatar_base_id
+    //   gender                       (string)  MALE | FEMALE (snapshot for equip validation)
+    //   equipped_helmet_item_id      (string?) ShopItems.item_id or absent
+    //   equipped_armour_item_id      (string?) ShopItems.item_id or absent
+    //   equipped_shield_item_id      (string?) ShopItems.item_id or absent
+    //   equipped_pet_item_id         (string?) ShopItems.item_id or absent
+    //   equipped_background_item_id  (string?) ShopItems.item_id or absent
+    //   gsi1pk                       (string)  CLASS#{class_id}
+    //   gsi1sk                       (string)  STUDENT#{student_id}
+    //   updated_at                   (string)  ISO timestamp
+    const playerAvatarsTable = new Table(stack, "PlayerAvatars", {
+        fields: {
+            player_avatar_id: "string",  // PK
+            gsi1pk:           "string",  // GSI1 PK: CLASS#{class_id}
+            gsi1sk:           "string",  // GSI1 SK: STUDENT#{student_id}
+        },
+        primaryIndex: {
+            partitionKey: "player_avatar_id",
+        },
+        globalIndexes: {
+            gsi1: {  // lookup by class, or class+student
+                partitionKey: "gsi1pk",
+                sortKey:      "gsi1sk",
+            },
+        },
+    });
+
+    // AvatarBases table — master config for avatar base definitions
+    //
+    // PK: avatar_base_id
+    // GSI1: gender (PK) / role_type (SK) — list by gender, ordered by role
+    //
+    // Attributes (stored dynamically):
+    //   avatar_base_id             (string)  PK — stable slug (e.g. "healer_male_01")
+    //   gender                     (string)  MALE | FEMALE
+    //   role_type                  (string)  HEALER | GUARDIAN | MAGE | NONE
+    //   is_default                 (boolean) true → used as default when no base selected
+    //   default_helmet_item_id     (string?) ShopItems.item_id for helmet fallback
+    //   default_armour_item_id     (string?) ShopItems.item_id for armour fallback
+    //   default_shield_item_id     (string?) ShopItems.item_id for shield fallback
+    //   default_pet_item_id        (string?) ShopItems.item_id for pet fallback
+    //   default_background_item_id (string?) ShopItems.item_id for background fallback
+    //   created_at                 (string)  ISO timestamp
+    //   updated_at                 (string)  ISO timestamp
+    const avatarBasesTable = new Table(stack, "AvatarBases", {
+        fields: {
+            avatar_base_id: "string",  // PK
+            gender:         "string",  // GSI1 PK: MALE | FEMALE
+            role_type:      "string",  // GSI1 SK: HEALER | GUARDIAN | MAGE | NONE
+        },
+        primaryIndex: {
+            partitionKey: "avatar_base_id",
+        },
+        globalIndexes: {
+            gsi1: {  // list by gender, sorted by role_type
+                partitionKey: "gender",
+                sortKey:      "role_type",
+            },
+        },
+    });
+
     return {
         usersTable,
         teacherProfilesTable,
@@ -733,5 +803,7 @@ export function createTables(ctx: StackContext) {
         shopItemsTable,
         shopListingsTable,
         inventoryItemsTable,
+        avatarBasesTable,
+        playerAvatarsTable,
     };
 }

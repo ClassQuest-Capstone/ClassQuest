@@ -129,17 +129,11 @@ async function advanceGlobalPlan(
     const next_index = (instance.current_question_index ?? 0) + 1;
     const has_more = next_index < plan.question_ids.length;
 
-    const next_status: "INTERMISSION" | "COMPLETED" = has_more ? "INTERMISSION" : "COMPLETED";
-    const outcome = has_more ? undefined : ("FAIL" as const);
-    const fail_reason = has_more ? undefined : ("OUT_OF_QUESTIONS" as const);
-    const completed_at = has_more ? undefined : now;
-
+    // Always stay in INTERMISSION — finish-battle determines the final outcome (WIN/FAIL).
+    // Previously this set COMPLETED/FAIL here, but that skipped computeAndWriteBossResults.
     return await doConditionalUpdate(boss_instance_id, now, {
         next_question_index: next_index,
-        next_status,
-        outcome,
-        fail_reason,
-        completed_at,
+        next_status: "INTERMISSION",
         has_more,
     });
 }
@@ -194,17 +188,9 @@ async function advanceRandomizedPerGuild(
         plan.guild_question_ids[firstGuild].length;
     const has_more = next_per_guild[firstGuild] < totalQuestions;
 
-    const next_status: "INTERMISSION" | "COMPLETED" = has_more ? "INTERMISSION" : "COMPLETED";
-    const outcome = has_more ? undefined : ("FAIL" as const);
-    const fail_reason = has_more ? undefined : ("OUT_OF_QUESTIONS" as const);
-    const completed_at = has_more ? undefined : now;
-
     return await doConditionalUpdate(boss_instance_id, now, {
         next_per_guild_question_index: next_per_guild,
-        next_status,
-        outcome,
-        fail_reason,
-        completed_at,
+        next_status: "INTERMISSION",
         has_more,
     });
 }

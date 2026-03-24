@@ -44,6 +44,8 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             required_level,
             is_cosmetic_only,
             sprite_path,
+            gender,
+            asset_key,
         } = body;
 
         if (
@@ -54,7 +56,9 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             gold_cost === undefined &&
             required_level === undefined &&
             is_cosmetic_only === undefined &&
-            sprite_path === undefined
+            sprite_path === undefined &&
+            gender === undefined &&
+            asset_key === undefined
         ) {
             return {
                 statusCode: 400,
@@ -73,6 +77,8 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             required_level,
             is_cosmetic_only,
             sprite_path,
+            gender,
+            asset_key,
         });
 
         if (!validation.valid) {
@@ -143,6 +149,8 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             required_level,
             is_cosmetic_only,
             sprite_path,
+            gender,
+            asset_key,
             ...(gsiKeyUpdates ?? {}),
             updated_at: now,
         });

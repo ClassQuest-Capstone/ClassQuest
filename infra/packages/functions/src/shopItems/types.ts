@@ -4,6 +4,12 @@
 export type ShopRarity = "COMMON" | "UNCOMMON" | "RARE" | "EPIC" | "LEGENDARY";
 
 /**
+ * Avatar gear gender — used to restrict gear to a specific avatar type.
+ * UNISEX items can be equipped by any avatar.
+ */
+export type ShopGearGender = "MALE" | "FEMALE" | "UNISEX";
+
+/**
  * ShopItem record stored in DynamoDB.
  *
  * Primary key:  item_pk (SHOPITEM#{item_id}) + item_sk (META)
@@ -26,6 +32,10 @@ export type ShopItem = {
     is_cosmetic_only: boolean;  // true → visual only, no stat effect
     sprite_path: string;        // relative asset path (e.g. "/items/hats/iron_helm.png")
     is_active: boolean;         // false → hidden from the shop (soft-deactivated)
+
+    // ── Gear-only fields (optional; absent on non-gear items) ─────────────────
+    gender?: ShopGearGender;    // required for gear items; absent on non-gear items
+    asset_key?: string;         // S3 key/path for frontend avatar rendering; required for gear items
 
     // ── GSI keys (computed, never set by callers directly) ────────────────────
     gsi1pk: string;             // SHOP#ACTIVE | SHOP#INACTIVE
@@ -63,5 +73,7 @@ export type UpdateShopItemInput = Partial<
         | "required_level"
         | "is_cosmetic_only"
         | "sprite_path"
+        | "gender"
+        | "asset_key"
     >
 >;
