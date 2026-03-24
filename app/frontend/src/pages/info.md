@@ -210,6 +210,8 @@ TODO: connect images_path to s3
 
 TODO: edit & modal for class
 
+TODO: 
+
 
 HARDCODED EACH ITEM TO BE IN SHOP FOR 2 WEEKS ???
 

@@ -254,7 +254,7 @@ const StudentShop: React.FC = () => {
                 <button className="flex items-center text-sm rounded-full focus:outline-none">
                   <img
                     className="h-8 w-8 rounded-full"
-                    src="http://static.photos/people/200x200/8"
+                    src="/assets/mage-head.png"
                     alt="profile"
                   />
                   <span className="ml-2 text-sm font-medium">{student?.displayName ?? "Student"}</span>

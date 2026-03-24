@@ -256,7 +256,8 @@ const CharacterPage: React.FC = () => {
 
   const studentId = student.id;
   const displayName = student.displayName ?? "Student";
-  const avatarUrl = student.avatarUrl ?? "http://static.photos/people/200x200/8";
+  const avatarUrl = student.avatarUrl ?? "/assets/mage-head.png";
+  {/*"http://static.photos/people/200x200/8"*/ }
 
   // Track class_id for player progression hook - always fetch from backend to ensure correctness
   const [classId, setClassId] = useState<string | null>(null);
@@ -982,7 +983,7 @@ const CharacterPage: React.FC = () => {
                       onClick={() => setIsUserMenuOpen((prev) => !prev)}
                     >
                       <img
-                        className="h-8 w-8 rounded-full"
+                        className="h-8 w-8 rounded-full hover:border-purple-600 border"
                         src={avatarUrl}
                         alt="User avatar"
                       />
@@ -998,12 +999,12 @@ const CharacterPage: React.FC = () => {
                       isUserMenuOpen ? "" : "hidden"
                     }`}
                   >
-                    <button className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    {/*<button className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                       Your Profile
-                    </button>
+                    </button>*/}
                     <Link
                       to="/role"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-300"
                     >
                       Sign out
                     </Link>
