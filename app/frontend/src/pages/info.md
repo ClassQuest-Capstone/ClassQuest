@@ -204,6 +204,12 @@ TODO: update studenet profile picture (DONE)
 
 TODO: Student use item then 10 mins timer satrt until item is deleted (DONE), for future let teacher approve item use
 
+TODO: Finish user guide
+
+TODO: connect images_path to s3 
+
+TODO: edit & modal for class
+
 
 HARDCODED EACH ITEM TO BE IN SHOP FOR 2 WEEKS ???
 
