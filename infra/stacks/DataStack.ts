@@ -77,6 +77,8 @@ export function DataStack(ctx: StackContext) {
             shopItemsTable: tables.shopItemsTable.tableName,
             shopListingsTable: tables.shopListingsTable.tableName,
             inventoryItemsTable: tables.inventoryItemsTable.tableName,
+            avatarBasesTable: tables.avatarBasesTable.tableName,
+            playerAvatarsTable: tables.playerAvatarsTable.tableName,
         },
         tableArns: {
             usersTable: tables.usersTable.tableArn,
@@ -107,6 +109,8 @@ export function DataStack(ctx: StackContext) {
             shopItemsTable: tables.shopItemsTable.tableArn,
             shopListingsTable: tables.shopListingsTable.tableArn,
             inventoryItemsTable: tables.inventoryItemsTable.tableArn,
+            avatarBasesTable: tables.avatarBasesTable.tableArn,
+            playerAvatarsTable: tables.playerAvatarsTable.tableArn,
         },
     };
 }
