@@ -107,7 +107,7 @@
     "item_id": "mage_weapon_crimson",
     "name": "Crimson Mage Weapon",
     "description": "A magical crimson weapon wielded by mages.",
-    "category": "SHIELD",
+    "category": "WEAPON",
     "rarity": "COMMON",
     "gold_cost": 0,
     "required_level": 0,

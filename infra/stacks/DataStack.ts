@@ -43,6 +43,10 @@ export function DataStack(ctx: StackContext) {
         // BossQuestionsTableArn: tables.bossQuestionsTable.tableArn,
         // BossBattleTemplatesTableName: tables.bossBattleTemplatesTable.tableName,
         // BossBattleTemplatesTableArn: tables.bossBattleTemplatesTable.tableArn,
+
+        shopItemsTable: tables.shopItemsTable.tableName,
+        shopListingsTable: tables.shopListingsTable.tableName,
+        avatarBasesTable: tables.avatarBasesTable.tableName,
     });
 
     return {

@@ -4,10 +4,10 @@
  * Reads the three manifest files, uploads images to S3, and writes
  * the corresponding DynamoDB records for ShopItems, AvatarBases, and ShopListings.
  *
- * Usage:
- *   npx tsx seed-avatar-system.ts
+ * Usage: RUN FROM THE ROOT FOLDER and use your stage for seeding the data into the correct environment:
+ *   npx tsx app/frontend/public/assets/seed/avatar-assets/scripts/seed-avatar-system.ts --stage "local2"
  *
- * Required env vars:
+ * Required env vars:   (reads from infra/.sst/outputs.json based on the stage)
  *   SHOP_ITEMS_TABLE_NAME
  *   AVATAR_BASES_TABLE_NAME
  *   SHOP_LISTINGS_TABLE_NAME
@@ -28,17 +28,54 @@ import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const REGION = process.env.AWS_REGION ?? "ca-central-1";
-const BUCKET = requireEnv("ASSETS_BUCKET_NAME");
-const SHOP_ITEMS_TABLE = requireEnv("SHOP_ITEMS_TABLE_NAME");
-const AVATAR_BASES_TABLE = requireEnv("AVATAR_BASES_TABLE_NAME");
-const SHOP_LISTINGS_TABLE = requireEnv("SHOP_LISTINGS_TABLE_NAME");
+function getStage(): string {
+    const idx = process.argv.indexOf("--stage");
+    if (idx === -1 || !process.argv[idx + 1]) {
+        throw new Error("Missing --stage argument");
+    }
+    return process.argv[idx + 1];
+    }
 
-function requireEnv(name: string): string {
-    const value = process.env[name];
-    if (!value) throw new Error(`Missing required env var: ${name}`);
+const STAGE = getStage();
+
+const outputsPath = path.resolve(process.cwd(), "infra/.sst/outputs.json");
+const outputs = JSON.parse(fs.readFileSync(outputsPath, "utf-8"));
+
+function getOutput(stackName: string, outputKey: string): string {
+    const fullStackName = `${STAGE}-classquest-${stackName}`;
+    const stackOutputs = outputs[fullStackName];
+
+    if (!stackOutputs) {
+        throw new Error(`Stack not found in outputs.json: ${fullStackName}`);
+    }
+
+    const value = stackOutputs[outputKey];
+    if (!value) {
+        throw new Error(
+        `Missing output '${outputKey}' in stack '${fullStackName}'`,
+        );
+    }
+
     return value;
 }
+
+const REGION = process.env.AWS_REGION ?? "ca-central-1";
+const ASSETS_BUCKET_NAME = getOutput("ClassQuestTeacherApiStack", "TeacherAssetsBucketName");
+const SHOP_ITEMS_TABLE_NAME = getOutput("ClassQuestDataStack", "shopItemsTable");
+const AVATAR_BASES_TABLE_NAME = getOutput("ClassQuestDataStack", "avatarBasesTable");
+const SHOP_LISTINGS_TABLE_NAME = getOutput("ClassQuestDataStack", "shopListingsTable");
+
+
+
+
+console.log({
+    stage: STAGE,
+    ASSETS_BUCKET_NAME,
+    SHOP_ITEMS_TABLE_NAME,
+    AVATAR_BASES_TABLE_NAME,
+    SHOP_LISTINGS_TABLE_NAME,
+});
+
 
 // ── AWS clients ───────────────────────────────────────────────────────────────
 
@@ -88,7 +125,7 @@ interface ShopListingManifest {
 
 // ── Paths ─────────────────────────────────────────────────────────────────────
 
-// __dirname = avatar-assets/scripts/
+const __dirname = path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Z]:)/, "$1");
 const AVATAR_ASSETS_ROOT = path.resolve(__dirname, "..");
 const MANIFESTS_DIR = path.join(AVATAR_ASSETS_ROOT, "manifests");
 
@@ -171,13 +208,13 @@ async function uploadToS3(localFilePath: string, s3Key: string): Promise<void> {
     const fileContent = fs.readFileSync(localFilePath);
     await s3.send(
         new PutObjectCommand({
-            Bucket: BUCKET,
+            Bucket: ASSETS_BUCKET_NAME,
             Key: s3Key,
             Body: fileContent,
             ContentType: "image/png",
         })
     );
-    console.log(`    Uploaded s3://${BUCKET}/${s3Key}`);
+    console.log(`    Uploaded s3://${ASSETS_BUCKET_NAME}/${s3Key}`);
 }
 
 // ── Step 1: Seed ShopItems ────────────────────────────────────────────────────
@@ -204,7 +241,7 @@ async function seedShopItems(items: ShopItemManifest[]): Promise<void> {
 
         await dynamo.send(
             new PutCommand({
-                TableName: SHOP_ITEMS_TABLE,
+                TableName: SHOP_ITEMS_TABLE_NAME,
                 Item: {
                     ...keys,
                     item_id: item.item_id,
@@ -254,7 +291,7 @@ async function seedAvatarBases(bases: AvatarBaseManifest[]): Promise<void> {
 
         await dynamo.send(
             new PutCommand({
-                TableName: AVATAR_BASES_TABLE,
+                TableName: AVATAR_BASES_TABLE_NAME,
                 Item: {
                     avatar_base_id: base.avatar_base_id,
                     gender: base.gender,
@@ -296,7 +333,7 @@ async function seedShopListings(listings: ShopListingManifest[]): Promise<void> 
 
         await dynamo.send(
             new PutCommand({
-                TableName: SHOP_LISTINGS_TABLE,
+                TableName: SHOP_LISTINGS_TABLE_NAME,
                 Item: {
                     ...keys,
                     shop_listing_id: listing.shop_listing_id,
@@ -318,10 +355,10 @@ async function seedShopListings(listings: ShopListingManifest[]): Promise<void> 
 
 async function main(): Promise<void> {
     console.log("=== seed-avatar-system ===");
-    console.log(`Bucket:             ${BUCKET}`);
-    console.log(`ShopItems table:    ${SHOP_ITEMS_TABLE}`);
-    console.log(`AvatarBases table:  ${AVATAR_BASES_TABLE}`);
-    console.log(`ShopListings table: ${SHOP_LISTINGS_TABLE}`);
+    console.log(`Bucket:             ${ASSETS_BUCKET_NAME}`);
+    console.log(`ShopItems table:    ${SHOP_ITEMS_TABLE_NAME}`);
+    console.log(`AvatarBases table:  ${AVATAR_BASES_TABLE_NAME}`);
+    console.log(`ShopListings table: ${SHOP_LISTINGS_TABLE_NAME}`);
     console.log(`Region:             ${REGION}`);
 
     const shopItems: ShopItemManifest[] = JSON.parse(
