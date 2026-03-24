@@ -80,11 +80,19 @@
     "display_order": 10
   },
   {
-    "shop_listing_id": "listing_background_default",
-    "item_id": "background_default",
+    "shop_listing_id": "listing_background_beginner_forest",
+    "item_id": "background_beginner_forest",
     "available_from": "2024-01-01T00:00:00.000Z",
     "available_to": "2099-12-31T23:59:59.999Z",
     "is_active": true,
     "display_order": 11
+  },
+  {
+    "shop_listing_id": "listing_background_town",
+    "item_id": "background_town",
+    "available_from": "2024-01-01T00:00:00.000Z",
+    "available_to": "2099-12-31T23:59:59.999Z",
+    "is_active": true,
+    "display_order": 12
   }
 ]

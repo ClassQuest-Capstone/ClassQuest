@@ -5,11 +5,12 @@
     "role_type": "GUARDIAN",
     "is_default": true,
     "seed_local_file": "bases/guardian/male/brown/base_guardian_male_brown.png",
+    "bg_seed_local_file": "bases/guardian/male/brown/bg_base_guardian_male_brown.png",
     "default_helmet_item_id": "guardian_helmet_copper",
     "default_armour_item_id": "guardian_armour_copper",
     "default_shield_item_id": "guardian_shield_copper",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "guardian_male_dark",
@@ -17,11 +18,12 @@
     "role_type": "GUARDIAN",
     "is_default": false,
     "seed_local_file": "bases/guardian/male/dark/base_guardian_male_dark.png",
+    "bg_seed_local_file": "bases/guardian/male/dark/bg_base_guardian_male_dark.png",
     "default_helmet_item_id": "guardian_helmet_copper",
     "default_armour_item_id": "guardian_armour_copper",
     "default_shield_item_id": "guardian_shield_copper",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "guardian_male_white",
@@ -29,11 +31,12 @@
     "role_type": "GUARDIAN",
     "is_default": false,
     "seed_local_file": "bases/guardian/male/white/base_guardian_male_white.png",
+    "bg_seed_local_file": "bases/guardian/male/white/bg_base_guardian_male_white.png",
     "default_helmet_item_id": "guardian_helmet_copper",
     "default_armour_item_id": "guardian_armour_copper",
     "default_shield_item_id": "guardian_shield_copper",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "guardian_female_brown",
@@ -41,11 +44,12 @@
     "role_type": "GUARDIAN",
     "is_default": true,
     "seed_local_file": "bases/guardian/female/brown/base_guardian_female_brown.png",
+    "bg_seed_local_file": "bases/guardian/female/brown/bg_base_guardian_female_brown.png",
     "default_helmet_item_id": "guardian_helmet_copper",
     "default_armour_item_id": "guardian_armour_copper",
     "default_shield_item_id": "guardian_shield_copper",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "guardian_female_dark",
@@ -53,11 +57,12 @@
     "role_type": "GUARDIAN",
     "is_default": false,
     "seed_local_file": "bases/guardian/female/dark/base_guardian_female_dark.png",
+    "bg_seed_local_file": "bases/guardian/female/dark/bg_base_guardian_female_dark.png",
     "default_helmet_item_id": "guardian_helmet_copper",
     "default_armour_item_id": "guardian_armour_copper",
     "default_shield_item_id": "guardian_shield_copper",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "guardian_female_white",
@@ -65,11 +70,12 @@
     "role_type": "GUARDIAN",
     "is_default": false,
     "seed_local_file": "bases/guardian/female/white/base_guardian_female_white.png",
+    "bg_seed_local_file": "bases/guardian/female/white/bg_base_guardian_female_white.png",
     "default_helmet_item_id": "guardian_helmet_copper",
     "default_armour_item_id": "guardian_armour_copper",
     "default_shield_item_id": "guardian_shield_copper",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "healer_male_brown",
@@ -77,11 +83,12 @@
     "role_type": "HEALER",
     "is_default": true,
     "seed_local_file": "bases/healer/male/brown/base_healer_male_brown.png",
+    "bg_seed_local_file": "bases/healer/male/brown/bg_base_healer_male_brown.png",
     "default_helmet_item_id": "healer_helmet_holy",
     "default_armour_item_id": "healer_armour_holy",
     "default_shield_item_id": "healer_shield_holy",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "healer_male_dark",
@@ -89,11 +96,12 @@
     "role_type": "HEALER",
     "is_default": false,
     "seed_local_file": "bases/healer/male/dark/base_healer_male_dark.png",
+    "bg_seed_local_file": "bases/healer/male/dark/bg_base_healer_male_dark.png",
     "default_helmet_item_id": "healer_helmet_holy",
     "default_armour_item_id": "healer_armour_holy",
     "default_shield_item_id": "healer_shield_holy",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "healer_male_white",
@@ -101,47 +109,51 @@
     "role_type": "HEALER",
     "is_default": false,
     "seed_local_file": "bases/healer/male/white/base_healer_male_white.png",
+    "bg_seed_local_file": "bases/healer/male/white/bg_base_healer_male_white.png",
     "default_helmet_item_id": "healer_helmet_holy",
     "default_armour_item_id": "healer_armour_holy",
     "default_shield_item_id": "healer_shield_holy",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "healer_female_brown",
     "gender": "FEMALE",
     "role_type": "HEALER",
     "is_default": true,
-    "seed_local_file": "bases/healer/female/brown/base_healer_female_brown.png",
+    "seed_local_file": "bases/healer/female/brown/HealerDefault (4).png",
+    "bg_seed_local_file": "bases/healer/female/brown/bg_base_healer_female_brown.png",
     "default_helmet_item_id": "healer_helmet_holy",
     "default_armour_item_id": "healer_armour_holy",
     "default_shield_item_id": "healer_shield_holy",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "healer_female_dark",
     "gender": "FEMALE",
     "role_type": "HEALER",
     "is_default": false,
-    "seed_local_file": "bases/healer/female/dark/base_healer_female_dark.png",
+    "seed_local_file": "bases/healer/female/dark/HealerDefault (5).png",
+    "bg_seed_local_file": "bases/healer/female/dark/bg_base_healer_female_dark.png",
     "default_helmet_item_id": "healer_helmet_holy",
     "default_armour_item_id": "healer_armour_holy",
     "default_shield_item_id": "healer_shield_holy",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "healer_female_white",
     "gender": "FEMALE",
     "role_type": "HEALER",
     "is_default": false,
-    "seed_local_file": "bases/healer/female/white/base_healer_female_white.png",
+    "seed_local_file": "bases/healer/female/white/HealerDefault (3).png",
+    "bg_seed_local_file": "bases/healer/female/white/bg_base_healer_female_white.png",
     "default_helmet_item_id": "healer_helmet_holy",
     "default_armour_item_id": "healer_armour_holy",
     "default_shield_item_id": "healer_shield_holy",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "mage_male_brown",
@@ -153,7 +165,7 @@
     "default_armour_item_id": "mage_armour_crimson",
     "default_shield_item_id": "mage_weapon_crimson",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "mage_male_dark",
@@ -165,7 +177,7 @@
     "default_armour_item_id": "mage_armour_crimson",
     "default_shield_item_id": "mage_weapon_crimson",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "mage_male_white",
@@ -177,7 +189,7 @@
     "default_armour_item_id": "mage_armour_crimson",
     "default_shield_item_id": "mage_weapon_crimson",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "mage_female_brown",
@@ -189,7 +201,7 @@
     "default_armour_item_id": "mage_armour_crimson",
     "default_shield_item_id": "mage_weapon_crimson",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "mage_female_dark",
@@ -201,7 +213,7 @@
     "default_armour_item_id": "mage_armour_crimson",
     "default_shield_item_id": "mage_weapon_crimson",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   },
   {
     "avatar_base_id": "mage_female_white",
@@ -213,6 +225,6 @@
     "default_armour_item_id": "mage_armour_crimson",
     "default_shield_item_id": "mage_weapon_crimson",
     "default_pet_item_id": "pet_dog",
-    "default_background_item_id": "background_default"
+    "default_background_item_id": "background_beginner_forest"
   }
 ]

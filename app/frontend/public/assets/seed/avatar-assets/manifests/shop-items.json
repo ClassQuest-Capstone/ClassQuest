@@ -130,9 +130,9 @@
     "seed_local_file": "bases/pet/dog.png"
   },
   {
-    "item_id": "background_default",
-    "name": "Default Background",
-    "description": "The default background for all avatars.",
+    "item_id": "background_beginner_forest",
+    "name": "Beginner Forest",
+    "description": "A peaceful forest clearing for new adventurers.",
     "category": "BACKGROUND",
     "rarity": "COMMON",
     "gold_cost": 0,
@@ -140,6 +140,19 @@
     "is_cosmetic_only": true,
     "gender": "UNISEX",
     "is_active": true,
-    "seed_local_file": "bases/default/base_default_global.png"
+    "seed_local_file": "bases/background/beginner_forest.png"
+  },
+  {
+    "item_id": "background_town",
+    "name": "Town",
+    "description": "A lively town square backdrop.",
+    "category": "BACKGROUND",
+    "rarity": "COMMON",
+    "gold_cost": 0,
+    "required_level": 0,
+    "is_cosmetic_only": true,
+    "gender": "UNISEX",
+    "is_active": true,
+    "seed_local_file": "bases/background/town.png"
   }
 ]

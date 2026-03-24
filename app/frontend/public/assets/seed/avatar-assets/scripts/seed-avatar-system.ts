@@ -13,7 +13,11 @@
  *   SHOP_LISTINGS_TABLE_NAME
  *   ASSETS_BUCKET_NAME
  *   AWS_REGION          (default: ca-central-1)
- *   AWS_PROFILE         (optional — uses default credential chain if absent)
+ *
+ * S3 key structure:
+ *   seed/avatar-system/shop-items/{category}/{item_id}.png
+ *   seed/avatar-system/avatar-bases/base/{avatar_base_id}.png   ← used in-game
+ *   seed/avatar-system/avatar-bases/bg/{avatar_base_id}.png     ← used in welcome.tsx
  */
 
 import * as fs from "fs";
@@ -62,7 +66,10 @@ interface AvatarBaseManifest {
     gender: string;
     role_type: string;
     is_default: boolean;
+    /** Local path to the plain character image (no background) — uploaded to S3 for in-game use. */
     seed_local_file: string;
+    /** Local path to the character image WITH background — uploaded to S3 for welcome.tsx. Optional: omit if not yet available. */
+    bg_seed_local_file?: string;
     default_helmet_item_id?: string;
     default_armour_item_id?: string;
     default_shield_item_id?: string;
@@ -91,8 +98,14 @@ function shopItemS3Key(category: string, item_id: string): string {
     return `seed/avatar-system/shop-items/${category.toLowerCase()}/${item_id}.png`;
 }
 
+/** Plain character (no background) — used for in-game avatar rendering. */
 function avatarBaseS3Key(avatar_base_id: string): string {
-    return `seed/avatar-system/avatar-bases/${avatar_base_id}.png`;
+    return `seed/avatar-system/avatar-bases/base/${avatar_base_id}.png`;
+}
+
+/** Character with background baked in — used on the welcome/landing page. */
+function avatarBaseBgS3Key(avatar_base_id: string): string {
+    return `seed/avatar-system/avatar-bases/bg/${avatar_base_id}.png`;
 }
 
 // ── ShopItem DynamoDB key helpers ─────────────────────────────────────────────
@@ -164,7 +177,7 @@ async function uploadToS3(localFilePath: string, s3Key: string): Promise<void> {
             ContentType: "image/png",
         })
     );
-    console.log(`  Uploaded s3://${BUCKET}/${s3Key}`);
+    console.log(`    Uploaded s3://${BUCKET}/${s3Key}`);
 }
 
 // ── Step 1: Seed ShopItems ────────────────────────────────────────────────────
@@ -174,6 +187,7 @@ async function seedShopItems(items: ShopItemManifest[]): Promise<void> {
     const now = new Date().toISOString();
 
     for (const item of items) {
+        console.log(`  [${item.item_id}]`);
         const localFile = path.join(AVATAR_ASSETS_ROOT, item.seed_local_file);
         const s3Key = shopItemS3Key(item.category, item.item_id);
 
@@ -210,7 +224,7 @@ async function seedShopItems(items: ShopItemManifest[]): Promise<void> {
                 },
             })
         );
-        console.log(`  Wrote ShopItem: ${item.item_id}`);
+        console.log(`    DynamoDB write OK`);
     }
 }
 
@@ -221,10 +235,22 @@ async function seedAvatarBases(bases: AvatarBaseManifest[]): Promise<void> {
     const now = new Date().toISOString();
 
     for (const base of bases) {
-        const localFile = path.join(AVATAR_ASSETS_ROOT, base.seed_local_file);
-        const s3Key = avatarBaseS3Key(base.avatar_base_id);
+        console.log(`  [${base.avatar_base_id}]`);
 
-        await uploadToS3(localFile, s3Key);
+        // Upload plain base image (no background) — used in-game
+        const baseLocalFile = path.join(AVATAR_ASSETS_ROOT, base.seed_local_file);
+        const baseS3Key = avatarBaseS3Key(base.avatar_base_id);
+        await uploadToS3(baseLocalFile, baseS3Key);
+
+        // Upload bg image (with background) — used in welcome.tsx
+        let bgS3Key: string | undefined;
+        if (base.bg_seed_local_file) {
+            const bgLocalFile = path.join(AVATAR_ASSETS_ROOT, base.bg_seed_local_file);
+            bgS3Key = avatarBaseBgS3Key(base.avatar_base_id);
+            await uploadToS3(bgLocalFile, bgS3Key);
+        } else {
+            console.log(`    No bg_seed_local_file — skipping bg upload`);
+        }
 
         await dynamo.send(
             new PutCommand({
@@ -234,7 +260,10 @@ async function seedAvatarBases(bases: AvatarBaseManifest[]): Promise<void> {
                     gender: base.gender,
                     role_type: base.role_type,
                     is_default: base.is_default,
-                    base_image_key: base.avatar_base_id + ".png",
+                    // S3 key for the plain character (no background)
+                    base_image_key: baseS3Key,
+                    // S3 key for the character with background baked in (welcome.tsx)
+                    ...(bgS3Key && { bg_base_image_key: bgS3Key }),
                     ...(base.default_helmet_item_id && { default_helmet_item_id: base.default_helmet_item_id }),
                     ...(base.default_armour_item_id && { default_armour_item_id: base.default_armour_item_id }),
                     ...(base.default_shield_item_id && { default_shield_item_id: base.default_shield_item_id }),
@@ -245,7 +274,7 @@ async function seedAvatarBases(bases: AvatarBaseManifest[]): Promise<void> {
                 },
             })
         );
-        console.log(`  Wrote AvatarBase: ${base.avatar_base_id}`);
+        console.log(`    DynamoDB write OK`);
     }
 }
 
@@ -256,6 +285,7 @@ async function seedShopListings(listings: ShopListingManifest[]): Promise<void> 
     const now = new Date().toISOString();
 
     for (const listing of listings) {
+        console.log(`  [${listing.shop_listing_id}]`);
         const keys = buildShopListingKeys(
             listing.shop_listing_id,
             listing.item_id,
@@ -280,7 +310,7 @@ async function seedShopListings(listings: ShopListingManifest[]): Promise<void> 
                 },
             })
         );
-        console.log(`  Wrote ShopListing: ${listing.shop_listing_id}`);
+        console.log(`    DynamoDB write OK`);
     }
 }
 
@@ -288,11 +318,11 @@ async function seedShopListings(listings: ShopListingManifest[]): Promise<void> 
 
 async function main(): Promise<void> {
     console.log("=== seed-avatar-system ===");
-    console.log(`Bucket:          ${BUCKET}`);
-    console.log(`ShopItems table: ${SHOP_ITEMS_TABLE}`);
-    console.log(`AvatarBases table: ${AVATAR_BASES_TABLE}`);
+    console.log(`Bucket:             ${BUCKET}`);
+    console.log(`ShopItems table:    ${SHOP_ITEMS_TABLE}`);
+    console.log(`AvatarBases table:  ${AVATAR_BASES_TABLE}`);
     console.log(`ShopListings table: ${SHOP_LISTINGS_TABLE}`);
-    console.log(`Region:          ${REGION}`);
+    console.log(`Region:             ${REGION}`);
 
     const shopItems: ShopItemManifest[] = JSON.parse(
         fs.readFileSync(path.join(MANIFESTS_DIR, "shop-items.json"), "utf-8")
