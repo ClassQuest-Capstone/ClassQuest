@@ -225,5 +225,8 @@ export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) 
         });
     });
 
+    stack.addOutputs({
+        TeacherAssetsBucketName: assetsBucket.bucketName,
+    });
     return {};
 }
