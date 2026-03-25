@@ -13,7 +13,7 @@
  *             or cleaned up by a background job.
  */
 
-export type EntityType = "reward" | "quest-question" | "boss-question";
+export type EntityType = "reward" | "quest-question" | "boss-question" | "shop-item";
 
 export type CreateImageUploadUrlRequest = {
     /** Teacher performing the upload. TODO: replace with JWT claim once auth is wired. */

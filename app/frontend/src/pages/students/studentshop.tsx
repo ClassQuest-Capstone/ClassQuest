@@ -41,6 +41,18 @@ function getRarityTier(rarity: string) {
   return rarityMap[rarity] || rarityMap["COMMON"];
 }
 
+// Construct S3 URL from asset key or return as-is if already a full URL/public path
+function getImageUrl(spritePath: string): string {
+  // If it's already a full URL or a public asset path, use as-is
+  if (spritePath.startsWith('http') || spritePath.startsWith('/assets/')) {
+    return spritePath;
+  }
+  
+  // Otherwise, construct S3 URL from asset key
+  const s3BucketUrl = 'https://classquest-teacher-assets.s3.ca-central-1.amazonaws.com';
+  return `${s3BucketUrl}/${spritePath}`;
+}
+
 const StudentShop: React.FC = () => {
   const student = useMemo(() => getCurrentStudent(), []);
   const studentId = student?.id ?? null;
@@ -254,7 +266,7 @@ const StudentShop: React.FC = () => {
                 <button className="flex items-center text-sm rounded-full focus:outline-none">
                   <img
                     className="h-8 w-8 rounded-full"
-                    src="/assets/mage-head.png"
+                    src={getImageUrl("/assets/mage-head.png")}
                     alt="profile"
                   />
                   <span className="ml-2 text-sm font-medium">{student?.displayName ?? "Student"}</span>
@@ -339,7 +351,7 @@ const StudentShop: React.FC = () => {
                   >
                     <div className="bg-gradient-to-b from-black/40 to-black/60 h-40 flex items-center justify-center overflow-hidden mb-3 border-b border-gray-700/50">
                       <img
-                        src={item.sprite_path}
+                        src={getImageUrl(item.sprite_path)}
                         className="h-full w-full object-contain drop-shadow-lg"
                         alt={item.name}
                         onError={(e) => {

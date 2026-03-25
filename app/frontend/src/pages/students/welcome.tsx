@@ -1,6 +1,10 @@
 // src/pages/students/welcome.tsx
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { listAvatarBases } from "../../api/avatarBases/client";
+import { listActiveShopItems } from "../../api/shopItems/client";
+import type { AvatarBase } from "../../api/avatarBases/types";
+import type { ShopItem } from "../../api/shopItems/types";
 
 type CharacterClass = "Guardian" | "Mage" | "Healer";
 type Gender = "M" | "F";
@@ -77,6 +81,8 @@ export default function Welcome() {
   const [selected, setSelected] = useState<CharacterClass>("Guardian");
   const [gender, setGender] = useState<Gender>("M");
   const [skin, setSkin] = useState<Skin>("white");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const options: Option[] = useMemo(
     () => [
@@ -104,17 +110,130 @@ export default function Welcome() {
 
   const active = options.find((o) => o.id === selected)!;
 
-  const choose = () => {
-    localStorage.setItem("selectedClass", selected);
-    localStorage.setItem("selectedGender", gender);
-    localStorage.setItem("selectedSkin", skin);
-    // Mark character as chosen so CharacterPage won't redirect here again
+  const choose = async () => {
     try {
-      const raw = localStorage.getItem("cq_currentUser");
-      const studentId = raw ? JSON.parse(raw)?.id : null;
-      if (studentId) localStorage.setItem(`cq_characterChosen_${studentId}`, "1");
-    } catch {}
-    navigate("/character");
+      setLoading(true);
+      setError(null);
+
+      // Map UI selections to backend values
+      const roleTypeMap: Record<CharacterClass, "GUARDIAN" | "MAGE" | "HEALER"> = {
+        Guardian: "GUARDIAN",
+        Mage: "MAGE",
+        Healer: "HEALER",
+      };
+      const roleType = roleTypeMap[selected];
+      const backendGender: "MALE" | "FEMALE" = gender === "M" ? "MALE" : "FEMALE";
+
+      // Fetch all avatar bases and find the matching one
+      const basesResponse = await listAvatarBases({
+        gender: backendGender,
+      });
+
+      console.log("Fetched avatar bases:", basesResponse);
+      console.log(`Looking for: roleType=${roleType}, gender=${backendGender}`);
+
+      const matchingBase = basesResponse.items.find(
+        (base: AvatarBase) => {
+          console.log(`Checking base: ${base.avatar_base_id}, role=${base.role_type}, gender=${base.gender}`);
+          return base.role_type === roleType && base.gender === backendGender;
+        }
+      );
+
+      console.log("Matching base:", matchingBase);
+
+      if (!matchingBase) {
+        setError(
+          `Character not found. Looking for ${roleType} ${backendGender}. Please try again or contact support.`
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Fetch all active shop items for user's gender
+      let allShopItems: ShopItem[] = [];
+      let cursor: string | undefined | null = undefined;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await listActiveShopItems({
+          limit: 100,
+          ...(cursor && { cursor }),
+        });
+        allShopItems.push(...response.items);
+        cursor = response.cursor;
+        hasMore = !!cursor;
+      }
+
+      // Filter items for this character: UNISEX or matching gender
+      const characterItems = allShopItems.filter(
+        (item: ShopItem) =>
+          item.gender === "UNISEX" || item.gender === backendGender
+      );
+
+      // Get default items for this avatar base
+      const defaultItemIds: string[] = [];
+      if (matchingBase.default_helmet_item_id)
+        defaultItemIds.push(matchingBase.default_helmet_item_id);
+      if (matchingBase.default_armour_item_id)
+        defaultItemIds.push(matchingBase.default_armour_item_id);
+      if (matchingBase.default_shield_item_id)
+        defaultItemIds.push(matchingBase.default_shield_item_id);
+      if (matchingBase.default_pet_item_id)
+        defaultItemIds.push(matchingBase.default_pet_item_id);
+      if (matchingBase.default_background_item_id)
+        defaultItemIds.push(matchingBase.default_background_item_id);
+
+      const defaultItems = characterItems.filter((item: ShopItem) =>
+        defaultItemIds.includes(item.item_id)
+      );
+
+      // Store character selection with backend data
+      localStorage.setItem("selectedClass", selected);
+      localStorage.setItem("selectedGender", gender);
+      localStorage.setItem("selectedSkin", skin);
+
+      const characterData = {
+        class: selected,
+        gender: gender,
+        skin: skin,
+        roleType: roleType,
+        backendGender: backendGender,
+        avatarBaseId: matchingBase.avatar_base_id,
+        defaultItemIds: defaultItemIds,
+        characterSpecificItems: characterItems.map((item: ShopItem) => ({
+          item_id: item.item_id,
+          name: item.name,
+          category: item.category,
+          rarity: item.rarity,
+          gender: item.gender,
+        })),
+      };
+
+      localStorage.setItem("cq_characterData", JSON.stringify(characterData));
+
+      // Mark character as chosen
+      try {
+        const raw = localStorage.getItem("cq_currentUser");
+        const studentId = raw ? JSON.parse(raw)?.id : null;
+        if (studentId) {
+          localStorage.setItem(`cq_characterChosen_${studentId}`, "1");
+          localStorage.setItem(
+            `cq_characterData_${studentId}`,
+            JSON.stringify(characterData)
+          );
+        }
+      } catch {}
+
+      navigate("/character");
+    } catch (err) {
+      console.error("Error selecting character:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load character data. Please try again."
+      );
+      setLoading(false);
+    }
   };
 
   return (
@@ -278,11 +397,23 @@ export default function Welcome() {
 
         {/* Begin */}
         <div className="mt-10 rounded-3xl border border-white/10 bg-black/25 backdrop-blur-md p-6 md:p-8 shadow-2xl">
+          <div className="mb-4">
+            {error && (
+              <div className="text-red-400 text-sm mb-4 p-3 bg-red-900/20 rounded-lg border border-red-500/30">
+                {error}
+              </div>
+            )}
+          </div>
           <button
             onClick={choose}
-            className="bg-yellow-500 hover:bg-yellow-600 text-black font-extrabold px-7 py-3 rounded-xl transition w-full sm:w-auto"
+            disabled={loading}
+            className={`${
+              loading
+                ? "bg-gray-500 cursor-not-allowed"
+                : "bg-yellow-500 hover:bg-yellow-600"
+            } text-black font-extrabold px-7 py-3 rounded-xl transition w-full sm:w-auto`}
           >
-            Begin Adventure
+            {loading ? "Loading..." : "Begin Adventure"}
           </button>
         </div>
       </div>
