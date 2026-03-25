@@ -219,7 +219,6 @@ To participate in a boss battle follow these steps:
 7. Here you can view your reward and your ranking for the class
 8. Click the **Back to Guilds** button to return to guilds section
 
-
 ### Student: Leaderboard and Shop
 
 To view the Leaderboard and Shop, follow these steps:
@@ -236,9 +235,19 @@ To view the Leaderboard and Shop, follow these steps:
 
 ### ClassQuest Tutorial
 
-The ClassQuest tutorial provides a step-by-step guide to help you get started with the platform. It covers the basics of creating and managing classes, quests, boss battles, and rewards.
+The ClassQuest tutorial provides a step-by-step guide to help you get started with the platform. It covers the basics of where important features are located.
+
+<img src="Images/tutorial-teacher-1.png" width="500" height="250" /><img src="Images/tutorial-teacher-2.png" width="500" height="250" />
+<img src="Images/student-tutorial1.png" width="500" height="250" /><img src="Images/student-tutorial2.png" width="500" height="250" /><img src="Images/student-tutorial3.png" width="500" height="250" /><img src="Images/studnet-tutorial4.png" width="500" height="250" />
 
 1. **Teacher tutorial**
-    1.1. Create a ClassQuest account as a teacher
-    1.2. Create a class
-    1.3. Manage students
+   - 1.1. Active tabs 
+   - 1.2. side tabs
+
+2. **Student tutorial**
+   - 2.1. Navigation tabs
+   - 2.2. Character Apperance
+   - 2.3 Hearts
+   - 2.4 Quest & rewards
+
+For an indepth documentation, please refer to the [ClassQuest tutorial](https://github.com/ClassQuest-Capstone/ClassQuest/blob/main/Project%20Management%20Documents/Tutorials%20and%20User%20guide/TutorialDoc.md)

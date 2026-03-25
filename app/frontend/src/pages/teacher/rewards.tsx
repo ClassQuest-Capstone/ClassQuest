@@ -8,6 +8,7 @@ import type { ShopItem, CreateShopItemInput, UpdateShopItemInput } from "../../a
 import { createShopListing, listShopListingsByItem, activateShopListing, deactivateShopListing } from "../../api/shopListings/client.js";
 import type { CreateShopListingInput } from "../../api/shopListings/types.js";
 import { createImageUploadUrl, uploadToS3 } from "../../api/imageUpload/client.js";
+import { getAssetUrl } from "../../api/imageUpload/assetUrl.js";
 
 type TeacherUser = {
   id: string;
@@ -349,7 +350,7 @@ const rewards = () => {
     
 
     return (
-        <div className="font-poppins bg-[url(/assets/background-teacher-dash.png)] bg-cover bg-center bg-no-repeat min-h-screen">
+        <div className="font-poppins bg-[url(/assets/background-teacher-dash.png)] bg-cover bg-center bg-no-repeat h-screen overflow-y-auto">
               <nav className="bg-blue-700 text-white shadow-lg">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                   <div className="flex justify-between h-16">
@@ -479,7 +480,7 @@ const rewards = () => {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <img
-                                            src={item.sprite_path}
+                                            src={getAssetUrl(item.sprite_path) ?? "/assets/items/default.png"}
                                             alt={item.name}
                                             className="h-10 w-10 object-cover rounded"
                                             onError={(e) => {
