@@ -790,7 +790,7 @@ const rewards = () => {
                     )}
                     <p className="text-xs text-red-500 mt-2">
                       <i data-feather="alert-circle" className="w-4 h-4 inline mr-1"></i>
-                      Maximum file size: 900KB
+                      Maximum file size: 5MB
                     </p>
                   </div>
 
@@ -989,7 +989,7 @@ const rewards = () => {
                     )}
                     <p className="text-xs text-red-500 mt-2">
                       <i data-feather="alert-circle" className="w-4 h-4 inline mr-1"></i>
-                      Maximum file size: 900KB
+                      Maximum file size: 5MB
                     </p>
                   </div>
 

@@ -212,6 +212,8 @@ TODO: edit & modal for class
 
 TODO: connect rewards to s3 and logic for rewards
 
+TODO: Usability Testing
+
 
 HARDCODED EACH ITEM TO BE IN SHOP FOR 2 WEEKS ???
 
