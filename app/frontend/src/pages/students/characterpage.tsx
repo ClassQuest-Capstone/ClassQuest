@@ -28,7 +28,7 @@ import { listStudentRewardClaimsByStudent } from "../../api/studentRewardClaims/
 import type { StudentRewardClaim } from "../../api/studentRewardClaims/types.js";
 import { getAssetUrl } from "../../api/imageUpload/assetUrl.js";
 
-type EquipmentSlot = "helmet" | "armour" | "shield" | "pet" | "background";
+type EquipmentSlot = "helmet" | "armour" | "weapon" | "pet" | "background";
 
 interface EquipmentItem {
   id: string;
@@ -45,7 +45,7 @@ interface ClaimedReward extends EquipmentItem {
 const SLOT_LABELS: Record<EquipmentSlot, string> = {
   helmet: "Helmet",
   armour: "Armour",
-  shield: "HandHelds",
+  weapon: "Weapon",
   pet: "Pet",
   background: "Background",
 };
@@ -53,17 +53,18 @@ const SLOT_LABELS: Record<EquipmentSlot, string> = {
 const EQUIPMENT_SLOTS: EquipmentSlot[] = [
   "helmet",
   "armour",
-  "shield",
+  "weapon",
   "pet",
   "background",
 ];
 
-// Render order for the character preview (back → front)
+// Render order for items drawn ON TOP of the base character (front layers only)
+// Background is rendered separately BEFORE the base sprite.
+// Order (back → front): helmet → weapon → armour → pet
 const PREVIEW_ORDER: EquipmentSlot[] = [
-  "background",
   "helmet",
+  "weapon",
   "armour",
-  "shield",
   "pet",
 ];
 
@@ -92,18 +93,6 @@ const INITIAL_INVENTORY: EquipmentItem[] = [
     name: "Armour 2",
     slot: "armour",
     icon: "/assets/warrior/armours/armour2.png",
-  },
-  {
-    id: "shield1",
-    name: "Shield 1",
-    slot: "shield",
-    icon: "/assets/warrior/shields/shield1.png",
-  },
-  {
-    id: "shield2",
-    name: "Shield 2",
-    slot: "shield",
-    icon: "/assets/warrior/shields/shield2.png",
   },
   {
     id: "background1",
@@ -229,12 +218,13 @@ const CharacterPage: React.FC = () => {
 
   const [claimedRewards, setClaimedRewards] = useState<ClaimedReward[]>([]);
   const [loadingClaimedRewards, setLoadingClaimedRewards] = useState(false);
+  const [claimErrorByLevel, setClaimErrorByLevel] = useState<Record<number, string>>({});
   const [equipped, setEquipped] = useState<
     Partial<Record<EquipmentSlot, EquipmentItem | null>>
   >({
     helmet: null,
     armour: null,
-    shield: null,
+    weapon: null,
     pet: null,
     background: null,
   });
@@ -339,7 +329,7 @@ const CharacterPage: React.FC = () => {
             
             if (type.includes("helmet")) slot = "helmet";
             else if (type.includes("armor") || type.includes("armour")) slot = "armour";
-            else if (type.includes("shield")) slot = "shield";
+            else if (type.includes("weapon") || type.includes("shield") || type.includes("staff")) slot = "weapon";
             else if (type.includes("pet")) slot = "pet";
             else if (type.includes("background")) slot = "background";
 
@@ -630,6 +620,7 @@ const CharacterPage: React.FC = () => {
 
   // Wrapper around claimReward to refresh claimed rewards after successful claim
   const handleClaimReward = async (rewardLevel: number) => {
+    setClaimErrorByLevel(prev => { const n = {...prev}; delete n[rewardLevel]; return n; });
     try {
       await claimReward(rewardLevel);
       // Refresh claimed rewards after successful claim
@@ -655,7 +646,7 @@ const CharacterPage: React.FC = () => {
 
               if (type.includes("helmet")) slot = "helmet";
               else if (type.includes("armor") || type.includes("armour")) slot = "armour";
-              else if (type.includes("shield")) slot = "shield";
+              else if (type.includes("weapon") || type.includes("shield") || type.includes("staff")) slot = "weapon";
               else if (type.includes("pet")) slot = "pet";
               else if (type.includes("background")) slot = "background";
 
@@ -676,7 +667,8 @@ const CharacterPage: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to claim reward:", error);
-      throw error;
+      const msg = error instanceof Error ? error.message : "Claim failed. Try again.";
+      setClaimErrorByLevel(prev => ({ ...prev, [rewardLevel]: msg }));
     }
   };
 
@@ -881,7 +873,6 @@ const CharacterPage: React.FC = () => {
     return () => document.removeEventListener("click", handleClickOutside);
   }, [isUserMenuOpen]);
 
-  // drag handlers
   const handleDragStart = (
     e: React.DragEvent<HTMLDivElement>,
     item: EquipmentItem
@@ -1132,7 +1123,7 @@ const CharacterPage: React.FC = () => {
                               <img
                                 src={item.icon}
                                 alt={item.name}
-                                className="w-full h-full object-contain pointer-events-none"
+                                className="w-full h-full object-contain"
                               />
                             ) : (
                               <div className="text-gray-500 flex flex-col items-center justify-center text-xs">
@@ -1175,7 +1166,15 @@ const CharacterPage: React.FC = () => {
                       <div className="absolute inset-0 bg-gradient-to-br from-blue-900/30 via-purple-900/30 to-pink-900/30 rounded-xl animate-pulse" />
                       <div className="relative h-full flex items-center justify-center">
                         <div className="relative w-full h-full max-w-[360px] max-h-[480px] pixel-art">
-                          {/* Base character sprite */}
+                          {/* Layer 1: Background */}
+                          {equipped["background"] && (
+                            <img
+                              src={equipped["background"].icon}
+                              alt="Background"
+                              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                            />
+                          )}
+                          {/* Layer 2: Base character sprite */}
                           <img
                             src={(() => {
                               if (!characterData) return "/assets/seed/avatar-assets/bases/default/base_default_global.png";
@@ -1193,6 +1192,7 @@ const CharacterPage: React.FC = () => {
                               (e.target as HTMLImageElement).src = "/assets/seed/avatar-assets/bases/default/base_default_global.png";
                             }}
                           />
+                          {/* Layers 3-6: helmet → weapon → armour → pet */}
                           {PREVIEW_ORDER.map((slot) => {
                             const item = equipped[slot] ?? null;
                             if (!item) return null;
@@ -1293,7 +1293,9 @@ const CharacterPage: React.FC = () => {
                           <p className="text-gray-400 text-sm">Claim rewards to populate equipment</p>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-3 gap-2">
+                        <div
+                          className="grid grid-cols-3 gap-2"
+                        >
                           {claimedRewards.map((item) => (
                             <div
                               key={item.id}
@@ -1757,28 +1759,19 @@ const CharacterPage: React.FC = () => {
                 {tab === "rewards" && (() => {
                   const CLASS_REWARDS: Record<string, Record<number, { title: string; description: string }>> = {
                     GUARDIAN: {
-                      5:  { title: "Copper Guardian Armour", description: "Reliable copper armour forged for guardians." },
-                      10: { title: "Copper Guardian Helmet", description: "A sturdy copper helmet worn by guardians." },
-                      15: { title: "Town Background",        description: "A lively town square backdrop." },
-                      20: { title: "Copper Guardian Helmet", description: "A sturdy copper helmet worn by guardians." },
-                      25: { title: "Copper Guardian Armour", description: "Reliable copper armour forged for guardians." },
-                      30: { title: "Dog",                    description: "A loyal dog companion." },
+                      10: { title: "Copper Guardian Armour",  description: "Reliable copper armour forged for guardians." },
+                      15: { title: "Copper Guardian Helmet",  description: "A sturdy copper helmet worn by guardians." },
+                      20: { title: "Copper Guardian Shield",  description: "A defensive copper shield for guardians." },
                     },
                     MAGE: {
-                      5:  { title: "Crimson Mage Armour",   description: "Arcane crimson robes that protect the wearer." },
-                      10: { title: "Crimson Mage Helmet",   description: "A striking crimson helmet worn by mages." },
-                      15: { title: "Town Background",        description: "A lively town square backdrop." },
-                      20: { title: "Crimson Mage Helmet",   description: "A striking crimson helmet worn by mages." },
-                      25: { title: "Crimson Mage Armour",   description: "Arcane crimson robes that protect the wearer." },
-                      30: { title: "Dog",                    description: "A loyal dog companion." },
+                      10: { title: "Crimson Mage Armour",     description: "Arcane crimson robes that protect the wearer." },
+                      15: { title: "Crimson Mage Helmet",     description: "A striking crimson helmet worn by mages." },
+                      20: { title: "Crimson Mage Staff",      description: "A magical crimson staff wielded by mages." },
                     },
                     HEALER: {
-                      5:  { title: "Holy Healer Armour",    description: "Light armour imbued with holy protection." },
-                      10: { title: "Holy Healer Helmet",    description: "A blessed helmet that channels healing energy." },
-                      15: { title: "Town Background",        description: "A lively town square backdrop." },
-                      20: { title: "Holy Healer Helmet",    description: "A blessed helmet that channels healing energy." },
-                      25: { title: "Holy Healer Armour",    description: "Light armour imbued with holy protection." },
-                      30: { title: "Dog",                    description: "A loyal dog companion." },
+                      10: { title: "Holy Healer Armour",      description: "Light armour imbued with holy protection." },
+                      15: { title: "Holy Healer Helmet",      description: "A blessed helmet that channels healing energy." },
+                      20: { title: "Holy Healer Staff",       description: "A radiant staff wielded by healers." },
                     },
                   };
                   const displayRewards = rewards.map((r: any) => {
@@ -1905,9 +1898,7 @@ const CharacterPage: React.FC = () => {
                               disabled={!r.unlocked || r.claimed}
                               onClick={() => {
                                 if (r.unlocked && !r.claimed) {
-                                  handleClaimReward(r.level).catch((err: any) =>
-                                    console.error("Claim failed:", err)
-                                  );
+                                  handleClaimReward(r.level);
                                 }
                               }}
                             >
@@ -1918,6 +1909,11 @@ const CharacterPage: React.FC = () => {
                                 : "Reach Level"}
                             </button>
                           </div>
+                          {claimErrorByLevel[r.level] && (
+                            <p className="mt-2 text-xs text-red-400">
+                              {claimErrorByLevel[r.level]}
+                            </p>
+                          )}
                         </div>
                       ))}
                     </div>

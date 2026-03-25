@@ -66,8 +66,8 @@
   },
   {
     "item_id": "healer_shield_holy",
-    "name": "Holy Healer Shield",
-    "description": "A radiant shield carried by healers.",
+    "name": "Holy Healer Staff",
+    "description": "A radiant staff wielded by healers.",
     "category": "SHIELD",
     "rarity": "COMMON",
     "gold_cost": 0,
@@ -105,8 +105,8 @@
   },
   {
     "item_id": "mage_weapon_crimson",
-    "name": "Crimson Mage Weapon",
-    "description": "A magical crimson weapon wielded by mages.",
+    "name": "Crimson Mage Staff",
+    "description": "A magical crimson staff wielded by mages.",
     "category": "WEAPON",
     "rarity": "COMMON",
     "gold_cost": 0,

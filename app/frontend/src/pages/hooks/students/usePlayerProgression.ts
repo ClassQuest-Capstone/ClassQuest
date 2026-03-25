@@ -40,43 +40,43 @@ const MAX_LEVEL = 30;
 export const REWARD_MILESTONES: Reward[] = [
   {
     level: 5,
-    title: "Rare helmet",
-    description: "Unlock a rare helmet for your avatar",
+    title: "Beginner Forest",
+    description: "Unlock the Beginner Forest background.",
     unlocked: false,
     claimed: false,
   },
   {
     level: 10,
-    title: "Rare armor set",
-    description: "Unlock a rare armor set for your avatar",
+    title: "Starter Armour",
+    description: "Unlock a starter armour set for your class.",
     unlocked: false,
     claimed: false,
   },
   {
     level: 15,
-    title: "Epic background",
-    description: "Unlock an epic background for your avatar",
+    title: "Starter Helmet",
+    description: "Unlock a starter helmet for your class.",
     unlocked: false,
     claimed: false,
   },
   {
     level: 20,
-    title: "Legendary helmet",
-    description: "Unlock a legendary helmet for your avatar",
+    title: "Starter Weapon",
+    description: "Unlock a starter weapon for your class.",
     unlocked: false,
     claimed: false,
   },
   {
     level: 25,
-    title: "Legendary armor set",
-    description: "Unlock a legendary armor set for your avatar",
+    title: "Dog Companion",
+    description: "Unlock a loyal dog companion.",
     unlocked: false,
     claimed: false,
   },
   {
     level: 30,
-    title: "Mythic Pet",
-    description: "Unlock a mythic companion",
+    title: "Town Background",
+    description: "Unlock the Town background.",
     unlocked: false,
     claimed: false,
   },
@@ -239,13 +239,35 @@ export const usePlayerProgression = (
           if (charData) studentRoleType = JSON.parse(charData)?.roleType?.toLowerCase() ?? null;
         } catch {}
 
-        // Find reward matching level + class (fall back to level-only if no class set)
-        const backendReward =
-          rewardsResponse.rewards?.find(
-            (r) => r.unlock_level === rewardLevel &&
-              (!studentRoleType || r.title.toLowerCase().includes(studentRoleType))
-          ) ??
-          rewardsResponse.rewards?.find((r) => r.unlock_level === rewardLevel);
+        // Expected reward type for each milestone level — drives the search
+        const LEVEL_EXPECTED_TYPE: Record<number, string> = {
+          5:  "BACKGROUND",
+          10: "ARMOR_SET",
+          15: "HELMET",
+          20: "WEAPON",
+          25: "PET",
+          30: "BACKGROUND",
+        };
+        const CLASS_SPECIFIC_TYPES = ["ARMOR_SET", "HELMET", "WEAPON"];
+
+        const backendReward = (() => {
+          const expectedType = LEVEL_EXPECTED_TYPE[rewardLevel]?.toUpperCase();
+          const all = rewardsResponse.rewards ?? [];
+
+          // Filter to records matching this level AND the expected type
+          const candidates = expectedType
+            ? all.filter(r => r.unlock_level === rewardLevel && (r.type ?? "").toUpperCase() === expectedType)
+            : all.filter(r => r.unlock_level === rewardLevel);
+
+          // For class-specific types, pick the one matching the student's class
+          if (expectedType && CLASS_SPECIFIC_TYPES.includes(expectedType) && studentRoleType) {
+            const classMatch = candidates.find(r => r.title.toLowerCase().includes(studentRoleType!));
+            if (classMatch) return classMatch;
+          }
+
+          // Shared reward (BACKGROUND, PET) or fallback: first candidate
+          return candidates[0] ?? null;
+        })();
         
         console.log("[claimReward] Found backend reward:", backendReward);
         

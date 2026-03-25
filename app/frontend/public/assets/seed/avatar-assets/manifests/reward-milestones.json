@@ -1,119 +1,20 @@
 [
   {
-    "reward_id": "seed_reward_guardian_armour_copper",
-    "title": "Copper Guardian Armour",
-    "description": "Reliable copper armour forged for guardians.",
+    "reward_id": "seed_reward_v2_background_forest",
+    "title": "Beginner Forest",
+    "description": "A peaceful forest clearing for new adventurers.",
     "unlock_level": 5,
-    "type": "ARMOR_SET",
-    "reward_target_type": "ITEM",
-    "reward_target_id": "guardian_armour_copper",
-    "image_asset_key": "seed/avatar-system/shop-items/armour/guardian_armour_copper.png",
-    "is_active": true
-  },
-  {
-    "reward_id": "seed_reward_healer_armour_holy",
-    "title": "Holy Healer Armour",
-    "description": "Light armour imbued with holy protection.",
-    "unlock_level": 5,
-    "type": "ARMOR_SET",
-    "reward_target_type": "ITEM",
-    "reward_target_id": "healer_armour_holy",
-    "image_asset_key": "seed/avatar-system/shop-items/armour/healer_armour_holy.png",
-    "is_active": true
-  },
-  {
-    "reward_id": "seed_reward_mage_armour_crimson",
-    "title": "Crimson Mage Armour",
-    "description": "Arcane crimson robes that protect the wearer.",
-    "unlock_level": 5,
-    "type": "ARMOR_SET",
-    "reward_target_type": "ITEM",
-    "reward_target_id": "mage_armour_crimson",
-    "image_asset_key": "seed/avatar-system/shop-items/armour/mage_armour_crimson.png",
-    "is_active": true
-  },
-  {
-    "reward_id": "seed_reward_guardian_helmet_copper",
-    "title": "Copper Guardian Helmet",
-    "description": "A sturdy copper helmet worn by guardians.",
-    "unlock_level": 10,
-    "type": "HELMET",
-    "reward_target_type": "ITEM",
-    "reward_target_id": "guardian_helmet_copper",
-    "image_asset_key": "seed/avatar-system/shop-items/helmet/guardian_helmet_copper.png",
-    "is_active": true
-  },
-  {
-    "reward_id": "seed_reward_healer_helmet_holy",
-    "title": "Holy Healer Helmet",
-    "description": "A blessed helmet that channels healing energy.",
-    "unlock_level": 10,
-    "type": "HELMET",
-    "reward_target_type": "ITEM",
-    "reward_target_id": "healer_helmet_holy",
-    "image_asset_key": "seed/avatar-system/shop-items/helmet/healer_helmet_holy.png",
-    "is_active": true
-  },
-  {
-    "reward_id": "seed_reward_mage_helmet_crimson",
-    "title": "Crimson Mage Helmet",
-    "description": "A striking crimson helmet worn by mages.",
-    "unlock_level": 10,
-    "type": "HELMET",
-    "reward_target_type": "ITEM",
-    "reward_target_id": "mage_helmet_crimson",
-    "image_asset_key": "seed/avatar-system/shop-items/helmet/mage_helmet_crimson.png",
-    "is_active": true
-  },
-  {
-    "reward_id": "seed_reward_background_town",
-    "title": "Town Background",
-    "description": "A lively town square backdrop.",
-    "unlock_level": 15,
     "type": "BACKGROUND",
     "reward_target_type": "BACKGROUND",
-    "reward_target_id": "background_town",
-    "image_asset_key": "seed/avatar-system/shop-items/background/background_town.png",
+    "reward_target_id": "background_beginner_forest",
+    "image_asset_key": "seed/avatar-system/shop-items/background/background_beginner_forest.png",
     "is_active": true
   },
   {
-    "reward_id": "seed_reward_guardian_helmet_copper_l20",
-    "title": "Copper Guardian Helmet",
-    "description": "A sturdy copper helmet worn by guardians.",
-    "unlock_level": 20,
-    "type": "HELMET",
-    "reward_target_type": "ITEM",
-    "reward_target_id": "guardian_helmet_copper",
-    "image_asset_key": "seed/avatar-system/shop-items/helmet/guardian_helmet_copper.png",
-    "is_active": true
-  },
-  {
-    "reward_id": "seed_reward_healer_helmet_holy_l20",
-    "title": "Holy Healer Helmet",
-    "description": "A blessed helmet that channels healing energy.",
-    "unlock_level": 20,
-    "type": "HELMET",
-    "reward_target_type": "ITEM",
-    "reward_target_id": "healer_helmet_holy",
-    "image_asset_key": "seed/avatar-system/shop-items/helmet/healer_helmet_holy.png",
-    "is_active": true
-  },
-  {
-    "reward_id": "seed_reward_mage_helmet_crimson_l20",
-    "title": "Crimson Mage Helmet",
-    "description": "A striking crimson helmet worn by mages.",
-    "unlock_level": 20,
-    "type": "HELMET",
-    "reward_target_type": "ITEM",
-    "reward_target_id": "mage_helmet_crimson",
-    "image_asset_key": "seed/avatar-system/shop-items/helmet/mage_helmet_crimson.png",
-    "is_active": true
-  },
-  {
-    "reward_id": "seed_reward_guardian_armour_copper_l25",
+    "reward_id": "seed_reward_v2_guardian_armour",
     "title": "Copper Guardian Armour",
     "description": "Reliable copper armour forged for guardians.",
-    "unlock_level": 25,
+    "unlock_level": 10,
     "type": "ARMOR_SET",
     "reward_target_type": "ITEM",
     "reward_target_id": "guardian_armour_copper",
@@ -121,10 +22,10 @@
     "is_active": true
   },
   {
-    "reward_id": "seed_reward_healer_armour_holy_l25",
+    "reward_id": "seed_reward_v2_healer_armour",
     "title": "Holy Healer Armour",
     "description": "Light armour imbued with holy protection.",
-    "unlock_level": 25,
+    "unlock_level": 10,
     "type": "ARMOR_SET",
     "reward_target_type": "ITEM",
     "reward_target_id": "healer_armour_holy",
@@ -132,10 +33,10 @@
     "is_active": true
   },
   {
-    "reward_id": "seed_reward_mage_armour_crimson_l25",
+    "reward_id": "seed_reward_v2_mage_armour",
     "title": "Crimson Mage Armour",
     "description": "Arcane crimson robes that protect the wearer.",
-    "unlock_level": 25,
+    "unlock_level": 10,
     "type": "ARMOR_SET",
     "reward_target_type": "ITEM",
     "reward_target_id": "mage_armour_crimson",
@@ -143,14 +44,91 @@
     "is_active": true
   },
   {
-    "reward_id": "seed_reward_pet_dog",
+    "reward_id": "seed_reward_v2_guardian_helmet",
+    "title": "Copper Guardian Helmet",
+    "description": "A sturdy copper helmet worn by guardians.",
+    "unlock_level": 15,
+    "type": "HELMET",
+    "reward_target_type": "ITEM",
+    "reward_target_id": "guardian_helmet_copper",
+    "image_asset_key": "seed/avatar-system/shop-items/helmet/guardian_helmet_copper.png",
+    "is_active": true
+  },
+  {
+    "reward_id": "seed_reward_v2_healer_helmet",
+    "title": "Holy Healer Helmet",
+    "description": "A blessed helmet that channels healing energy.",
+    "unlock_level": 15,
+    "type": "HELMET",
+    "reward_target_type": "ITEM",
+    "reward_target_id": "healer_helmet_holy",
+    "image_asset_key": "seed/avatar-system/shop-items/helmet/healer_helmet_holy.png",
+    "is_active": true
+  },
+  {
+    "reward_id": "seed_reward_v2_mage_helmet",
+    "title": "Crimson Mage Helmet",
+    "description": "A striking crimson helmet worn by mages.",
+    "unlock_level": 15,
+    "type": "HELMET",
+    "reward_target_type": "ITEM",
+    "reward_target_id": "mage_helmet_crimson",
+    "image_asset_key": "seed/avatar-system/shop-items/helmet/mage_helmet_crimson.png",
+    "is_active": true
+  },
+  {
+    "reward_id": "seed_reward_v2_guardian_weapon",
+    "title": "Copper Guardian Shield",
+    "description": "A defensive copper shield for guardians.",
+    "unlock_level": 20,
+    "type": "WEAPON",
+    "reward_target_type": "ITEM",
+    "reward_target_id": "guardian_shield_copper",
+    "image_asset_key": "seed/avatar-system/shop-items/shield/guardian_shield_copper.png",
+    "is_active": true
+  },
+  {
+    "reward_id": "seed_reward_v2_healer_weapon",
+    "title": "Holy Healer Staff",
+    "description": "A radiant staff wielded by healers.",
+    "unlock_level": 20,
+    "type": "WEAPON",
+    "reward_target_type": "ITEM",
+    "reward_target_id": "healer_shield_holy",
+    "image_asset_key": "seed/avatar-system/shop-items/shield/healer_shield_holy.png",
+    "is_active": true
+  },
+  {
+    "reward_id": "seed_reward_v2_mage_weapon",
+    "title": "Crimson Mage Staff",
+    "description": "A magical crimson staff wielded by mages.",
+    "unlock_level": 20,
+    "type": "WEAPON",
+    "reward_target_type": "ITEM",
+    "reward_target_id": "mage_weapon_crimson",
+    "image_asset_key": "seed/avatar-system/shop-items/weapon/mage_weapon_crimson.png",
+    "is_active": true
+  },
+  {
+    "reward_id": "seed_reward_v2_pet_dog",
     "title": "Dog",
     "description": "A loyal dog companion.",
-    "unlock_level": 30,
+    "unlock_level": 25,
     "type": "PET",
     "reward_target_type": "PET",
     "reward_target_id": "pet_dog",
     "image_asset_key": "seed/avatar-system/shop-items/pet/pet_dog.png",
+    "is_active": true
+  },
+  {
+    "reward_id": "seed_reward_v2_background_town",
+    "title": "Town Background",
+    "description": "A lively town square backdrop.",
+    "unlock_level": 30,
+    "type": "BACKGROUND",
+    "reward_target_type": "BACKGROUND",
+    "reward_target_id": "background_town",
+    "image_asset_key": "seed/avatar-system/shop-items/background/background_town.png",
     "is_active": true
   }
 ]
