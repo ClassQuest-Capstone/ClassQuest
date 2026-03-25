@@ -6,6 +6,7 @@ import { listClassShopListings, listActiveShopListings } from "../../api/shopLis
 import { listShopItems } from "../../api/shopItems/client.js";
 import { grantInventoryItem } from "../../api/inventoryItems/client.js";
 import { upsertPlayerState, getPlayerState } from "../../api/playerStates.js";
+import { getAssetUrl } from "../../api/imageUpload/assetUrl.js";
 import type { ShopListing } from "../../api/shopListings/types.js";
 import type { ShopItem } from "../../api/shopItems/types.js";
 
@@ -39,18 +40,6 @@ function getRarityTier(rarity: string) {
     "COMMON": { tier: "Common", border: "border-gray-300", gradient: "from-gray-500/70 to-gray-600/70", badge: "bg-gray-300 text-gray-700", glow: "hover:shadow-gray-400/50" },
   };
   return rarityMap[rarity] || rarityMap["COMMON"];
-}
-
-// Construct S3 URL from asset key or return as-is if already a full URL/public path
-function getImageUrl(spritePath: string): string {
-  // If it's already a full URL or a public asset path, use as-is
-  if (spritePath.startsWith('http') || spritePath.startsWith('/assets/')) {
-    return spritePath;
-  }
-  
-  // Otherwise, construct S3 URL from asset key
-  const s3BucketUrl = 'https://classquest-teacher-assets.s3.ca-central-1.amazonaws.com';
-  return `${s3BucketUrl}/${spritePath}`;
 }
 
 const StudentShop: React.FC = () => {
@@ -266,7 +255,7 @@ const StudentShop: React.FC = () => {
                 <button className="flex items-center text-sm rounded-full focus:outline-none">
                   <img
                     className="h-8 w-8 rounded-full"
-                    src={getImageUrl("/assets/mage-head.png")}
+                    src="/assets/mage-head.png"
                     alt="profile"
                   />
                   <span className="ml-2 text-sm font-medium">{student?.displayName ?? "Student"}</span>
@@ -351,7 +340,7 @@ const StudentShop: React.FC = () => {
                   >
                     <div className="bg-gradient-to-b from-black/40 to-black/60 h-40 flex items-center justify-center overflow-hidden mb-3 border-b border-gray-700/50">
                       <img
-                        src={getImageUrl(item.sprite_path)}
+                        src={getAssetUrl(item.sprite_path) ?? "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='112' height='112'%3E%3Crect fill='%23333' width='112' height='112'/%3E%3Ctext x='50%25' y='50%25' font-size='12' fill='%23666' text-anchor='middle' dy='.3em'%3ENo Image%3C/text%3E%3C/svg%3E"}
                         className="h-full w-full object-contain drop-shadow-lg"
                         alt={item.name}
                         onError={(e) => {

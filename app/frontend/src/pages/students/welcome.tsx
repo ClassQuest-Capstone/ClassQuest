@@ -1,10 +1,10 @@
 // src/pages/students/welcome.tsx
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { listAvatarBases } from "../../api/avatarBases/client";
-import { listActiveShopItems } from "../../api/shopItems/client";
-import type { AvatarBase } from "../../api/avatarBases/types";
-import type { ShopItem } from "../../api/shopItems/types";
+import { listAvatarBases } from "../../api/avatarBases/client.js";
+import { listActiveShopItems } from "../../api/shopItems/client.js";
+import type { AvatarBase } from "../../api/avatarBases/types.js";
+import type { ShopItem } from "../../api/shopItems/types.js";
 
 type CharacterClass = "Guardian" | "Mage" | "Healer";
 type Gender = "M" | "F";

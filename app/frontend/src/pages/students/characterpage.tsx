@@ -1328,7 +1328,7 @@ const CharacterPage: React.FC = () => {
                               className="bg-gray-800 p-2 rounded flex flex-col items-center border border-gray-600 hover:border-gray-400 transition-colors"
                             >
                               <img
-                                src={item.sprite_path}
+                                src={getAssetUrl(item.sprite_path) ?? item.sprite_path}
                                 alt={item.name}
                                 className="w-12 h-12 object-contain mb-1"
                                 onError={(e) => {
