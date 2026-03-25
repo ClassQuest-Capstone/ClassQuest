@@ -1,0 +1,35 @@
+[
+  {
+    "reward_id": "seed_reward_guardian_armour_copper",
+    "title": "Copper Guardian Armour",
+    "description": "Reliable copper armour forged for guardians.",
+    "unlock_level": 5,
+    "type": "ARMOR_SET",
+    "reward_target_type": "ITEM",
+    "reward_target_id": "guardian_armour_copper",
+    "image_asset_key": "seed/avatar-system/shop-items/armour/guardian_armour_copper.png",
+    "is_active": true
+  },
+  {
+    "reward_id": "seed_reward_healer_armour_holy",
+    "title": "Holy Healer Armour",
+    "description": "Light armour imbued with holy protection.",
+    "unlock_level": 5,
+    "type": "ARMOR_SET",
+    "reward_target_type": "ITEM",
+    "reward_target_id": "healer_armour_holy",
+    "image_asset_key": "seed/avatar-system/shop-items/armour/healer_armour_holy.png",
+    "is_active": true
+  },
+  {
+    "reward_id": "seed_reward_mage_armour_crimson",
+    "title": "Crimson Mage Armour",
+    "description": "Arcane crimson robes that protect the wearer.",
+    "unlock_level": 5,
+    "type": "ARMOR_SET",
+    "reward_target_type": "ITEM",
+    "reward_target_id": "mage_armour_crimson",
+    "image_asset_key": "seed/avatar-system/shop-items/armour/mage_armour_crimson.png",
+    "is_active": true
+  }
+]

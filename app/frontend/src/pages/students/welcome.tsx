@@ -17,27 +17,18 @@ type Option = {
   description: string;
 };
 
-// Build a list of filename suffixes that match YOUR existing naming
+// Build the path for the default bg image from the seed assets folder
 function getCandidates(cls: CharacterClass, gender: Gender, skin: Skin) {
-  let suffixes: string[] = [];
+  const classMap: Record<CharacterClass, string> = {
+    Guardian: "guardian",
+    Mage: "mage",
+    Healer: "healer",
+  };
+  const genderMap: Record<Gender, string> = { M: "male", F: "female" };
+  const skinMap: Record<Skin, string> = { white: "white", brown: "brown", black: "dark" };
 
-  if (skin === "white") {
-    // you have GuardianMW + GuardianWF, and you said you also have WM versions
-    suffixes = gender === "M" ? ["MW", "WM"] : ["WF"];
-  }
-
-  if (skin === "black") {
-    // you have MageBW + GuardianBW (black woman), and also HealerBF (black female)
-    suffixes = gender === "M" ? ["BM"] : ["BF", "BW"];
-  }
-
-  if (skin === "brown") {
-    // you have MageBrW + HealerBrW, and GuardianBrF (so include both)
-    suffixes = gender === "M" ? ["BrM"] : ["BrW", "BrF"];
-  }
-
-  // Turn suffixes into full paths
-  return suffixes.map((s) => `/assets/classes/${cls}${s}.png`);
+  const filename = `bg_base_${classMap[cls]}_${genderMap[gender]}_${skinMap[skin]}.png`;
+  return [`/assets/seed/avatar-assets/bases/default/${filename}`];
 }
 
 // Image component that auto-falls-back to the next filename if one fails
@@ -60,7 +51,7 @@ function SpriteImg({
   // reset fallback index whenever selection changes
   useEffect(() => setIdx(0), [cls, gender, skin]);
 
-  const src = candidates[idx] ?? "/assets/classes/placeholder.png";
+  const src = candidates[idx] ?? "/assets/seed/avatar-assets/bases/default/base_default_global.png";
 
   return (
     <img

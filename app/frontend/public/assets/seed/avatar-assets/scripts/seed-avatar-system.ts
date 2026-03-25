@@ -28,13 +28,18 @@ import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-function getStage(): string {
-    const idx = process.argv.indexOf("--stage");
+function getArg(flag: string, required = true): string {
+    const idx = process.argv.indexOf(flag);
     if (idx === -1 || !process.argv[idx + 1]) {
-        throw new Error("Missing --stage argument");
+        if (required) throw new Error(`Missing ${flag} argument`);
+        return "";
     }
     return process.argv[idx + 1];
-    }
+}
+
+function getStage(): string {
+    return getArg("--stage");
+}
 
 const STAGE = getStage();
 
@@ -64,6 +69,12 @@ const ASSETS_BUCKET_NAME = getOutput("ClassQuestTeacherApiStack", "TeacherAssets
 const SHOP_ITEMS_TABLE_NAME = getOutput("ClassQuestDataStack", "shopItemsTable");
 const AVATAR_BASES_TABLE_NAME = getOutput("ClassQuestDataStack", "avatarBasesTable");
 const SHOP_LISTINGS_TABLE_NAME = getOutput("ClassQuestDataStack", "shopListingsTable");
+const REWARD_MILESTONES_TABLE_NAME =
+    getArg("--reward-milestones-table", false) ||
+    getOutput("ClassQuestDataStack", "rewardMilestonesTable");
+
+const SEED_CLASS_ID = getArg("--class-id");
+const SEED_TEACHER_ID = getArg("--teacher-id");
 
 
 
@@ -74,6 +85,9 @@ console.log({
     SHOP_ITEMS_TABLE_NAME,
     AVATAR_BASES_TABLE_NAME,
     SHOP_LISTINGS_TABLE_NAME,
+    REWARD_MILESTONES_TABLE_NAME,
+    SEED_CLASS_ID,
+    SEED_TEACHER_ID,
 });
 
 
@@ -121,6 +135,18 @@ interface ShopListingManifest {
     available_to: string;
     is_active: boolean;
     display_order?: number;
+}
+
+interface RewardMilestoneManifest {
+    reward_id: string;
+    title: string;
+    description: string;
+    unlock_level: number;
+    type: string;
+    reward_target_type: string;
+    reward_target_id: string;
+    image_asset_key: string;
+    is_active: boolean;
 }
 
 // ── Paths ─────────────────────────────────────────────────────────────────────
@@ -351,15 +377,73 @@ async function seedShopListings(listings: ShopListingManifest[]): Promise<void> 
     }
 }
 
+// ── Step 4: Seed RewardMilestones ─────────────────────────────────────────────
+
+function buildUnlockSort(is_active: boolean, unlock_level: number, type: string, reward_id: string): string {
+    const prefix = is_active ? "ACTIVE" : "INACTIVE";
+    const level = String(unlock_level).padStart(5, "0");
+    return `${prefix}#${level}#${type}#${reward_id}`;
+}
+
+function buildTeacherSort(class_id: string, is_active: boolean, unlock_level: number, reward_id: string): string {
+    const prefix = is_active ? "ACTIVE" : "INACTIVE";
+    const level = String(unlock_level).padStart(5, "0");
+    return `${class_id}#${prefix}#${level}#${reward_id}`;
+}
+
+async function seedRewardMilestones(milestones: RewardMilestoneManifest[]): Promise<void> {
+    console.log(`\nSeeding ${milestones.length} RewardMilestones...`);
+    const now = new Date().toISOString();
+
+    for (const m of milestones) {
+        console.log(`  [${m.reward_id}]`);
+        await dynamo.send(
+            new PutCommand({
+                TableName: REWARD_MILESTONES_TABLE_NAME,
+                Item: {
+                    reward_id:              m.reward_id,
+                    class_id:               SEED_CLASS_ID,
+                    created_by_teacher_id:  SEED_TEACHER_ID,
+                    title:                  m.title,
+                    description:            m.description,
+                    unlock_level:           m.unlock_level,
+                    type:                   m.type,
+                    reward_target_type:     m.reward_target_type,
+                    reward_target_id:       m.reward_target_id,
+                    image_asset_key:        m.image_asset_key,
+                    is_active:              m.is_active,
+                    is_deleted:             false,
+                    unlock_sort:  buildUnlockSort(m.is_active, m.unlock_level, m.type, m.reward_id),
+                    teacher_sort: buildTeacherSort(SEED_CLASS_ID, m.is_active, m.unlock_level, m.reward_id),
+                    created_at: now,
+                    updated_at: now,
+                },
+                // Skip if already seeded (same reward_id)
+                ConditionExpression: "attribute_not_exists(reward_id)",
+            })
+        ).catch((err: any) => {
+            if (err.name === "ConditionalCheckFailedException") {
+                console.log(`    Already exists — skipped`);
+            } else {
+                throw err;
+            }
+        });
+        console.log(`    DynamoDB write OK`);
+    }
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
     console.log("=== seed-avatar-system ===");
-    console.log(`Bucket:             ${ASSETS_BUCKET_NAME}`);
-    console.log(`ShopItems table:    ${SHOP_ITEMS_TABLE_NAME}`);
-    console.log(`AvatarBases table:  ${AVATAR_BASES_TABLE_NAME}`);
-    console.log(`ShopListings table: ${SHOP_LISTINGS_TABLE_NAME}`);
-    console.log(`Region:             ${REGION}`);
+    console.log(`Bucket:                  ${ASSETS_BUCKET_NAME}`);
+    console.log(`ShopItems table:         ${SHOP_ITEMS_TABLE_NAME}`);
+    console.log(`AvatarBases table:       ${AVATAR_BASES_TABLE_NAME}`);
+    console.log(`ShopListings table:      ${SHOP_LISTINGS_TABLE_NAME}`);
+    console.log(`RewardMilestones table:  ${REWARD_MILESTONES_TABLE_NAME}`);
+    console.log(`Seed class ID:           ${SEED_CLASS_ID}`);
+    console.log(`Seed teacher ID:         ${SEED_TEACHER_ID}`);
+    console.log(`Region:                  ${REGION}`);
 
     const shopItems: ShopItemManifest[] = JSON.parse(
         fs.readFileSync(path.join(MANIFESTS_DIR, "shop-items.json"), "utf-8")
@@ -370,10 +454,14 @@ async function main(): Promise<void> {
     const shopListings: ShopListingManifest[] = JSON.parse(
         fs.readFileSync(path.join(MANIFESTS_DIR, "shop-listings.json"), "utf-8")
     );
+    const rewardMilestones: RewardMilestoneManifest[] = JSON.parse(
+        fs.readFileSync(path.join(MANIFESTS_DIR, "reward-milestones.json"), "utf-8")
+    );
 
     await seedShopItems(shopItems);
     await seedAvatarBases(avatarBases);
     await seedShopListings(shopListings);
+    await seedRewardMilestones(rewardMilestones);
 
     console.log("\n=== Done ===");
 }
