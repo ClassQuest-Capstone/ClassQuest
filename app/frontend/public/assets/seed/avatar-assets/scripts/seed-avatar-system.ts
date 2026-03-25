@@ -5,7 +5,7 @@
  * the corresponding DynamoDB records for ShopItems, AvatarBases, and ShopListings.
  *
  * Usage: RUN FROM THE ROOT FOLDER and use your stage for seeding the data into the correct environment:
- *   npx tsx app/frontend/public/assets/seed/avatar-assets/scripts/seed-avatar-system.ts --stage "local2"
+ *   npx tsx app/frontend/public/assets/seed/avatar-assets/scripts/seed-avatar-system.ts --stage "local#"
  *
  * Required env vars:   (reads from infra/.sst/outputs.json based on the stage)
  *   SHOP_ITEMS_TABLE_NAME

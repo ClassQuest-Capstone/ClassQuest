@@ -1,5 +1,7 @@
 import { StackContext, Function } from "sst/constructs";
 import * as apigatewayv2 from "aws-cdk-lib/aws-apigatewayv2";
+import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
+import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as s3 from "aws-cdk-lib/aws-s3";
 
@@ -128,18 +130,42 @@ export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) 
     // ── S3 ASSETS BUCKET (teacher image uploads) ─────────────────────────────
     // Images are uploaded directly from the browser via presigned PUT URLs.
     // DynamoDB records store only the S3 object key (image_asset_key), not the URL.
+    // CloudFront serves images from this private bucket — see distribution below.
     // TODO later: decide whether detached images should be deleted from S3 immediately
     //             or cleaned up by a background job when image_asset_key is cleared.
     const assetsBucket = new s3.Bucket(stack, "TeacherAssets", {
         blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
         cors: [
             {
+                // CORS is only needed for the browser → S3 presigned PUT upload path.
+                // Image delivery goes through CloudFront, not direct S3 GET.
                 allowedMethods: [s3.HttpMethods.PUT],
                 allowedOrigins: ["*"],
                 allowedHeaders: ["*"],
                 maxAge: 3000,
             },
         ],
+    });
+
+    // ── CLOUDFRONT DISTRIBUTION (read-only delivery from private bucket) ─────
+    // CloudFront reads from S3 via OAI — bucket stays private.
+    // Frontend builds asset URLs as: ${VITE_ASSETS_CDN_URL}/${image_asset_key}
+    // Signed URLs / per-user restrictions are intentionally deferred (MVP).
+    const oai = new cloudfront.OriginAccessIdentity(stack, "TeacherAssetsOAI", {
+        comment: "ClassQuest teacher assets — OAI for private S3 read",
+    });
+    assetsBucket.grantRead(oai);
+
+    const assetsCdn = new cloudfront.Distribution(stack, "TeacherAssetsCdn", {
+        defaultBehavior: {
+            origin: new origins.S3Origin(assetsBucket, {
+                originAccessIdentity: oai,
+            }),
+            viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+            allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+            cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        },
+        comment: "ClassQuest teacher assets CDN",
     });
 
     // ── ROUTER LAMBDA (replaces individual Lambdas) ──────────────────────────
@@ -227,6 +253,8 @@ export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) 
 
     stack.addOutputs({
         TeacherAssetsBucketName: assetsBucket.bucketName,
+        // Use this domain in VITE_ASSETS_CDN_URL: https://<TeacherAssetsCdnDomain>
+        TeacherAssetsCdnDomain: assetsCdn.distributionDomainName,
     });
     return {};
 }

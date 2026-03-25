@@ -1,7 +1,8 @@
-import type { AvatarGender, AvatarRoleType } from "./types.ts";
+import type { AvatarGender, AvatarRoleType, AvatarColorType } from "./types.ts";
 
 export const VALID_GENDERS: AvatarGender[] = ["MALE", "FEMALE"];
 export const VALID_ROLE_TYPES: AvatarRoleType[] = ["HEALER", "GUARDIAN", "MAGE", "NONE"];
+export const VALID_COLOR_TYPES: AvatarColorType[] = ["BROWN", "WHITE", "DARK"];
 
 export type ValidationResult =
     | { valid: true }
@@ -16,6 +17,8 @@ export function validateAvatarBase(input: {
     gender?: string;
     role_type?: string;
     is_default?: boolean;
+    color_type?: string;
+    default_character_image_key?: string;
     default_helmet_item_id?: string;
     default_armour_item_id?: string;
     default_shield_item_id?: string;
@@ -55,6 +58,24 @@ export function validateAvatarBase(input: {
     if (input.is_default !== undefined) {
         if (typeof input.is_default !== "boolean") {
             return { valid: false, error: "is_default must be a boolean" };
+        }
+    }
+
+    if (input.color_type !== undefined) {
+        if (!VALID_COLOR_TYPES.includes(input.color_type as AvatarColorType)) {
+            return {
+                valid: false,
+                error: `color_type must be one of: ${VALID_COLOR_TYPES.join(", ")}`,
+            };
+        }
+    }
+
+    if (input.default_character_image_key !== undefined) {
+        if (
+            typeof input.default_character_image_key !== "string" ||
+            input.default_character_image_key.trim().length === 0
+        ) {
+            return { valid: false, error: "default_character_image_key must be a non-empty string" };
         }
     }
 

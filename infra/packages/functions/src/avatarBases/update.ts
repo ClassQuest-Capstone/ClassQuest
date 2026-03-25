@@ -29,6 +29,8 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             gender,
             role_type,
             is_default,
+            color_type,
+            default_character_image_key,
             default_helmet_item_id,
             default_armour_item_id,
             default_shield_item_id,
@@ -40,6 +42,8 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             gender === undefined &&
             role_type === undefined &&
             is_default === undefined &&
+            color_type === undefined &&
+            default_character_image_key === undefined &&
             default_helmet_item_id === undefined &&
             default_armour_item_id === undefined &&
             default_shield_item_id === undefined &&
@@ -57,6 +61,8 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             gender,
             role_type,
             is_default,
+            color_type,
+            default_character_image_key,
             default_helmet_item_id,
             default_armour_item_id,
             default_shield_item_id,
@@ -78,6 +84,8 @@ export const handler = async (event: APIGatewayProxyEventV2) => {
             gender,
             role_type,
             is_default,
+            color_type,
+            default_character_image_key,
             default_helmet_item_id,
             default_armour_item_id,
             default_shield_item_id,

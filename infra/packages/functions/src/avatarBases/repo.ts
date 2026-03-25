@@ -128,6 +128,8 @@ export async function updateBase(
         gender?: string;
         role_type?: string;
         is_default?: boolean;
+        color_type?: string;
+        default_character_image_key?: string;
         default_helmet_item_id?: string;
         default_armour_item_id?: string;
         default_shield_item_id?: string;
@@ -148,14 +150,16 @@ export async function updateBase(
         expressionAttributeValues[valueToken] = value;
     };
 
-    if (updates.gender                    !== undefined) addField("gender",                    updates.gender);
-    if (updates.role_type                 !== undefined) addField("role_type",                 updates.role_type);
-    if (updates.is_default                !== undefined) addField("is_default",                updates.is_default);
-    if (updates.default_helmet_item_id    !== undefined) addField("default_helmet_item_id",    updates.default_helmet_item_id);
-    if (updates.default_armour_item_id    !== undefined) addField("default_armour_item_id",    updates.default_armour_item_id);
-    if (updates.default_shield_item_id    !== undefined) addField("default_shield_item_id",    updates.default_shield_item_id);
-    if (updates.default_pet_item_id       !== undefined) addField("default_pet_item_id",       updates.default_pet_item_id);
-    if (updates.default_background_item_id !== undefined) addField("default_background_item_id", updates.default_background_item_id);
+    if (updates.gender                       !== undefined) addField("gender",                       updates.gender);
+    if (updates.role_type                    !== undefined) addField("role_type",                    updates.role_type);
+    if (updates.is_default                   !== undefined) addField("is_default",                   updates.is_default);
+    if (updates.color_type                   !== undefined) addField("color_type",                   updates.color_type);
+    if (updates.default_character_image_key  !== undefined) addField("default_character_image_key",  updates.default_character_image_key);
+    if (updates.default_helmet_item_id       !== undefined) addField("default_helmet_item_id",       updates.default_helmet_item_id);
+    if (updates.default_armour_item_id       !== undefined) addField("default_armour_item_id",       updates.default_armour_item_id);
+    if (updates.default_shield_item_id       !== undefined) addField("default_shield_item_id",       updates.default_shield_item_id);
+    if (updates.default_pet_item_id          !== undefined) addField("default_pet_item_id",          updates.default_pet_item_id);
+    if (updates.default_background_item_id   !== undefined) addField("default_background_item_id",   updates.default_background_item_id);
     addField("updated_at", updates.updated_at);
 
     const result = await ddb.send(

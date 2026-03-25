@@ -15,6 +15,7 @@ import {
 import type { BossQuestion, BossQuestionType } from "../../api/bossQuestions/types.js";
 
 import { createImageUploadUrl, uploadToS3 } from "../../api/imageUpload/client.js";
+import { getAssetUrl } from "../../api/imageUpload/assetUrl.js";
 
 function safeStr(val: unknown) {
   return String(val ?? "");
@@ -672,6 +673,13 @@ export default function BossQuestions() {
                 </label>
                 {imageAssetKey && !imageFile && (
                   <div className="flex items-center gap-2 mb-2 text-sm text-gray-600">
+                    {getAssetUrl(imageAssetKey) && (
+                      <img
+                        src={getAssetUrl(imageAssetKey)}
+                        alt="Question image preview"
+                        className="h-12 w-12 object-cover rounded border border-gray-200 shrink-0"
+                      />
+                    )}
                     <span className="truncate max-w-xs">{imageAssetKey}</span>
                     <button
                       type="button"

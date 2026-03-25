@@ -26,6 +26,7 @@ import { listStudentRewardMilestones } from "../../api/rewardMilestones/client.j
 import type { StudentRewardMilestone, StudentRewardMilestonesResponse } from "../../api/rewardMilestones/types.js";
 import { listStudentRewardClaimsByStudent } from "../../api/studentRewardClaims/client.js";
 import type { StudentRewardClaim } from "../../api/studentRewardClaims/types.js";
+import { getAssetUrl } from "../../api/imageUpload/assetUrl.js";
 
 type EquipmentSlot = "helmet" | "armour" | "shield" | "pet" | "background";
 
@@ -323,11 +324,7 @@ const CharacterPage: React.FC = () => {
               id: m.reward_id,
               name: m.title,
               slot,
-              icon: m.image_asset_key
-                ? m.image_asset_key.startsWith("data:")
-                  ? m.image_asset_key
-                  : `data:image/png;base64,${m.image_asset_key}`
-                : "/assets/Guild.png",
+              icon: getAssetUrl(m.image_asset_key) ?? "/assets/Guild.png",
               claimedAt: new Date().toISOString(),
             };
           });
@@ -619,7 +616,7 @@ const CharacterPage: React.FC = () => {
                 id: m.reward_id,
                 name: m.title,
                 slot,
-                icon: m.image_asset_key || "/assets/cards/mage.png",
+                icon: getAssetUrl(m.image_asset_key) ?? "/assets/cards/mage.png",
                 claimedAt: new Date().toISOString(),
               };
             });

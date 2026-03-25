@@ -176,6 +176,35 @@ describe("validation — validateAvatarBase", () => {
         expect(result.valid).toBe(false);
         expect((result as any).error).toMatch(/default_helmet_item_id/);
     });
+
+    it("accepts valid color_type values", () => {
+        for (const color_type of validationModule.VALID_COLOR_TYPES) {
+            const result = validationModule.validateAvatarBase({ color_type });
+            expect(result.valid).toBe(true);
+        }
+    });
+
+    it("rejects invalid color_type", () => {
+        const result = validationModule.validateAvatarBase({ color_type: "RED" });
+        expect(result.valid).toBe(false);
+        expect((result as any).error).toMatch(/color_type/);
+    });
+
+    it("accepts absent color_type", () => {
+        const result = validationModule.validateAvatarBase({ avatar_base_id: "mage_male_01", gender: "MALE", role_type: "MAGE", is_default: false });
+        expect(result.valid).toBe(true);
+    });
+
+    it("accepts valid default_character_image_key", () => {
+        const result = validationModule.validateAvatarBase({ default_character_image_key: "seed/avatar-system/avatar-bases/base/healer_male_01.png" });
+        expect(result.valid).toBe(true);
+    });
+
+    it("rejects empty default_character_image_key", () => {
+        const result = validationModule.validateAvatarBase({ default_character_image_key: "  " });
+        expect(result.valid).toBe(false);
+        expect((result as any).error).toMatch(/default_character_image_key/);
+    });
 });
 
 // ---------------------------------------------------------------------------
@@ -287,6 +316,28 @@ describe("create handler", () => {
         const res = await createHandler(makeEvent({}, makeCreateBody()) as any);
         expect(res.statusCode).toBe(409);
     });
+
+    it("returns 201 with color_type and default_character_image_key", async () => {
+        mockSend.mockResolvedValueOnce({});
+        const body = makeCreateBody({
+            color_type: "BROWN",
+            default_character_image_key: "seed/avatar-system/avatar-bases/base/healer_male_01.png",
+        });
+        const res = await createHandler(makeEvent({}, body) as any);
+        expect(res.statusCode).toBe(201);
+    });
+
+    it("returns 201 without optional new fields", async () => {
+        mockSend.mockResolvedValueOnce({});
+        const res = await createHandler(makeEvent({}, makeCreateBody()) as any);
+        expect(res.statusCode).toBe(201);
+    });
+
+    it("returns 400 for invalid color_type", async () => {
+        const res = await createHandler(makeEvent({}, makeCreateBody({ color_type: "RED" })) as any);
+        expect(res.statusCode).toBe(400);
+        expect(JSON.parse(res.body).error).toMatch(/color_type/);
+    });
 });
 
 // ---------------------------------------------------------------------------
@@ -312,6 +363,33 @@ describe("get handler", () => {
         const body = JSON.parse(res.body);
         expect(body.default_helmet_item_id).toBe("helmet_healer_default");
         expect(body.default_pet_item_id).toBe("pet_healer_default");
+    });
+
+    it("returns new optional fields when present in record", async () => {
+        mockSend.mockResolvedValueOnce({
+            Item: makeBaseRaw({
+                color_type: "WHITE",
+                default_character_image_key: "seed/avatar-system/avatar-bases/base/healer_male_01.png",
+            }),
+        });
+
+        const res = await getHandler(
+            makeEvent({ pathParameters: { avatar_base_id: "healer_male_01" } }) as any
+        );
+        const body = JSON.parse(res.body);
+        expect(body.color_type).toBe("WHITE");
+        expect(body.default_character_image_key).toBe("seed/avatar-system/avatar-bases/base/healer_male_01.png");
+    });
+
+    it("returns 200 without new optional fields for older records", async () => {
+        mockSend.mockResolvedValueOnce({ Item: makeBaseRaw() });
+
+        const res = await getHandler(
+            makeEvent({ pathParameters: { avatar_base_id: "healer_male_01" } }) as any
+        );
+        const body = JSON.parse(res.body);
+        expect(body.color_type).toBeUndefined();
+        expect(body.default_character_image_key).toBeUndefined();
     });
 
     it("returns 400 when avatar_base_id is missing from path", async () => {
@@ -394,6 +472,39 @@ describe("update handler", () => {
         );
         expect(res.statusCode).toBe(404);
     });
+
+    it("returns 200 when updating color_type", async () => {
+        const updated = makeBaseRaw({ color_type: "DARK" });
+        mockSend.mockResolvedValueOnce({ Attributes: updated });
+
+        const res = await updateHandler(
+            makeEvent({ pathParameters: { avatar_base_id: "healer_male_01" } }, { color_type: "DARK" }) as any
+        );
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).color_type).toBe("DARK");
+    });
+
+    it("returns 200 when updating default_character_image_key", async () => {
+        const updated = makeBaseRaw({ default_character_image_key: "seed/avatar-system/avatar-bases/base/healer_male_01.png" });
+        mockSend.mockResolvedValueOnce({ Attributes: updated });
+
+        const res = await updateHandler(
+            makeEvent(
+                { pathParameters: { avatar_base_id: "healer_male_01" } },
+                { default_character_image_key: "seed/avatar-system/avatar-bases/base/healer_male_01.png" }
+            ) as any
+        );
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(res.body).default_character_image_key).toBe("seed/avatar-system/avatar-bases/base/healer_male_01.png");
+    });
+
+    it("returns 400 for invalid color_type on update", async () => {
+        const res = await updateHandler(
+            makeEvent({ pathParameters: { avatar_base_id: "healer_male_01" } }, { color_type: "GREEN" }) as any
+        );
+        expect(res.statusCode).toBe(400);
+        expect(JSON.parse(res.body).error).toMatch(/color_type/);
+    });
 });
 
 // ---------------------------------------------------------------------------
@@ -444,5 +555,19 @@ describe("list handler", () => {
         await listHandler(makeEvent({ queryStringParameters: { limit: "9999" } }) as any);
         const [cmd] = mockSend.mock.calls[0];
         expect(cmd.input.Limit).toBe(500);
+    });
+
+    it("returns new optional fields in list items when present", async () => {
+        const item = makeBaseRaw({
+            color_type: "BROWN",
+            default_character_image_key: "seed/avatar-system/avatar-bases/base/healer_male_01.png",
+        });
+        mockSend.mockResolvedValueOnce({ Items: [item], LastEvaluatedKey: undefined });
+
+        const res = await listHandler(makeEvent() as any);
+        expect(res.statusCode).toBe(200);
+        const body = JSON.parse(res.body);
+        expect(body.items[0].color_type).toBe("BROWN");
+        expect(body.items[0].default_character_image_key).toBe("seed/avatar-system/avatar-bases/base/healer_male_01.png");
     });
 });
