@@ -17,18 +17,16 @@ type Option = {
   description: string;
 };
 
-// Build the path for the default bg image from the seed assets folder
+// Build the path for the class-specific character sprite (no background)
 function getCandidates(cls: CharacterClass, gender: Gender, skin: Skin) {
-  const classMap: Record<CharacterClass, string> = {
-    Guardian: "guardian",
-    Mage: "mage",
-    Healer: "healer",
-  };
+  const classMap: Record<CharacterClass, string> = { Guardian: "guardian", Mage: "mage", Healer: "healer" };
   const genderMap: Record<Gender, string> = { M: "male", F: "female" };
   const skinMap: Record<Skin, string> = { white: "white", brown: "brown", black: "dark" };
 
-  const filename = `bg_base_${classMap[cls]}_${genderMap[gender]}_${skinMap[skin]}.png`;
-  return [`/assets/seed/avatar-assets/bases/default/${filename}`];
+  const c = classMap[cls];
+  const g = genderMap[gender];
+  const s = skinMap[skin];
+  return [`/assets/seed/avatar-assets/bases/${c}/${g}/${s}/base_${c}_${g}_${s}.png`];
 }
 
 // Image component that auto-falls-back to the next filename if one fails

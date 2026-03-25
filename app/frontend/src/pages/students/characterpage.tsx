@@ -353,17 +353,13 @@ const CharacterPage: React.FC = () => {
             };
           });
 
-        // Filter by character-specific rewards if character data is available
+        // Filter claimed rewards to only show ones matching the student's class
         if (characterData) {
-          const characterItemIds = new Set(
-            characterData.characterSpecificItems.map(item => item.item_id)
+          const roleType = characterData.roleType.toLowerCase(); // "guardian" | "mage" | "healer"
+          claimed = claimed.filter(reward =>
+            reward.slot === "background" || reward.slot === "pet" ||
+            reward.name.toLowerCase().includes(roleType)
           );
-
-          claimed = claimed.filter(reward => {
-            // Check if reward_target_id is in character-specific items
-            // If no target_id, allow it through
-            return true; // For now, show all rewards as they're set up by teacher
-          });
         }
 
         setClaimedRewards(claimed);
@@ -645,12 +641,18 @@ const CharacterPage: React.FC = () => {
           const claimsResponse = await listStudentRewardClaimsByStudent(classId, studentId, "CLAIMED");
           const claimedRewardIds = new Set(claimsResponse.map((c: StudentRewardClaim) => c.reward_id));
 
+          const roleType = characterData?.roleType.toLowerCase();
           const claimed: ClaimedReward[] = allMilestones
             .filter((m: StudentRewardMilestone) => claimedRewardIds.has(m.reward_id))
+            .filter((m: StudentRewardMilestone) => {
+              const t = (m.type || "").toLowerCase();
+              if (t.includes("background") || t.includes("pet")) return true;
+              return !roleType || m.title.toLowerCase().includes(roleType);
+            })
             .map((m: StudentRewardMilestone) => {
               let slot: EquipmentSlot = "helmet";
               const type = (m.type || "").toLowerCase();
-              
+
               if (type.includes("helmet")) slot = "helmet";
               else if (type.includes("armor") || type.includes("armour")) slot = "armour";
               else if (type.includes("shield")) slot = "shield";
@@ -1173,7 +1175,24 @@ const CharacterPage: React.FC = () => {
                       <div className="absolute inset-0 bg-gradient-to-br from-blue-900/30 via-purple-900/30 to-pink-900/30 rounded-xl animate-pulse" />
                       <div className="relative h-full flex items-center justify-center">
                         <div className="relative w-full h-full max-w-[360px] max-h-[480px] pixel-art">
-                          {/* Base sprite would go here */}
+                          {/* Base character sprite */}
+                          <img
+                            src={(() => {
+                              if (!characterData) return "/assets/seed/avatar-assets/bases/default/base_default_global.png";
+                              const classMap: Record<string, string> = { Guardian: "guardian", Mage: "mage", Healer: "healer" };
+                              const genderMap: Record<string, string> = { M: "male", F: "female" };
+                              const skinMap: Record<string, string> = { white: "white", brown: "brown", black: "dark" };
+                              const c = classMap[characterData.class] ?? characterData.class.toLowerCase();
+                              const g = genderMap[characterData.gender] ?? characterData.gender.toLowerCase();
+                              const s = skinMap[characterData.skin] ?? characterData.skin;
+                              return `/assets/seed/avatar-assets/bases/${c}/${g}/${s}/base_${c}_${g}_${s}.png`;
+                            })()}
+                            alt="Character"
+                            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "/assets/seed/avatar-assets/bases/default/base_default_global.png";
+                            }}
+                          />
                           {PREVIEW_ORDER.map((slot) => {
                             const item = equipped[slot] ?? null;
                             if (!item) return null;
@@ -1735,7 +1754,41 @@ const CharacterPage: React.FC = () => {
                   </>
                 )}
 
-                {tab === "rewards" && (
+                {tab === "rewards" && (() => {
+                  const CLASS_REWARDS: Record<string, Record<number, { title: string; description: string }>> = {
+                    GUARDIAN: {
+                      5:  { title: "Copper Guardian Armour", description: "Reliable copper armour forged for guardians." },
+                      10: { title: "Copper Guardian Helmet", description: "A sturdy copper helmet worn by guardians." },
+                      15: { title: "Town Background",        description: "A lively town square backdrop." },
+                      20: { title: "Copper Guardian Helmet", description: "A sturdy copper helmet worn by guardians." },
+                      25: { title: "Copper Guardian Armour", description: "Reliable copper armour forged for guardians." },
+                      30: { title: "Dog",                    description: "A loyal dog companion." },
+                    },
+                    MAGE: {
+                      5:  { title: "Crimson Mage Armour",   description: "Arcane crimson robes that protect the wearer." },
+                      10: { title: "Crimson Mage Helmet",   description: "A striking crimson helmet worn by mages." },
+                      15: { title: "Town Background",        description: "A lively town square backdrop." },
+                      20: { title: "Crimson Mage Helmet",   description: "A striking crimson helmet worn by mages." },
+                      25: { title: "Crimson Mage Armour",   description: "Arcane crimson robes that protect the wearer." },
+                      30: { title: "Dog",                    description: "A loyal dog companion." },
+                    },
+                    HEALER: {
+                      5:  { title: "Holy Healer Armour",    description: "Light armour imbued with holy protection." },
+                      10: { title: "Holy Healer Helmet",    description: "A blessed helmet that channels healing energy." },
+                      15: { title: "Town Background",        description: "A lively town square backdrop." },
+                      20: { title: "Holy Healer Helmet",    description: "A blessed helmet that channels healing energy." },
+                      25: { title: "Holy Healer Armour",    description: "Light armour imbued with holy protection." },
+                      30: { title: "Dog",                    description: "A loyal dog companion." },
+                    },
+                  };
+                  const displayRewards = rewards.map((r: any) => {
+                    if (characterData) {
+                      const override = CLASS_REWARDS[characterData.roleType]?.[r.level];
+                      if (override) return { ...r, ...override };
+                    }
+                    return r;
+                  });
+                  return (
                   <>
                     <div className="flex justify-between items-center mb-4">
                       <h2 className="text-2xl font-bold text-yellow-400">
@@ -1773,7 +1826,7 @@ const CharacterPage: React.FC = () => {
 
                       <div className="relative mt-4">
                         <div className="flex justify-between">
-                          {rewards.map((m: any) => (
+                          {displayRewards.map((m: any) => (
                             <div
                               key={m.level}
                               className="flex flex-col items-center w-full"
@@ -1802,7 +1855,7 @@ const CharacterPage: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {rewards.map((r: any) => (
+                      {displayRewards.map((r: any) => (
                         <div
                           key={r.level}
                           className={`rounded-lg p-4 border-2 shadow-lg ${
@@ -1869,7 +1922,8 @@ const CharacterPage: React.FC = () => {
                       ))}
                     </div>
                   </>
-                )}
+                  );
+                })()}
               </div>
             </div>
           </div>

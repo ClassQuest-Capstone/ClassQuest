@@ -231,11 +231,21 @@ export const usePlayerProgression = (
 
         // Fetch reward milestones from backend to get the actual reward ID
         const rewardsResponse = await listStudentRewardMilestones(classId, { studentId });
-        
-        // Find the reward by unlock level (student endpoint filters active rewards)
-        const backendReward = rewardsResponse.rewards?.find(
-          (r) => r.unlock_level === rewardLevel
-        );
+
+        // Read the student's class so we claim the right class-specific reward
+        let studentRoleType: string | null = null;
+        try {
+          const charData = localStorage.getItem(`cq_characterData_${studentId}`);
+          if (charData) studentRoleType = JSON.parse(charData)?.roleType?.toLowerCase() ?? null;
+        } catch {}
+
+        // Find reward matching level + class (fall back to level-only if no class set)
+        const backendReward =
+          rewardsResponse.rewards?.find(
+            (r) => r.unlock_level === rewardLevel &&
+              (!studentRoleType || r.title.toLowerCase().includes(studentRoleType))
+          ) ??
+          rewardsResponse.rewards?.find((r) => r.unlock_level === rewardLevel);
         
         console.log("[claimReward] Found backend reward:", backendReward);
         

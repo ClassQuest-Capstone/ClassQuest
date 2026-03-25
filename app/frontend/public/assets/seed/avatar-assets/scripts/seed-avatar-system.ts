@@ -151,7 +151,7 @@ interface RewardMilestoneManifest {
 
 // ── Paths ─────────────────────────────────────────────────────────────────────
 
-const __dirname = path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Z]:)/, "$1");
+const __dirname = decodeURIComponent(path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Z]:)/, "$1"));
 const AVATAR_ASSETS_ROOT = path.resolve(__dirname, "..");
 const MANIFESTS_DIR = path.join(AVATAR_ASSETS_ROOT, "manifests");
 
