@@ -43,7 +43,8 @@ export function DataStack(ctx: StackContext) {
         // BossQuestionsTableArn: tables.bossQuestionsTable.tableArn,
         // BossBattleTemplatesTableName: tables.bossBattleTemplatesTable.tableName,
         // BossBattleTemplatesTableArn: tables.bossBattleTemplatesTable.tableArn,
-
+        
+        rewardMilestonesTable: tables.rewardMilestonesTable.tableName,
         shopItemsTable: tables.shopItemsTable.tableName,
         shopListingsTable: tables.shopListingsTable.tableName,
         avatarBasesTable: tables.avatarBasesTable.tableName,
