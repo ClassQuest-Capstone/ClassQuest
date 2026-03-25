@@ -19,10 +19,12 @@ import { handler as classesGetByJoinCode }          from "../classes/get-by-join
 import { handler as classesListByTeacher }          from "../classes/list-by-teacher.js";
 import { handler as classesListBySchool }           from "../classes/list-by-school.js";
 import { handler as classesDeactivate }             from "../classes/deactivate.js";
+import { handler as classesUpdate }               from "../classes/update.js";
 
 // ClassEnrollments
 import { handler as ceEnroll }                      from "../classEnrollments/enroll.js";
 import { handler as ceUnenroll }                    from "../classEnrollments/unenroll.js";
+import { handler as ceRestore }                     from "../classEnrollments/restore.js";
 import { handler as ceListByClass }                 from "../classEnrollments/list-by-class.js";
 import { handler as ceListByStudent }               from "../classEnrollments/list-by-student.js";
 import { handler as ceGet }                         from "../classEnrollments/get.js";
@@ -87,13 +89,15 @@ const ROUTES: Record<string, (event: any) => Promise<any>> = {
     "GET /teachers/{teacher_id}/classes":                                    classesListByTeacher,
     "GET /schools/{school_id}/classes":                                      classesListBySchool,
     "PATCH /classes/{class_id}/deactivate":                                  classesDeactivate,
+    "PATCH /classes/{class_id}":                                             classesUpdate,
 
     // ClassEnrollments
-    "POST /classes/{class_id}/enroll":                                       ceEnroll,
-    "DELETE /enrollments/{enrollment_id}":                                   ceUnenroll,
-    "GET /classes/{class_id}/students":                                      ceListByClass,
-    "GET /students/{student_id}/classes":                                    ceListByStudent,
-    "GET /enrollments/{enrollment_id}":                                      ceGet,
+    "POST /classes/{class_id}/enroll":                                                   ceEnroll,
+    "DELETE /enrollments/{enrollment_id}":                                               ceUnenroll,
+    "POST /classes/{class_id}/students/{student_id}/restore":                            ceRestore,
+    "GET /classes/{class_id}/students":                                                  ceListByClass,
+    "GET /students/{student_id}/classes":                                                ceListByStudent,
+    "GET /enrollments/{enrollment_id}":                                                  ceGet,
 
     // QuestInstances
     "POST /classes/{class_id}/quest-instances":                              qiCreate,

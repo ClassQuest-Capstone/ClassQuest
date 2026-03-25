@@ -112,6 +112,80 @@ export async function listClassesBySchool(
     return (result.Items as ClassItem[]) ?? [];
 }
 
+export type UpdateClassFields = {
+    name?: string;
+    subject?: string;
+    grade_level?: number;
+    is_active?: boolean;
+};
+
+/**
+ * Partially update allowed class fields.
+ * Protects: class_id, school_id, created_by_teacher_id, join_code, created_at.
+ * Always stamps updated_at = now.
+ * When is_active changes true→false: sets deactivated_at.
+ * When is_active changes false→true: removes deactivated_at.
+ * Returns updated item.
+ */
+export async function updateClass(
+    class_id: string,
+    fields: UpdateClassFields,
+    currentIsActive: boolean
+): Promise<ClassItem> {
+    const now = new Date().toISOString();
+
+    // Build SET clause dynamically — only provided fields
+    const setParts: string[] = ["updated_at = :now"];
+    const exprValues: Record<string, any> = { ":now": now };
+    const exprNames: Record<string, string> = {};
+    const removeParts: string[] = [];
+
+    if (fields.name !== undefined) {
+        setParts.push("#name = :name");
+        exprNames["#name"] = "name";
+        exprValues[":name"] = fields.name;
+    }
+    if (fields.subject !== undefined) {
+        setParts.push("subject = :subject");
+        exprValues[":subject"] = fields.subject;
+    }
+    if (fields.grade_level !== undefined) {
+        setParts.push("grade_level = :grade_level");
+        exprValues[":grade_level"] = fields.grade_level;
+    }
+    if (fields.is_active !== undefined) {
+        setParts.push("is_active = :is_active");
+        exprValues[":is_active"] = fields.is_active;
+
+        if (fields.is_active === false && currentIsActive === true) {
+            // Deactivating: record when
+            setParts.push("deactivated_at = :now");
+        } else if (fields.is_active === true && currentIsActive === false) {
+            // Reactivating: clear deactivated_at
+            removeParts.push("deactivated_at");
+        }
+    }
+
+    let updateExpr = "SET " + setParts.join(", ");
+    if (removeParts.length > 0) {
+        updateExpr += " REMOVE " + removeParts.join(", ");
+    }
+
+    const result = await ddb.send(
+        new UpdateCommand({
+            TableName: TABLE,
+            Key: { class_id },
+            UpdateExpression: updateExpr,
+            ExpressionAttributeValues: exprValues,
+            ...(Object.keys(exprNames).length > 0 && { ExpressionAttributeNames: exprNames }),
+            ConditionExpression: "attribute_exists(class_id)",
+            ReturnValues: "ALL_NEW",
+        })
+    );
+
+    return result.Attributes as ClassItem;
+}
+
 /**
  * Deactivate a class (soft delete)
  * Sets is_active=false, deactivated_at=now, updated_at=now

@@ -76,9 +76,8 @@ export const handler = async (event: any) => {
                 statusCode: 409,
                 headers: { "content-type": "application/json" },
                 body: JSON.stringify({
-                    error: "PREVIOUSLY_DROPPED",
-                    message:
-                        "Student previously dropped this class and cannot re-enroll",
+                    error: "ENROLLMENT_DROPPED",
+                    message: "Student was previously removed from this class. A teacher must restore them using POST /classes/{class_id}/students/{student_id}/restore",
                     enrollment_id: existing.enrollment_id,
                 }),
             };

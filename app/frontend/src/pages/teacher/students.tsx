@@ -5,7 +5,7 @@ import DropDownProfile from "../features/teacher/dropDownProfile.js";
 import ProfileModal from "../features/teacher/ProfileModal.js";
 
 import { validateJoinCode } from "../../api/classes.js";
-import { getClassEnrollments, unenrollStudent } from "../../api/classEnrollments.js";
+import { getClassEnrollments, unenrollStudent, restoreStudentEnrollment, type EnrollmentItem } from "../../api/classEnrollments.js";
 import { getStudentProfile, updateStudentProfile, setStudentPassword } from "../../api/studentProfiles.js";
 import { getPlayerState, getLeaderboard, upsertPlayerState } from "../../api/playerStates.js";
 import { createTransaction } from "../../api/rewardTransactions.js";
@@ -60,6 +60,10 @@ const Students = () => {
   const [classId, setClassId] = useState<string | null>(null);
   const [visiblePasswords, setVisiblePasswords] = useState<Set<string>>(new Set());
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  // Dropped student enrollments (for teacher restore view)
+  const [droppedEnrollments, setDroppedEnrollments] = useState<EnrollmentItem[]>([]);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
 
   // Heart regeneration settings (class-wide)
   const [regenEnabled, setRegenEnabled] = useState(true);
@@ -121,6 +125,14 @@ const Students = () => {
         
         // Store the class_id for later use
         setClassId(classInfo.class_id);
+
+        // Load dropped enrollments for the restore panel
+        try {
+          const dropped = await getClassEnrollments(classInfo.class_id, "dropped");
+          if (!cancelled) setDroppedEnrollments(dropped.items);
+        } catch {
+          // Non-fatal — restore panel will just be empty
+        }
 
         // Batch-fetch all player states in one request 
         const playerStateMap = new Map<string, { total_xp_earned: number; gold: number; current_xp: number; xp_to_next_level: number; hearts: number; max_hearts: number; status: "ALIVE" | "DOWNED" | "BANNED" }>();
@@ -302,6 +314,23 @@ const Students = () => {
     } catch (err: any) {
       console.error("Error removing student:", err);
       setGlobalError(`Failed to remove student: ${err.message}`);
+    }
+  };
+
+  // Restore a previously dropped student back to active enrollment
+  const handleRestoreStudent = async (studentId: string) => {
+    if (!classId) return;
+    if (!confirm("Restore this student to the class?")) return;
+
+    setRestoringId(studentId);
+    try {
+      await restoreStudentEnrollment(classId, studentId);
+      // Remove from dropped list; active roster will reload on next page visit
+      setDroppedEnrollments((prev) => prev.filter((e) => e.student_id !== studentId));
+    } catch (err: any) {
+      setGlobalError(`Failed to restore student: ${err.message}`);
+    } finally {
+      setRestoringId(null);
     }
   };
 
@@ -927,6 +956,39 @@ const Students = () => {
           </div>
         </div>
       </main>
+
+      {/* Dropped students panel */}
+      {droppedEnrollments.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+          <div className="bg-white rounded-xl shadow border border-gray-200 p-4">
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">
+              Removed Students ({droppedEnrollments.length})
+            </h2>
+            <p className="text-xs text-gray-500 mb-3">
+              These students were removed from the class. You can restore them to re-activate their enrollment.
+            </p>
+            <ul className="divide-y divide-gray-100">
+              {droppedEnrollments.map((e) => (
+                <li key={e.enrollment_id} className="flex items-center justify-between py-2 text-sm">
+                  <span className="text-gray-700 font-mono text-xs">{e.student_id}</span>
+                  {e.dropped_at && (
+                    <span className="text-gray-400 text-xs mx-4">
+                      Removed {new Date(e.dropped_at).toLocaleDateString()}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => handleRestoreStudent(e.student_id)}
+                    disabled={restoringId === e.student_id}
+                    className="px-3 py-1 rounded bg-blue-600 text-white text-xs hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {restoringId === e.student_id ? "Restoring…" : "Restore"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {/* Profile Modal */}
       <ProfileModal

@@ -8,7 +8,6 @@ import {
     GetCommand,
     QueryCommand,
     UpdateCommand,
-    DeleteCommand,
 } from "@aws-sdk/lib-dynamodb";
 import type { EnrollmentItem } from "./types.ts";
 
@@ -76,28 +75,29 @@ export async function findEnrollmentByClassAndStudent(
 }
 
 /**
- * List all students enrolled in a class (active only)
- * Query gsi1 by class_id
+ * List enrollments in a class, with optional status filter.
+ * - status="active" (default) — returns only active students
+ * - status="dropped"          — returns only dropped students
+ * - status="all"              — returns all enrollments regardless of status
  */
 export async function listStudentsByClass(
-    class_id: string
+    class_id: string,
+    status: "active" | "dropped" | "all" = "active"
 ): Promise<EnrollmentItem[]> {
-    const result = await ddb.send(
-        new QueryCommand({
-            TableName: TABLE,
-            IndexName: "gsi1",
-            KeyConditionExpression: "class_id = :cid",
-            FilterExpression: "#status = :active",  // Only active enrollments
-            ExpressionAttributeNames: {
-                "#status": "status",  // 'status' is reserved word in DynamoDB
-            },
-            ExpressionAttributeValues: {
-                ":cid": class_id,
-                ":active": "active",
-            },
-        })
-    );
+    const params: any = {
+        TableName: TABLE,
+        IndexName: "gsi1",
+        KeyConditionExpression: "class_id = :cid",
+        ExpressionAttributeValues: { ":cid": class_id },
+    };
 
+    if (status !== "all") {
+        params.FilterExpression = "#status = :status";
+        params.ExpressionAttributeNames = { "#status": "status" };
+        params.ExpressionAttributeValues[":status"] = status;
+    }
+
+    const result = await ddb.send(new QueryCommand(params));
     return (result.Items as EnrollmentItem[]) ?? [];
 }
 
@@ -128,8 +128,9 @@ export async function listClassesByStudent(
 }
 
 /**
- * Drop enrollment (soft delete)
- * Sets status="dropped", dropped_at=now
+ * Drop enrollment (soft delete).
+ * Sets status="dropped", dropped_at=now, updated_at=now.
+ * Throws ConditionalCheckFailedException if enrollment doesn't exist.
  */
 export async function dropEnrollment(enrollment_id: string): Promise<void> {
     const now = new Date().toISOString();
@@ -138,7 +139,7 @@ export async function dropEnrollment(enrollment_id: string): Promise<void> {
         new UpdateCommand({
             TableName: TABLE,
             Key: { enrollment_id },
-            UpdateExpression: "SET #status = :dropped, dropped_at = :now",
+            UpdateExpression: "SET #status = :dropped, dropped_at = :now, updated_at = :now",
             ExpressionAttributeNames: {
                 "#status": "status",
             },
@@ -146,8 +147,37 @@ export async function dropEnrollment(enrollment_id: string): Promise<void> {
                 ":dropped": "dropped",
                 ":now": now,
             },
-            // Return 404 if enrollment doesn't exist
             ConditionExpression: "attribute_exists(enrollment_id)",
         })
     );
+}
+
+/**
+ * Restore a dropped enrollment back to active.
+ * Sets status="active", restored_at=now, updated_at=now, removes dropped_at.
+ * Throws ConditionalCheckFailedException if enrollment doesn't exist.
+ * Returns the updated enrollment record.
+ */
+export async function restoreEnrollment(enrollment_id: string): Promise<EnrollmentItem> {
+    const now = new Date().toISOString();
+
+    const result = await ddb.send(
+        new UpdateCommand({
+            TableName: TABLE,
+            Key: { enrollment_id },
+            UpdateExpression:
+                "SET #status = :active, restored_at = :now, updated_at = :now REMOVE dropped_at",
+            ExpressionAttributeNames: {
+                "#status": "status",
+            },
+            ExpressionAttributeValues: {
+                ":active": "active",
+                ":now": now,
+            },
+            ConditionExpression: "attribute_exists(enrollment_id)",
+            ReturnValues: "ALL_NEW",
+        })
+    );
+
+    return result.Attributes as EnrollmentItem;
 }

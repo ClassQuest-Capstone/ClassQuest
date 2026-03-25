@@ -77,6 +77,7 @@ export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) 
         "GET /teachers/{teacher_id}/classes": { method: "GET", path: "/teachers/{teacher_id}/classes" },
         "GET /schools/{school_id}/classes": { method: "GET", path: "/schools/{school_id}/classes" },
         "PATCH /classes/{class_id}/deactivate": { method: "PATCH", path: "/classes/{class_id}/deactivate" },
+        "PATCH /classes/{class_id}":            { method: "PATCH", path: "/classes/{class_id}" },
 
         // ClassEnrollments
         "POST /classes/{class_id}/enroll": { method: "POST", path: "/classes/{class_id}/enroll" },
@@ -84,6 +85,7 @@ export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) 
         "GET /classes/{class_id}/students": { method: "GET", path: "/classes/{class_id}/students" },
         "GET /students/{student_id}/classes": { method: "GET", path: "/students/{student_id}/classes" },
         "GET /enrollments/{enrollment_id}": { method: "GET", path: "/enrollments/{enrollment_id}" },
+        "POST /classes/{class_id}/students/{student_id}/restore": { method: "POST", path: "/classes/{class_id}/students/{student_id}/restore" },
 
         // QuestInstances
         "POST /classes/{class_id}/quest-instances": { method: "POST", path: "/classes/{class_id}/quest-instances" },

@@ -66,6 +66,26 @@ export async function validateJoinCode(joinCode: string): Promise<ClassItem | nu
 }
 
 /**
+ * Update editable fields on an existing class.
+ * Editable: name, subject, grade_level, is_active.
+ * At least one field must be provided.
+ */
+export async function updateClass(
+  classId: string,
+  fields: {
+    name?: string;
+    subject?: string;
+    grade_level?: number;
+    is_active?: boolean;
+  }
+): Promise<ClassItem> {
+  return api(`/classes/${classId}`, {
+    method: "PATCH",
+    body: JSON.stringify(fields),
+  });
+}
+
+/**
  * Deactivate (soft delete) a class
  */
 export async function deactivateClass(classId: string): Promise<{ message: string; class_id: string }> {
