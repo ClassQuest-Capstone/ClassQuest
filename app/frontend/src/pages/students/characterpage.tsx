@@ -44,7 +44,7 @@ interface ClaimedReward extends EquipmentItem {
 const SLOT_LABELS: Record<EquipmentSlot, string> = {
   helmet: "Helmet",
   armour: "Armour",
-  shield: "Shield",
+  shield: "HandHelds",
   pet: "Pet",
   background: "Background",
 };
@@ -245,6 +245,18 @@ const CharacterPage: React.FC = () => {
   const [itemTimerStarts, setItemTimerStarts] = useState<Map<string, number>>(new Map()); // inventory_item_id -> start timestamp (ms)
   const [currentTimeMs, setCurrentTimeMs] = useState<number>(Date.now()); // Used to trigger re-renders for timer display
 
+  // Character-specific rewards state
+  const [characterData, setCharacterData] = useState<{
+    class: string;
+    gender: string;
+    skin: string;
+    roleType: string;
+    backendGender: string;
+    avatarBaseId: string;
+    defaultItemIds: string[];
+    characterSpecificItems: Array<{ item_id: string; name: string; category: string; rarity: string; gender: string }>;
+  } | null>(null);
+
   // Tabs state
   const [tab, setTab] = useState<TabKey>("quests");
   const [showAllQuests, setShowAllQuests] = useState(false);
@@ -258,6 +270,18 @@ const CharacterPage: React.FC = () => {
   const displayName = student.displayName ?? "Student";
   const avatarUrl = student.avatarUrl ?? "/assets/mage-head.png";
   {/*"http://static.photos/people/200x200/8"*/ }
+
+  // Load character-specific data from localStorage
+  useEffect(() => {
+    try {
+      const storedData = localStorage.getItem(`cq_characterData_${studentId}`);
+      if (storedData) {
+        setCharacterData(JSON.parse(storedData));
+      }
+    } catch (err) {
+      console.error("Error loading character data:", err);
+    }
+  }, [studentId]);
 
   // Track class_id for player progression hook - always fetch from backend to ensure correctness
   const [classId, setClassId] = useState<string | null>(null);
@@ -305,7 +329,7 @@ const CharacterPage: React.FC = () => {
         const claimedRewardIds = new Set(claimsResponse.map((c: StudentRewardClaim) => c.reward_id));
 
         // Filter only claimed rewards and convert to inventory format
-        const claimed: ClaimedReward[] = allMilestones
+        let claimed: ClaimedReward[] = allMilestones
           .filter((m: StudentRewardMilestone) => claimedRewardIds.has(m.reward_id))
           .map((m: StudentRewardMilestone) => {
             // Map reward type to equipment slot
@@ -332,6 +356,19 @@ const CharacterPage: React.FC = () => {
             };
           });
 
+        // Filter by character-specific rewards if character data is available
+        if (characterData) {
+          const characterItemIds = new Set(
+            characterData.characterSpecificItems.map(item => item.item_id)
+          );
+
+          claimed = claimed.filter(reward => {
+            // Check if reward_target_id is in character-specific items
+            // If no target_id, allow it through
+            return true; // For now, show all rewards as they're set up by teacher
+          });
+        }
+
         setClaimedRewards(claimed);
       } catch (error) {
         console.error("Failed to fetch claimed rewards:", error);
@@ -342,7 +379,7 @@ const CharacterPage: React.FC = () => {
     };
 
     fetchClaimedRewards();
-  }, [studentId, classId]);
+  }, [studentId, classId, characterData]);
 
   // Fetch shop purchased items
   useEffect(() => {
@@ -385,7 +422,16 @@ const CharacterPage: React.FC = () => {
           })
           .filter((item): item is (ShopItem & { inventory_item_id: string; quantity: number }) => item !== null);
 
-        setShopPurchasedItems(mapped);
+        // Filter by character-specific items if character data is available
+        const filtered = characterData
+          ? mapped.filter(item =>
+              characterData.characterSpecificItems.some(
+                csItem => csItem.item_id === item.item_id
+              )
+            )
+          : mapped;
+
+        setShopPurchasedItems(filtered);
       } catch (error) {
         console.error("Failed to fetch shop purchased items:", error);
         setShopPurchasedItems([]);
@@ -395,7 +441,7 @@ const CharacterPage: React.FC = () => {
     };
 
     fetchShopItems();
-  }, [studentId, classId]);
+  }, [studentId, classId, characterData]);
 
   // Initialize item timers from localStorage on mount
   useEffect(() => {
@@ -1265,7 +1311,7 @@ const CharacterPage: React.FC = () => {
                     {/* Class Items */}
                     <div className="bg-gray-900 rounded-lg p-4 hover:bg-gray-800 transition-colors">
                       <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-medium">Shop Items</h3>
+                        <h3 className="font-medium">Items</h3>
                         <span className="text-xs text-gray-400">{shopPurchasedItems.length} items</span>
                       </div>
                       
@@ -1275,7 +1321,7 @@ const CharacterPage: React.FC = () => {
                         </div>
                       ) : shopPurchasedItems.length === 0 ? (
                         <div className="text-center py-8">
-                          <p className="text-gray-400 text-sm">No shop items purchased yet</p>
+                          <p className="text-gray-400 text-sm">No items purchased yet</p>
                         </div>
                       ) : (
                         <div className="grid grid-cols-3 gap-2">

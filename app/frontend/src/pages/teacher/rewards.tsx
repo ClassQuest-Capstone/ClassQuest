@@ -7,6 +7,7 @@ import { createShopItem, listShopItems, activateShopItem, deactivateShopItem, up
 import type { ShopItem, CreateShopItemInput, UpdateShopItemInput } from "../../api/shopItems/types.js";
 import { createShopListing, listShopListingsByItem, activateShopListing, deactivateShopListing } from "../../api/shopListings/client.js";
 import type { CreateShopListingInput } from "../../api/shopListings/types.js";
+import { createImageUploadUrl, uploadToS3 } from "../../api/imageUpload/client.js";
 
 type TeacherUser = {
   id: string;
@@ -134,16 +135,22 @@ const rewards = () => {
         fetchShopItems();
     }, []);
 
-    const generateSpritePathFromFile = async (file: File): Promise<string> => {
-        // Convert file to base64 data URL
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const dataUrl = e.target?.result as string;
-                resolve(dataUrl);
-            };
-            reader.readAsDataURL(file);
-        });
+    const uploadImageToS3 = async (file: File): Promise<string> => {
+        try {
+            const currentUser = JSON.parse(localStorage.getItem("cq_currentUser") || "{}");
+            const teacherId = currentUser.id || "";
+            const { uploadUrl, imageAssetKey } = await createImageUploadUrl({
+                teacher_id: teacherId,
+                entity_type: "shop-item",
+                content_type: file.type as any,
+                file_size: file.size,
+            });
+            await uploadToS3(uploadUrl, file);
+            return imageAssetKey;
+        } catch (error) {
+            console.error("Failed to upload image to S3:", error);
+            throw error;
+        }
     };
 
     const handleCreateQuest = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -151,10 +158,10 @@ const rewards = () => {
         try {
             setIsLoading(true);
 
-            // Generate sprite path from file or use default
-            let spritePath = "/items/default.png";
+            // Upload image to S3 if provided
+            let imageAssetKey: string | undefined = undefined;
             if (shopImage) {
-                spritePath = await generateSpritePathFromFile(shopImage);
+                imageAssetKey = await uploadImageToS3(shopImage);
             }
 
             // Generate unique IDs
@@ -171,7 +178,7 @@ const rewards = () => {
                 gold_cost: parseInt(price, 10),
                 required_level: parseInt(shopLevel, 10),
                 is_cosmetic_only: isCosmetic === "true",
-                sprite_path: spritePath,
+                sprite_path: imageAssetKey || "/items/default.png",
                 is_active: false // New items start as inactive
             };
 
@@ -287,7 +294,7 @@ const rewards = () => {
             // Handle image if a new one was selected
             let updatedSpritePath = editData.sprite_path;
             if (editImage) {
-                updatedSpritePath = await generateSpritePathFromFile(editImage);
+                updatedSpritePath = await uploadImageToS3(editImage);
             }
 
             // Create update object
