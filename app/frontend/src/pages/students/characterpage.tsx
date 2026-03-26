@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import feather from "feather-icons";
 import { Link, Navigate, useNavigate } from "react-router-dom";
+import { handleLogout } from "../features/utils/logout.js";
 import "../../styles/character.css";
 import { TutorialProvider } from "../components/tutorial/contextStudent.tsx";
 import { TutorialIntroModal } from "../components/tutorial/introModalStudent.tsx";
@@ -27,6 +28,13 @@ import type { StudentRewardMilestone, StudentRewardMilestonesResponse } from "..
 import { listStudentRewardClaimsByStudent } from "../../api/studentRewardClaims/client.js";
 import type { StudentRewardClaim } from "../../api/studentRewardClaims/types.js";
 import { getAssetUrl } from "../../api/imageUpload/assetUrl.js";
+import {
+  getEquippedItemsByClassAndStudent,
+  createEquippedItems as apiCreateEquippedItems,
+  updateEquippedItems as apiUpdateEquippedItems,
+  unequipItem,
+} from "../../api/equippedItems/client.js";
+import type { EquippedItems as EquippedItemsRecord } from "../../api/equippedItems/types.js";
 
 type EquipmentSlot = "helmet" | "armour" | "weapon" | "pet" | "background";
 
@@ -67,6 +75,36 @@ const PREVIEW_ORDER: EquipmentSlot[] = [
   "armour",
   "pet",
 ];
+
+// Maps frontend slot names to the DB field names in EquippedItems
+const SLOT_TO_DB_FIELD: Record<EquipmentSlot, keyof EquippedItemsRecord> = {
+  helmet: "helmet_item_id",
+  armour: "armour_item_id",
+  weapon: "hand_item_id",
+  pet: "pet_item_id",
+  background: "background_item_id",
+};
+
+// Maps frontend slot names to backend equip/unequip API slot names
+const SLOT_TO_BACKEND_SLOT: Record<EquipmentSlot, string> = {
+  helmet: "helmet",
+  armour: "armour",
+  weapon: "hand_item",
+  pet: "pet",
+  background: "background",
+};
+
+// Maps ShopItem category to frontend EquipmentSlot
+function categoryToEquipmentSlot(category: string): EquipmentSlot {
+  switch (category) {
+    case "HELMET": return "helmet";
+    case "ARMOUR": return "armour";
+    case "HAND_ITEM": return "weapon";
+    case "PET": return "pet";
+    case "BACKGROUND": return "background";
+    default: return "helmet";
+  }
+}
 
 // starter inventory
 const INITIAL_INVENTORY: EquipmentItem[] = [
@@ -236,6 +274,10 @@ const CharacterPage: React.FC = () => {
   const [itemTimerStarts, setItemTimerStarts] = useState<Map<string, number>>(new Map()); // inventory_item_id -> start timestamp (ms)
   const [currentTimeMs, setCurrentTimeMs] = useState<number>(Date.now()); // Used to trigger re-renders for timer display
 
+  // Equipped items persistence
+  const [equippedRecord, setEquippedRecord] = useState<EquippedItemsRecord | null>(null);
+  const hasRestoredEquipped = useRef(false);
+
   // Character-specific rewards state
   const [characterData, setCharacterData] = useState<{
     class: string;
@@ -299,6 +341,78 @@ const CharacterPage: React.FC = () => {
       }
     })();
   }, [studentId]);
+
+  // Fetch or create the EquippedItems record for this student+class
+  useEffect(() => {
+    if (!studentId || !classId) return;
+    (async () => {
+      try {
+        const record = await getEquippedItemsByClassAndStudent(classId, studentId);
+        // If the record was created before the student chose a character, patch avatar_base_id now
+        if (record && record.avatar_base_id === "default" && characterData?.avatarBaseId && characterData.avatarBaseId !== "default") {
+          try {
+            const patched = await apiUpdateEquippedItems(record.equipped_id, { avatar_base_id: characterData.avatarBaseId });
+            setEquippedRecord(patched);
+          } catch {
+            setEquippedRecord(record);
+          }
+        } else {
+          setEquippedRecord(record);
+        }
+      } catch {
+        // Record doesn't exist yet — create it
+        try {
+          const avatarBaseId = characterData?.avatarBaseId ?? "default";
+          const created = await apiCreateEquippedItems({
+            class_id: classId,
+            student_id: studentId,
+            avatar_base_id: avatarBaseId,
+          });
+          setEquippedRecord(created as EquippedItemsRecord);
+        } catch (createErr: any) {
+          // 409 means a record was created concurrently — fetch it
+          if (createErr?.message?.includes("already exists")) {
+            try {
+              const record = await getEquippedItemsByClassAndStudent(classId, studentId);
+              setEquippedRecord(record);
+            } catch {}
+          }
+        }
+      }
+    })();
+  }, [studentId, classId]);
+
+  // Restore equipped state from the fetched record once inventory items are loaded
+  useEffect(() => {
+    if (!equippedRecord || hasRestoredEquipped.current) return;
+    if (loadingClaimedRewards || loadingShopItems) return;
+
+    hasRestoredEquipped.current = true;
+
+    const allItems: Array<{ id: string; name: string; slot: EquipmentSlot; icon: string }> = [
+      ...claimedRewards,
+      ...shopPurchasedItems.map(s => ({
+        id: s.item_id,
+        name: s.name,
+        slot: categoryToEquipmentSlot(s.category),
+        icon: getAssetUrl(s.sprite_path) ?? s.sprite_path,
+      })),
+    ];
+
+    const restored: Partial<Record<EquipmentSlot, EquipmentItem | null>> = {
+      helmet: null, armour: null, weapon: null, pet: null, background: null,
+    };
+
+    (Object.entries(SLOT_TO_DB_FIELD) as Array<[EquipmentSlot, keyof EquippedItemsRecord]>).forEach(([slot, field]) => {
+      const storedId = equippedRecord[field] as string | undefined;
+      if (storedId) {
+        const item = allItems.find(i => i.id === storedId);
+        if (item) restored[slot] = item as EquipmentItem;
+      }
+    });
+
+    setEquipped(restored);
+  }, [equippedRecord, claimedRewards, shopPurchasedItems, loadingClaimedRewards, loadingShopItems]);
 
   // Fetch claimed rewards from backend to populate inventory
   useEffect(() => {
@@ -905,6 +1019,38 @@ const CharacterPage: React.FC = () => {
       ...prev,
       [slot]: item as EquipmentItem,
     }));
+
+    // Persist to backend
+    if (equippedRecord?.equipped_id) {
+      const dbField = SLOT_TO_DB_FIELD[slot] as string;
+      apiUpdateEquippedItems(equippedRecord.equipped_id, { [dbField]: id } as any).catch(
+        (err) => console.error("Failed to persist equipped item:", err)
+      );
+    }
+  };
+
+  const handleDragStartFromSlot = (
+    e: React.DragEvent<HTMLDivElement>,
+    slot: EquipmentSlot
+  ) => {
+    e.dataTransfer.setData("unequip-slot", slot);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDropOnInventory = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const slot = e.dataTransfer.getData("unequip-slot") as EquipmentSlot;
+    if (!slot || !EQUIPMENT_SLOTS.includes(slot)) return;
+
+    setEquipped((prev) => ({ ...prev, [slot]: null }));
+
+    // Persist unequip to backend
+    if (equippedRecord?.equipped_id) {
+      const backendSlot = SLOT_TO_BACKEND_SLOT[slot];
+      unequipItem(equippedRecord.equipped_id, { slot: backendSlot as any }).catch(
+        (err) => console.error("Failed to persist unequip:", err)
+      );
+    }
   };
 
   const TabButton = ({
@@ -1038,12 +1184,12 @@ const CharacterPage: React.FC = () => {
                     {/*<button className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                       Your Profile
                     </button>*/}
-                    <Link
-                      to="/role"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-300"
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-300"
                     >
                       Sign out
-                    </Link>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1114,9 +1260,11 @@ const CharacterPage: React.FC = () => {
                       return (
                         <div
                           key={slot}
+                          draggable={!!item}
+                          onDragStart={item ? (e) => handleDragStartFromSlot(e, slot) : undefined}
                           onDragOver={handleDragOverSlot}
                           onDrop={(e) => handleDropOnSlot(e, slot)}
-                          className="bg-gray-900 rounded-lg p-4 text-center border border-gray-700/70 min-h-[120px] flex flex-col items-center justify-center relative"
+                          className={`bg-gray-900 rounded-lg p-4 text-center border border-gray-700/70 min-h-[120px] flex flex-col items-center justify-center relative${item ? " cursor-grab active:cursor-grabbing" : ""}`}
                         >
                           <div className="h-20 w-20 mx-auto mb-2 flex items-center justify-center">
                             {item ? (
@@ -1269,6 +1417,8 @@ const CharacterPage: React.FC = () => {
                 <div
                   id="inventory"
                   className="w-full lg:w-80 bg-gray-800 rounded-xl p-6 h-full"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleDropOnInventory}
                 >
                   <h2 className="text-2xl font-bold mb-4 text-yellow-400">
                     Inventory

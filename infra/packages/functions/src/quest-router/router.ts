@@ -145,6 +145,15 @@ import { handler as paListByClass }            from "../playerAvatars/list-by-cl
 import { handler as paEquip }                  from "../playerAvatars/equip.js";
 import { handler as paUnequip }                from "../playerAvatars/unequip.js";
 
+// EquippedItems
+import { handler as eiCreate }               from "../equippedItems/create.js";
+import { handler as eiGet }                  from "../equippedItems/get.js";
+import { handler as eiGetByClassStudent }    from "../equippedItems/get-by-class-student.js";
+import { handler as eiUpdate }               from "../equippedItems/update.js";
+import { handler as eiEquip }                from "../equippedItems/equip.js";
+import { handler as eiUnequip }              from "../equippedItems/unequip.js";
+import { handler as eiListByClass }          from "../equippedItems/list-by-class.js";
+
 // Dispatch table: keys must exactly match the routeKey API Gateway sets on event.routeKey
 // Format: "METHOD /path" with {param} placeholders verbatim
 const ROUTES: Record<string, (event: any) => Promise<any>> = {
@@ -291,6 +300,15 @@ const ROUTES: Record<string, (event: any) => Promise<any>> = {
     "PATCH /player-avatars/{player_avatar_id}":                                                                                              paUpdate,
     "POST /player-avatars/{player_avatar_id}/equip":                                                                                         paEquip,
     "POST /player-avatars/{player_avatar_id}/unequip":                                                                                       paUnequip,
+
+    // EquippedItems
+    "POST /equipped-items":                                                                                                                  eiCreate,
+    "GET /equipped-items/class/{class_id}/student/{student_id}":                                                                             eiGetByClassStudent,
+    "GET /equipped-items/class/{class_id}":                                                                                                  eiListByClass,
+    "GET /equipped-items/{equipped_id}":                                                                                                     eiGet,
+    "PATCH /equipped-items/{equipped_id}":                                                                                                   eiUpdate,
+    "POST /equipped-items/{equipped_id}/equip":                                                                                              eiEquip,
+    "POST /equipped-items/{equipped_id}/unequip":                                                                                            eiUnequip,
 };
 
 export const handler = async (event: any): Promise<any> => {

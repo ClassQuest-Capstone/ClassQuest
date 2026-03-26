@@ -84,6 +84,7 @@ export function DataStack(ctx: StackContext) {
             inventoryItemsTable: tables.inventoryItemsTable.tableName,
             avatarBasesTable: tables.avatarBasesTable.tableName,
             playerAvatarsTable: tables.playerAvatarsTable.tableName,
+            equippedItemsTable: tables.equippedItemsTable.tableName,
         },
         tableArns: {
             usersTable: tables.usersTable.tableArn,
@@ -116,6 +117,7 @@ export function DataStack(ctx: StackContext) {
             inventoryItemsTable: tables.inventoryItemsTable.tableArn,
             avatarBasesTable: tables.avatarBasesTable.tableArn,
             playerAvatarsTable: tables.playerAvatarsTable.tableArn,
+            equippedItemsTable: tables.equippedItemsTable.tableArn,
         },
     };
 }

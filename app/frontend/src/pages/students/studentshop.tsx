@@ -7,6 +7,7 @@ import { listShopItems } from "../../api/shopItems/client.js";
 import { grantInventoryItem } from "../../api/inventoryItems/client.js";
 import { upsertPlayerState, getPlayerState } from "../../api/playerStates.js";
 import { getAssetUrl } from "../../api/imageUpload/assetUrl.js";
+import { StudentNavDropdown } from "./StudentNavDropdown.js";
 import type { ShopListing } from "../../api/shopListings/types.js";
 import type { ShopItem } from "../../api/shopItems/types.js";
 
@@ -251,16 +252,7 @@ const StudentShop: React.FC = () => {
 
 
               {/* Profile */}
-              <div className="relative ml-3">
-                <button className="flex items-center text-sm rounded-full focus:outline-none">
-                  <img
-                    className="h-8 w-8 rounded-full"
-                    src="/assets/mage-head.png"
-                    alt="profile"
-                  />
-                  <span className="ml-2 text-sm font-medium">{student?.displayName ?? "Student"}</span>
-                </button>
-              </div>
+              <StudentNavDropdown displayName={student?.displayName ?? "Student"} />
             </div>
 
             {/* Mobile Menu */}

@@ -25,7 +25,7 @@ export type ShopItem = {
     item_id: string;            // stable slug or UUID (e.g. "hat_iron_01")
     name: string;               // display name (e.g. "Iron Helm")
     description: string;        // flavour text
-    category: string;           // e.g. "HAT", "ARMOR", "ACCESSORY"
+    category: string;           // e.g. "HELMET", "ARMOUR", "HAND_ITEM", "SHIELD", "PET", "BACKGROUND"
     rarity: ShopRarity;
     gold_cost: number;          // purchase price in gold
     required_level: number;     // minimum player level to purchase (0 = no restriction)

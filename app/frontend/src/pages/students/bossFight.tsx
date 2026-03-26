@@ -30,6 +30,67 @@ import { getStudentProfile } from "../../api/studentProfiles.js";
 import { getBossResults, computeBossResults } from "../../api/bossResults/client.js";
 import { getGuild } from "../../api/guilds.js";
 import { useBattlePolling, useRosterPolling } from "../../hooks/useBattlePolling.ts";
+import { listEquippedItemsByClass } from "../../api/equippedItems/client.js";
+import type { EquippedItems as EquippedItemsRecord } from "../../api/equippedItems/types.js";
+import { listShopItems } from "../../api/shopItems/client.js";
+import type { ShopItem } from "../../api/shopItems/types.js";
+import { getAssetUrl } from "../../api/imageUpload/assetUrl.js";
+import { listRewardMilestonesByClass } from "../../api/rewardMilestones/client.js";
+import { StudentNavDropdown } from "./StudentNavDropdown.js";
+
+// --- NPC sprites (non-bg_ variants, one per slot for variety) ---
+const NPC_SPRITES_10 = [
+  "/assets/seed/avatar-assets/bases/guardian/male/white/base_guardian_male_white.png",
+  "/assets/seed/avatar-assets/bases/mage/female/brown/base_mage_female_brown.png",
+  "/assets/seed/avatar-assets/bases/healer/male/dark/base_healer_male_dark.png",
+  "/assets/seed/avatar-assets/bases/guardian/female/white/base_guardian_female_white.png",
+  "/assets/seed/avatar-assets/bases/mage/male/brown/base_mage_male_brown.png",
+  "/assets/seed/avatar-assets/bases/healer/female/dark/base_healer_female_dark.png",
+  "/assets/seed/avatar-assets/bases/guardian/male/brown/base_guardian_male_brown.png",
+  "/assets/seed/avatar-assets/bases/mage/female/white/base_mage_female_white.png",
+  "/assets/seed/avatar-assets/bases/healer/male/white/base_healer_male_white.png",
+  "/assets/seed/avatar-assets/bases/guardian/female/dark/base_guardian_female_dark.png",
+];
+
+
+type CharacterGridSlot = {
+  type: "player" | "npc";
+  studentId?: string;
+  displayName?: string;
+  baseSpriteUrl: string;
+  helmetUrl?: string;
+  weaponUrl?: string;
+  armourUrl?: string;
+  petUrl?: string;
+  isDowned?: boolean;
+};
+
+const CharacterCard: React.FC<{ slot: CharacterGridSlot }> = ({ slot }) => (
+  <div className="flex flex-col items-center">
+    <div className={`relative w-36 h-52 pixel-art transition-opacity ${slot.isDowned ? "opacity-40 grayscale" : ""}`}>
+      <img
+        src={slot.baseSpriteUrl}
+        className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+        onError={(e) => { (e.target as HTMLImageElement).src = "/assets/seed/avatar-assets/bases/default/base_default_global.png"; }}
+        alt=""
+      />
+      {slot.helmetUrl && <img src={slot.helmetUrl} className="absolute inset-0 w-full h-full object-contain pointer-events-none" alt="" />}
+      {slot.weaponUrl && <img src={slot.weaponUrl} className="absolute inset-0 w-full h-full object-contain pointer-events-none" alt="" />}
+      {slot.armourUrl && <img src={slot.armourUrl} className="absolute inset-0 w-full h-full object-contain pointer-events-none" alt="" />}
+      {slot.petUrl && <img src={slot.petUrl} className="absolute inset-0 w-full h-full object-contain pointer-events-none" alt="" />}
+      {slot.isDowned && (
+        <div className="absolute inset-0 flex items-end justify-center pb-1">
+          <span className="text-[8px] font-bold text-red-300 bg-black/70 px-1 rounded">DOWN</span>
+        </div>
+      )}
+    </div>
+    <div className={`mt-0.5 text-[9px] max-w-[112px] truncate text-center leading-tight ${
+      slot.type === "npc" ? "text-gray-500 italic" : "text-white/90"
+    }`}>
+      {slot.displayName ?? "NPC"}
+    </div>
+  </div>
+);
 
 type StudentUser = {
   id: string;
@@ -296,6 +357,14 @@ const BossFight: React.FC = () => {
 
   const [battleLog, setBattleLog] = useState<BattleLogEntry[]>([]);
 
+  // Character data for the 10-slot party grid
+  const [allEquippedItems, setAllEquippedItems] = useState<EquippedItemsRecord[]>([]);
+  const [shopItemMap, setShopItemMap] = useState<Map<string, ShopItem>>(new Map());
+  // reward_id → image_asset_key  (items stored by reward_id in EquippedItems)
+  const [rewardImageMap, setRewardImageMap] = useState<Map<string, string>>(new Map());
+  // reward_target_id → image_asset_key  (resolves old default shop item IDs that became rewards)
+  const [targetIdImageMap, setTargetIdImageMap] = useState<Map<string, string>>(new Map());
+
   const [showResultModal, setShowResultModal] = useState(false);
   const [loadingResults, setLoadingResults] = useState(false);
   const [resultsCountdown, setResultsCountdown] = useState<number | null>(null);
@@ -366,35 +435,125 @@ const BossFight: React.FC = () => {
     return roster.filter((r) => r.guildId === myParticipant.guild_id);
   }, [roster, myParticipant?.guild_id]);
 
-  const partySlots = useMemo<PartySlot[]>(() => {
-    const defaults = [
-      {
-        key: "guardian",
-        image: "/assets/boss/MageB.png",
-        fallbackName: "Mage",
-        position: "front" as const,
-      },
-      {
-        key: "healer",
-        image: "/assets/boss/HealerW.png",
-        fallbackName: "Healer",
-        position: "back-left" as const,
-      },
-      {
-        key: "mage",
-        image: "/assets/boss/GuardianB.png",
-        fallbackName: "Guardian",
-        position: "back-right" as const,
-      },
-    ];
+  // Fetch avatar bases, shop items, equipped items, and reward milestones once per class
+  useEffect(() => {
+    if (!classId) return;
+    Promise.allSettled([
+      listEquippedItemsByClass(classId, { limit: 100 }),
+      listShopItems({ limit: 200 }),
+      listRewardMilestonesByClass(classId),
+    ]).then(([equippedResult, shopResult, rewardsResult]) => {
+      if (equippedResult.status === "fulfilled") {
+        setAllEquippedItems((equippedResult.value as any).items ?? []);
+      } else {
+        console.warn("[BossFight] listEquippedItemsByClass failed:", equippedResult.reason);
+      }
+      if (shopResult.status === "fulfilled") {
+        setShopItemMap(new Map(
+          ((shopResult.value as any).items ?? []).map((s: ShopItem) => [s.item_id, s])
+        ));
+      }
+      if (rewardsResult.status === "fulfilled") {
+        const rewards: any[] = (rewardsResult.value as any) ?? [];
+        const rMap = new Map<string, string>();
+        const tMap = new Map<string, string>();
+        for (const r of rewards) {
+          if (r.reward_id && r.image_asset_key) rMap.set(r.reward_id, r.image_asset_key);
+          if (r.reward_target_id && r.image_asset_key) tMap.set(r.reward_target_id, r.image_asset_key);
+        }
+        setRewardImageMap(rMap);
+        setTargetIdImageMap(tMap);
+      } else {
+        console.warn("[BossFight] listRewardMilestonesByClass failed:", rewardsResult.reason);
+      }
+    });
+  }, [classId]);
 
-    return defaults.map((slot, index) => ({
-      key: slot.key,
-      image: slot.image,
-      position: slot.position,
-      name: myGuildRoster[index]?.displayName || slot.fallbackName,
-    }));
-  }, [myGuildRoster]);
+  // Build the 10-slot party grid: guild members first, NPCs fill the rest
+  // Synchronously derived from already-fetched data — no async waterfall needed.
+  const partyGrid = useMemo<CharacterGridSlot[]>(() => {
+    const classMap: Record<string, string> = { Guardian: "guardian", Mage: "mage", Healer: "healer" };
+    const genderMap: Record<string, string> = { M: "male", F: "female" };
+    const skinMap: Record<string, string> = { white: "white", brown: "brown", black: "dark" };
+
+    const DEFAULT_SPRITE = "/assets/seed/avatar-assets/bases/default/base_default_global.png";
+
+    const getItemSprite = (itemId?: string): string | undefined => {
+      if (!itemId) return undefined;
+      // 1. Shop item (purchased from shop)
+      const shopItem = shopItemMap.get(itemId);
+      if (shopItem) return getAssetUrl(shopItem.sprite_path) ?? shopItem.sprite_path;
+      // 2. Reward item stored by reward_id (e.g. "seed_reward_v2_guardian_helmet")
+      const rewardKey = rewardImageMap.get(itemId);
+      if (rewardKey) return getAssetUrl(rewardKey);
+      // 3. Old default shop item ID that became a reward (e.g. "guardian_helmet_copper")
+      const targetKey = targetIdImageMap.get(itemId);
+      if (targetKey) return getAssetUrl(targetKey);
+      return undefined;
+    };
+
+    const slots: CharacterGridSlot[] = [];
+
+    for (const member of myGuildRoster.slice(0, 10)) {
+      const equippedRecord = allEquippedItems.find((r) => r.student_id === member.studentId);
+
+      // Resolve base sprite
+      let baseSpriteUrl: string | undefined;
+
+      // Current user: read from localStorage
+      if (member.studentId === studentId) {
+        try {
+          const raw = localStorage.getItem(`cq_characterData_${studentId}`);
+          if (raw) {
+            const cd = JSON.parse(raw);
+            const c = classMap[cd.class] ?? cd.class?.toLowerCase();
+            const g = genderMap[cd.gender] ?? cd.gender?.toLowerCase();
+            const s = skinMap[cd.skin] ?? cd.skin;
+            if (c && g && s) {
+              baseSpriteUrl = `/assets/seed/avatar-assets/bases/${c}/${g}/${s}/base_${c}_${g}_${s}.png`;
+            }
+          }
+        } catch { /* ignore */ }
+      }
+
+      // Other members: parse avatar_base_id (e.g. "guardian_male_brown")
+      if (!baseSpriteUrl && equippedRecord?.avatar_base_id) {
+        const id = equippedRecord.avatar_base_id.toLowerCase();
+        const c = ["guardian", "mage", "healer"].find((x) => id.includes(x));
+        const g = ["male", "female"].find((x) => id.includes(x));
+        const s = ["white", "brown", "dark"].find((x) => id.includes(x));
+        if (c && g && s) {
+          baseSpriteUrl = `/assets/seed/avatar-assets/bases/${c}/${g}/${s}/base_${c}_${g}_${s}.png`;
+        }
+      }
+
+      // Always resolve equipment regardless of whether base sprite was found
+      slots.push({
+        type: "player",
+        studentId: member.studentId,
+        displayName: member.displayName,
+        baseSpriteUrl: baseSpriteUrl ?? DEFAULT_SPRITE,
+        helmetUrl: getItemSprite(equippedRecord?.helmet_item_id),
+        weaponUrl: getItemSprite(equippedRecord?.hand_item_id),
+        armourUrl: getItemSprite(equippedRecord?.armour_item_id),
+        petUrl: getItemSprite(equippedRecord?.pet_item_id),
+        isDowned: member.isDowned,
+      });
+    }
+
+    // Fill remaining slots with NPCs
+    while (slots.length < 10) {
+      const spriteUrl = NPC_SPRITES_10[slots.length % NPC_SPRITES_10.length];
+      const npcClass = ["Guardian", "Mage", "Healer"].find((c) => spriteUrl.includes(c.toLowerCase())) ?? "NPC";
+      slots.push({
+        type: "npc",
+        displayName: npcClass,
+        baseSpriteUrl: spriteUrl,
+      });
+    }
+
+    return slots;
+  }, [myGuildRoster, allEquippedItems, shopItemMap, rewardImageMap, targetIdImageMap, studentId]);
 
   const canAnswer = useMemo(() => {
     if (!instance || !myParticipant || !question) return false;
@@ -1295,7 +1454,7 @@ const BossFight: React.FC = () => {
           <div className="absolute inset-0 bg-red-500/20 animate-pulse" />
         </div>
       )}
-      <div className="font-poppins bg-[url('/assets/boss-bckgnd.png')] bg-cover bg-center bg-no-repeat min-h-screen">
+      <div className="font-poppins bg-[url('/assets/boss-bckgnd.png')] bg-no-repeat bg-center min-h-screen" style={{ backgroundSize: "150%" }}>
         <nav className="bg-blue-700 text-white shadow-lg">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
@@ -1349,21 +1508,7 @@ const BossFight: React.FC = () => {
                   </Link>
                 </div>
 
-                <div className="relative ml-3">
-                  <button
-                    id="user-menu-button"
-                    className="flex items-center text-sm rounded-full focus:outline-none"
-                  >
-                    <img
-                      className="h-8 w-8 rounded-full"
-                      src="http://static.photos/people/200x200/8"
-                      alt=""
-                    />
-                    <span className="ml-2 text-sm font-medium">
-                      {student?.displayName ?? "Student"}
-                    </span>
-                  </button>
-                </div>
+                <StudentNavDropdown displayName={student?.displayName ?? "Student"} />
               </div>
 
               <div className="-mr-2 flex items-center md:hidden">
@@ -1457,48 +1602,21 @@ const BossFight: React.FC = () => {
             </div>
 
             <div className="absolute inset-0 z-10">
-              {/* Party side */}
-              <div className="absolute left-[4%] bottom-[14%] w-[42%] h-[64%]">
-                <div className="absolute left-[17%] top-[16%] flex flex-col items-center">
-                  <img
-                    src="/assets/boss/HealerW.png"
-                    alt="Healer"
-                    className="w-28 md:w-32 drop-shadow-[0_12px_18px_rgba(0,0,0,0.6)]"
-                  />
-                  <div className="mt-2 rounded-full bg-black/70 px-3 py-1 text-xs text-white border border-white/10">
-                    {partySlots.find((p) => p.position === "back-left")?.name || "Healer"}
-                  </div>
-                </div>
-
-                <div className="absolute left-[48%] -translate-x-1/2 top-[28%] flex flex-col items-center z-10">
-                  <img
-                    src="/assets/boss/MageB.png"
-                    alt="Mage"
-                    className="w-36 md:w-40 drop-shadow-[0_14px_20px_rgba(0,0,0,0.7)]"
-                  />
-                  <div className="mt-2 rounded-full bg-black/70 px-3 py-1 text-xs text-white border border-white/10">
-                    {partySlots.find((p) => p.position === "front")?.name || "Guardian"}
-                  </div>
-                </div>
-
-                <div className="absolute right-[14%] top-[16%] flex flex-col items-center">
-                  <img
-                    src="/assets/boss/GuardianB.png"
-                    alt="Guardian"
-                    className="w-28 md:w-32 drop-shadow-[0_12px_18px_rgba(0,0,0,0.6)]"
-                  />
-                  <div className="mt-2 rounded-full bg-black/70 px-3 py-1 text-xs text-white border border-white/10">
-                    {partySlots.find((p) => p.position === "back-right")?.name || "Guardian"}
-                  </div>
+              {/* Party side — 10 slots (guild members replace NPCs as they join) */}
+              <div className="absolute left-[1%] top-[2%] bottom-[2%] w-[48%] flex items-center">
+                <div className="grid grid-cols-5 gap-x-1 gap-y-2 w-full px-1 pt-12">
+                  {partyGrid.map((slot, i) => (
+                    <CharacterCard key={slot.studentId ?? `npc-${i}`} slot={slot} />
+                  ))}
                 </div>
               </div>
 
               {/* Boss side */}
-              <div className="absolute right-[6%] bottom-[12%] w-[34%] h-[70%] flex items-end justify-center">
+              <div className="absolute right-[6%] bottom-[22%] w-[34%] h-[70%] flex items-end justify-center">
                 <img
                   src="/assets/boss/goblin_king.png"
                   alt="Goblin King"
-                  className="w-[260px] md:w-[320px] lg:w-[360px] drop-shadow-[0_18px_28px_rgba(0,0,0,0.8)]"
+                  className="w-[200px] md:w-[240px] lg:w-[280px] drop-shadow-[0_18px_28px_rgba(0,0,0,0.8)]"
                 />
               </div>
             </div>
@@ -1710,13 +1828,7 @@ const BossFight: React.FC = () => {
               )}
             </div>
 
-            <div className="flex justify-end gap-3 px-5 py-4 border-t border-white/10 bg-black/20">
-              <button
-                onClick={() => setShowResultModal(false)}
-                className="px-4 py-2 rounded-md border border-slate-500 text-slate-200 hover:bg-slate-800"
-              >
-                Close
-              </button>
+            <div className="flex justify-end px-5 py-4 border-t border-white/10 bg-black/20">
               <button
                 onClick={() => { window.location.href = "/guilds"; }}
                 className="px-4 py-2 rounded-md bg-emerald-600 border border-emerald-800 text-white hover:bg-emerald-700"

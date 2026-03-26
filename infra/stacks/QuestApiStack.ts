@@ -32,6 +32,7 @@ type QuestApiStackProps = {
         shopListingsTable: string;
         avatarBasesTable: string;
         playerAvatarsTable: string;
+        equippedItemsTable: string;
     };
     tableArns: {
         usersTable: string;
@@ -62,6 +63,7 @@ type QuestApiStackProps = {
         inventoryItemsTable: string;
         avatarBasesTable: string;
         playerAvatarsTable: string;
+        equippedItemsTable: string;
     };
     userPoolId: string;
     userPoolArn: string;
@@ -226,6 +228,15 @@ export function QuestApiStack(ctx: StackContext, props: QuestApiStackProps) {
         "PATCH /player-avatars/{player_avatar_id}":                                              { method: "PATCH", path: "/player-avatars/{player_avatar_id}" },
         "POST /player-avatars/{player_avatar_id}/equip":                                         { method: "POST",  path: "/player-avatars/{player_avatar_id}/equip" },
         "POST /player-avatars/{player_avatar_id}/unequip":                                       { method: "POST",  path: "/player-avatars/{player_avatar_id}/unequip" },
+
+        // EquippedItems
+        "POST /equipped-items":                                                                  { method: "POST",  path: "/equipped-items" },
+        "GET /equipped-items/class/{class_id}/student/{student_id}":                             { method: "GET",   path: "/equipped-items/class/{class_id}/student/{student_id}" },
+        "GET /equipped-items/class/{class_id}":                                                  { method: "GET",   path: "/equipped-items/class/{class_id}" },
+        "GET /equipped-items/{equipped_id}":                                                     { method: "GET",   path: "/equipped-items/{equipped_id}" },
+        "PATCH /equipped-items/{equipped_id}":                                                   { method: "PATCH", path: "/equipped-items/{equipped_id}" },
+        "POST /equipped-items/{equipped_id}/equip":                                              { method: "POST",  path: "/equipped-items/{equipped_id}/equip" },
+        "POST /equipped-items/{equipped_id}/unequip":                                            { method: "POST",  path: "/equipped-items/{equipped_id}/unequip" },
     };
 
     // ── ROUTER LAMBDA (replaces individual Lambdas) ──────────────────────────
@@ -262,6 +273,7 @@ export function QuestApiStack(ctx: StackContext, props: QuestApiStackProps) {
             INVENTORY_ITEMS_TABLE_NAME:                tableNames.inventoryItemsTable,
             AVATAR_BASES_TABLE_NAME:                   tableNames.avatarBasesTable,
             PLAYER_AVATARS_TABLE_NAME:                 tableNames.playerAvatarsTable,
+            EQUIPPED_ITEMS_TABLE_NAME:                 tableNames.equippedItemsTable,
             USER_POOL_ID:                              userPoolId,
             // debug-create.ts reads TABLE_NAME (non-standard); point to usersTable
             TABLE_NAME:                                tableNames.usersTable,
