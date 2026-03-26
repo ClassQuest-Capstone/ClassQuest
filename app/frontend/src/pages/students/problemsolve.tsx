@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import feather from "feather-icons";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { StudentNavDropdown } from "./StudentNavDropdown.js";
 
 import { getQuestInstance, type QuestInstance } from "../../api/questInstances.js";
 import { listQuestQuestions, type QuestQuestion } from "../../api/questQuestions.js";
@@ -1118,12 +1119,7 @@ const ProblemSolve: React.FC = () => {
               <Link to="/character" className="px-3 py-2 rounded-md text-sm bg-primary-800">Character</Link>
               <Link to="/guilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">Guilds</Link>
               <Link to="/leaderboards" className="px-3 py-2 rounded-md text-sm hover:bg-primary-600">Leaderboard</Link>
-              <div className="relative ml-3">
-                <button className="flex items-center text-sm rounded-full">
-                  <img className="h-8 w-8 rounded-full" src="http://static.photos/people/200x200/8" alt="User" />
-                  <span className="ml-2">{studentName}</span>
-                </button>
-              </div>
+              <StudentNavDropdown displayName={studentName} />
             </div>
 
             <div className="md:hidden flex items-center">

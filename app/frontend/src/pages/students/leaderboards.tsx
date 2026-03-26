@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { getStudentProfile, type StudentProfile } from "../../api/studentProfiles.js";
 import { getLeaderboard, type PlayerState } from "../../api/playerStates.js";
 import { usePlayerProgression, getLevelFromXP } from "../hooks/students/usePlayerProgression.js";
+import { StudentNavDropdown } from "./StudentNavDropdown.js";
 
 type Tab = "students" | "guilds";
 
@@ -225,14 +226,7 @@ const Leaderboard: React.FC = () => {
                 </span>
             </Link>
             </div>
-              <a href="#" className="flex items-center">
-                <img
-                  className="h-8 w-8 rounded-full"
-                  src="/assets/mage-head.png"
-                  alt="Profile"
-                />
-                <span className="ml-2 text-sm font-medium">{student?.displayName ?? "Student"}</span>
-              </a>
+              <StudentNavDropdown displayName={student?.displayName ?? "Student"} />
             </div>
             <div className="-mr-2 flex items-center md:hidden">
               <button

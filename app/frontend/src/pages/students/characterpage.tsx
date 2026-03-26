@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import feather from "feather-icons";
 import { Link, Navigate, useNavigate } from "react-router-dom";
+import { handleLogout } from "../features/utils/logout.js";
 import "../../styles/character.css";
 import { TutorialProvider } from "../components/tutorial/contextStudent.tsx";
 import { TutorialIntroModal } from "../components/tutorial/introModalStudent.tsx";
@@ -347,7 +348,17 @@ const CharacterPage: React.FC = () => {
     (async () => {
       try {
         const record = await getEquippedItemsByClassAndStudent(classId, studentId);
-        setEquippedRecord(record);
+        // If the record was created before the student chose a character, patch avatar_base_id now
+        if (record && record.avatar_base_id === "default" && characterData?.avatarBaseId && characterData.avatarBaseId !== "default") {
+          try {
+            const patched = await apiUpdateEquippedItems(record.equipped_id, { avatar_base_id: characterData.avatarBaseId });
+            setEquippedRecord(patched);
+          } catch {
+            setEquippedRecord(record);
+          }
+        } else {
+          setEquippedRecord(record);
+        }
       } catch {
         // Record doesn't exist yet — create it
         try {
@@ -1173,12 +1184,12 @@ const CharacterPage: React.FC = () => {
                     {/*<button className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                       Your Profile
                     </button>*/}
-                    <Link
-                      to="/role"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-300"
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-300"
                     >
                       Sign out
-                    </Link>
+                    </button>
                   </div>
                 </div>
               </div>

@@ -4,6 +4,7 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import feather from "feather-icons";
 
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
+import ProfileModal from "../features/teacher/ProfileModal.js";
 import { getTeacherProfile } from "../../api/teacherProfiles.js";
 
 import {
@@ -156,6 +157,7 @@ export default function BossBattleMonitorTeacher() {
   if (!teacher) return <Navigate to="/TeacherLogin" replace />;
   if (!bossInstanceId) return <Navigate to="/teacherDashboard" replace />;
 
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -752,40 +754,52 @@ export default function BossBattleMonitorTeacher() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <Link
-                to="/teacherDashboard"
-                className="flex items-center px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
-                <i data-feather="book-open" className="w-8 h-8 mr-2"></i>
-                <span className="text-xl font-bold">ClassQuest</span>
-              </Link>
+              <div className="shrink-0 flex items-center">
+                <Link
+                  to="/teacherDashboard"
+                  className="flex items-center px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
+                >
+                  <i data-feather="book-open" className="w-8 h-8 mr-2"></i>
+                  <span className="text-xl font-bold">ClassQuest</span>
+                </Link>
+              </div>
             </div>
 
-            <div className="hidden md:flex md:items-center md:space-x-4">
-              <Link
-                to="/teacherDashboard"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
+            <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
+              <Link to="/teacherDashboard" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                 Dashboard
               </Link>
-
-              <Link
-                to="/subjects"
-                className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600"
-              >
-                Subjects
-              </Link>
-
-              <Link
-                to="/classes"
-                className="px-3 py-2 rounded-md text-sm font-medium bg-blue-900"
-              >
+              <Link to="/Classes" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
                 Classes
               </Link>
+              <Link to="/Subjects" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
+                Quests
+              </Link>
+              <Link to="/Activity" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
+                Activity
+              </Link>
+              <Link to="/teacherGuilds" className="px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-600">
+                Guilds
+              </Link>
+              <DropDownProfile
+                username={teacher?.displayName || "user"}
+                onLogout={() => {
+                  localStorage.removeItem("cq_currentUser");
+                  navigate("/TeacherLogin");
+                }}
+                onProfileClick={() => setIsProfileModalOpen(true)}
+              />
+            </div>
+
+            <div className="-mr-2 flex items-center md:hidden">
+              <button className="inline-flex items-center justify-center p-2 rounded-md text-blue-100 hover:text-white hover:bg-blue-600">
+                <i data-feather="menu"></i>
+              </button>
             </div>
           </div>
         </div>
       </nav>
+      <ProfileModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
 
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
         <button

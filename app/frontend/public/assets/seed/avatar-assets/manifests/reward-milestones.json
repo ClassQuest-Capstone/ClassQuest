@@ -100,8 +100,8 @@
   },
   {
     "reward_id": "seed_reward_v2_mage_weapon",
-    "title": "Crimson Mage Staff",
-    "description": "A magical crimson staff wielded by mages.",
+    "title": "Crimson Mage Book",
+    "description": "A magical crimson tome wielded by mages.",
     "unlock_level": 20,
     "type": "WEAPON",
     "reward_target_type": "ITEM",
