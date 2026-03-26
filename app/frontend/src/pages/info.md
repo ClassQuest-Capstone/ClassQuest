@@ -208,12 +208,13 @@ TODO: Finish user guide (DONE)
 
 TODO: connect images_path to s3 (DONE)
 
-TODO: edit & modal for class 
+TODO: edit & modal for class (DONE)
 
-TODO: connect rewards to s3 and logic for rewards
+TODO: connect rewards to s3 and logic for rewards (DONE)
 
 TODO: Usability Testing
 
+TODO: fix deleted student and edit logic for class (DONE)
 
 HARDCODED EACH ITEM TO BE IN SHOP FOR 2 WEEKS ???
 

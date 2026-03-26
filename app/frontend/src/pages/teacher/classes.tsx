@@ -8,6 +8,7 @@ import {
   createClass,
   listClassesByTeacher,
   deactivateClass,
+  updateClass,
   type ClassItem,
 } from "../../api/classes.js";
 
@@ -103,6 +104,14 @@ const Classes = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [copiedClassId, setCopiedClassId] = useState<string | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  
+  // Edit modal state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingClassId, setEditingClassId] = useState<string | null>(null);
+  const [editClassName, setEditClassName] = useState("");
+  const [editGradeLevel, setEditGradeLevel] = useState<number>(6);
+  const [editSubject, setEditSubject] = useState<string>("");
+  const [isEditSaving, setIsEditSaving] = useState(false);
 
   const activeClasses = useMemo(
     () => classes.filter((c) => c.is_active !== false),
@@ -146,7 +155,7 @@ const Classes = () => {
   // icons
   useEffect(() => {
     feather.replace();
-  }, [isModalOpen, classes, loading]);
+  }, [isModalOpen, isEditModalOpen, classes, loading]);
 
   function handleOpenModal() {
     setError("");
@@ -202,6 +211,68 @@ const Classes = () => {
       setError(err?.message || "Failed to create class. Please try again.");
     } finally {
       setIsCreating(false);
+    }
+  }
+
+  async function handleEditClass(classId: string) {
+    // find the class details and prefill the form
+    const classToEdit = classes.find((c) => c.class_id === classId);
+    if (!classToEdit) return;
+    
+    setEditingClassId(classId);
+    setEditClassName(classToEdit.name);
+    setEditGradeLevel(classToEdit.grade_level);
+    setEditSubject(classToEdit.subject || "");
+    setError("");
+    setIsEditModalOpen(true);
+  }
+
+  async function handleSaveEditClass(e: React.FormEvent<HTMLFormElement>) {
+    // update the class details (name, grade level, subject)
+    e.preventDefault();
+    setError("");
+
+    if (!editingClassId) {
+      setError("No class selected for editing.");
+      return;
+    }
+
+    const name = editClassName.trim();
+    if (!name) {
+      setError("Please enter a class name (e.g. Math 10A).");
+      return;
+    }
+
+    if (editGradeLevel < 5 || editGradeLevel > 8) {
+      setError("Grade level must be between 5 and 8.");
+      return;
+    }
+
+    try {
+      setIsEditSaving(true);
+
+      await updateClass(editingClassId, {
+        name,
+        grade_level: editGradeLevel,
+        subject: editSubject.trim() ? editSubject.trim() : undefined,
+      });
+
+      // Update local state
+      setClasses((prev) =>
+        prev.map((c) =>
+          c.class_id === editingClassId
+            ? { ...c, name, grade_level: editGradeLevel, subject: editSubject.trim() || c.subject }
+            : c
+        )
+      );
+
+      setIsEditModalOpen(false);
+      setEditingClassId(null);
+    } catch (err: any) {
+      console.error("Error updating class:", err);
+      setError(err?.message || "Failed to update class. Please try again.");
+    } finally {
+      setIsEditSaving(false);
     }
   }
 
@@ -448,13 +519,12 @@ const Classes = () => {
                       <i data-feather="eye" className="mr-1 w-4 h-4"></i>{" "}
                       View Quests
                     </button>
-                    {/* TODO: add edit class functionality*/ }
                     <button
-                              className="col-span-2 bg-gray-100 hover:bg-blue-100 text-gray-900 border border-gray-300 px-2 py-2 rounded-lg text-sm flex items-center justify-center"
-                              onClick={() => handleEditClass(c.class_id)}
-                            >
-                              <i data-feather="edit" className="mr-1 w-4 h-4"></i> Edit
-                            </button>
+                      className="col-span-2 bg-gray-100 hover:bg-blue-100 text-gray-900 border border-gray-300 px-2 py-2 rounded-lg text-sm flex items-center justify-center"
+                      onClick={() => handleEditClass(c.class_id)}
+                    >
+                      <i data-feather="edit" className="mr-1 w-4 h-4"></i> Edit
+                    </button>
                     <button
                       className="col-span-2 bg-gray-100 hover:bg-gray-200 text-red-600 border border-red-600 px-2 py-2 rounded-lg text-sm flex items-center justify-center"
                       onClick={() => handleDeleteClass(c.class_id)}
@@ -558,6 +628,93 @@ const Classes = () => {
                   Teacher context not loaded yet. If this persists, re-login.
                 </p>
               )}
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 bg-white/300 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-start justify-center text-gray-900">
+          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Edit Class</h3>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-blue-500 hover:text-blue-700"
+                disabled={isEditSaving}
+              >
+                <i data-feather="x-circle"></i>
+              </button>
+            </div>
+
+            <form className="space-y-4" onSubmit={handleSaveEditClass}>
+              {error && (
+                <p className="text-sm text-red-600 bg-red-50 p-3 rounded">
+                  {error}
+                </p>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Class Name
+                </label>
+                <input
+                  type="text"
+                  value={editClassName}
+                  onChange={(e) => setEditClassName(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                  placeholder="e.g. Math 10A"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Grade Level
+                </label>
+                <select
+                  value={editGradeLevel}
+                  onChange={(e) => setEditGradeLevel(Number(e.target.value))}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                >
+                  <option value={5}>Grade 5</option>
+                  <option value={6}>Grade 6</option>
+                  <option value={7}>Grade 7</option>
+                  <option value={8}>Grade 8</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Subject (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={editSubject}
+                  onChange={(e) => setEditSubject(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2"
+                  placeholder="e.g. Mathematics"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:border-gray-500"
+                  disabled={isEditSaving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg disabled:opacity-50"
+                  disabled={isEditSaving}
+                >
+                  {isEditSaving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
             </form>
           </div>
         </div>
