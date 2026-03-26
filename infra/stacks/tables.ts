@@ -774,6 +774,42 @@ export function createTables(ctx: StackContext) {
         },
     });
 
+    // EquippedItems table — student equipped gear state per class (one record per student per class)
+    //
+    // PK: equipped_id (server-generated UUID)
+    // GSI1: gsi1pk (CLASS#{class_id}) / gsi1sk (STUDENT#{student_id})
+    //
+    // Attributes:
+    //   equipped_id          (string)  PK
+    //   class_id             (string)
+    //   student_id           (string)
+    //   avatar_base_id       (string)  references AvatarBases.avatar_base_id
+    //   helmet_item_id       (string?) ShopItems.item_id or absent
+    //   armour_item_id       (string?) ShopItems.item_id or absent
+    //   hand_item_id         (string?) ShopItems.item_id or absent (maps to AvatarBases.default_shield_item_id)
+    //   pet_item_id          (string?) ShopItems.item_id or absent
+    //   background_item_id   (string?) ShopItems.item_id or absent
+    //   gsi1pk               (string)  CLASS#{class_id}
+    //   gsi1sk               (string)  STUDENT#{student_id}
+    //   equipped_at          (string)  ISO timestamp
+    //   updated_at           (string)  ISO timestamp
+    const equippedItemsTable = new Table(stack, "EquippedItems", {
+        fields: {
+            equipped_id: "string",  // PK
+            gsi1pk:      "string",  // GSI1 PK: CLASS#{class_id}
+            gsi1sk:      "string",  // GSI1 SK: STUDENT#{student_id}
+        },
+        primaryIndex: {
+            partitionKey: "equipped_id",
+        },
+        globalIndexes: {
+            gsi1: {
+                partitionKey: "gsi1pk",
+                sortKey:      "gsi1sk",
+            },
+        },
+    });
+
     return {
         usersTable,
         teacherProfilesTable,
@@ -805,5 +841,6 @@ export function createTables(ctx: StackContext) {
         inventoryItemsTable,
         avatarBasesTable,
         playerAvatarsTable,
+        equippedItemsTable,
     };
 }
