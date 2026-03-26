@@ -10,8 +10,10 @@ export const VALID_RARITIES: ShopRarity[] = [
 
 export const VALID_GENDERS: ShopGearGender[] = ["MALE", "FEMALE", "UNISEX"];
 
-// Gear categories — items in these categories require gender and asset_key
-export const GEAR_CATEGORIES: string[] = ["HELMET", "ARMOUR", "SHIELD", "PET", "BACKGROUND"];
+// Gear categories — items in these categories require gender and asset_key.
+// HAND_ITEM is used by the EquippedItems domain (hand slot); SHIELD is the legacy name
+// kept for PlayerAvatars compatibility. New hand-slot gear should use HAND_ITEM.
+export const GEAR_CATEGORIES: string[] = ["HELMET", "ARMOUR", "SHIELD", "HAND_ITEM", "PET", "BACKGROUND"];
 
 export type ValidationResult =
     | { valid: true }
