@@ -13,15 +13,15 @@ The project was initiated as a Capstone at the **University of Regina**.
 ---
 
 ## Project Directory
-1. Project related documents: [Docs](https://github.com/ClassQuest-Capstone/ClassQuest/tree/main/Project%20Management%20Documents)
-2. Aws Infra (Backend): [Infra](https://github.com/ClassQuest-Capstone/ClassQuest/tree/main/infra)
+1. Project related documents: [Documents](https://github.com/ClassQuest-Capstone/ClassQuest/tree/main/Project%20Management%20Documents)
+2. Backend (AWS Infrastructure): [Backend](https://github.com/ClassQuest-Capstone/ClassQuest/tree/main/infra)
 3. Frontend: [Frontend](https://github.com/ClassQuest-Capstone/ClassQuest/tree/main/app/frontend)
 
 ## Vlogs
 
 1. Team and project Introduction: [🎞️ Vlog1](https://www.youtube.com/watch?v=lCHaV5K9AQU)
 2. Progress report and semester reflection: [🎞️ Vlog2](https://www.youtube.com/watch?v=BxoGuTXhTXo)
-2. Project update:  [🎞️ Vlog3](https://youtu.be/WxOvtN4L3_Q?si=8RlhtUtfbxR12Drf)
+3. Project update:  [🎞️ Vlog3](https://youtu.be/WxOvtN4L3_Q?si=8RlhtUtfbxR12Drf)
 
 ## Shorts
 1. What is ClassQuest? : [🎞️ Shorts1](https://youtube.com/shorts/tD3HApM7JdE?si=88EbOguojmiUEZG7)
@@ -40,6 +40,16 @@ The project was initiated as a Capstone at the **University of Regina**.
 - **Teacher Dashboard:** Create quests, adjust XP/gold, approve rewards.
 - **Leaderboards:** Show rank without exposing full class data.
 - **Parent View (Future):** Track child’s progress and give cosmetics.
+
+---
+
+## 🛠️ Technologies
+- **AWS:** Infrastructure
+- **React(Typescript) + Vite:** Frontend
+- **GraphQL:** Backend
+- **DynamoDB:** Database
+- **Cognito:** Authentication
+- **SST:** Infrastructure
 
 ---
 
