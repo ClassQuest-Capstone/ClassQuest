@@ -59,6 +59,14 @@ export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) 
     const { stack } = ctx;
     const { apiId, tableNames, tableArns, userPoolId, userPoolArn, userPoolClientId } = props;
 
+    // TODO (EquippedItems - teacher reads): Add teacher-facing read endpoints for student gear:
+    //   GET /teacher/classes/{class_id}/equipped-items         — list all students' gear in a class
+    //   GET /teacher/classes/{class_id}/students/{student_id}/equipped-items — read one student's gear
+    // Requires: adding equippedItemsTable to TeacherApiStackProps tableNames/tableArns,
+    // adding EQUIPPED_ITEMS_TABLE_NAME env var to the teacher router Lambda,
+    // adding read-only handler files in equippedItems/ (or reusing existing get/list handlers),
+    // importing them in teacher-router/router.ts, and granting DynamoDB read permissions.
+
     // Define routes — method + path must exactly match what the router dispatch table uses
     const routes: Record<string, { method: string; path: string }> = {
         // Schools

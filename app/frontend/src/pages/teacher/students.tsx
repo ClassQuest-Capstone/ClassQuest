@@ -11,6 +11,9 @@ import { getPlayerState, getLeaderboard, upsertPlayerState } from "../../api/pla
 import { createTransaction } from "../../api/rewardTransactions.js";
 import xpIcon from "../../../dist/assets/icons/XP.png";
 
+type DroppedEnrollmentWithProfile = EnrollmentItem & {
+  display_name?: string;
+};
 
 type CurrentUser =
   | {
@@ -62,14 +65,16 @@ const Students = () => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Dropped student enrollments (for teacher restore view)
-  const [droppedEnrollments, setDroppedEnrollments] = useState<EnrollmentItem[]>([]);
+  const [droppedEnrollments, setDroppedEnrollments] = useState<DroppedEnrollmentWithProfile[]>([]);
   const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Heart regeneration settings (class-wide)
   const [regenEnabled, setRegenEnabled] = useState(true);
   const [regenIntervalHours, setRegenIntervalHours] = useState(3);
   const [regenSaving, setRegenSaving] = useState(false);
   const [regenMessage, setRegenMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [regenLoading, setRegenLoading] = useState(true);
 
   //  read teacher
   const teacher = useMemo<CurrentUser | null>(() => {
@@ -112,6 +117,7 @@ const Students = () => {
     const loadStudents = async () => {
       try {
         setGlobalError(null);
+        setRegenLoading(true);
         
         // Get class info from join code
         const classInfo = await validateJoinCode(teacherClassCode);
@@ -120,6 +126,7 @@ const Students = () => {
           setGlobalError("Class not found");
           setRows([]);
           setClassId(null);
+          setRegenLoading(false);
           return;
         }
         
@@ -129,20 +136,45 @@ const Students = () => {
         // Load dropped enrollments for the restore panel
         try {
           const dropped = await getClassEnrollments(classInfo.class_id, "dropped");
-          if (!cancelled) setDroppedEnrollments(dropped.items);
+          if (!cancelled) {
+            // Fetch student profiles for dropped students
+            const droppedWithProfiles = await Promise.all(
+              dropped.items.map(async (enrollment) => {
+                try {
+                  const profile = await getStudentProfile(enrollment.student_id);
+                  return { ...enrollment, display_name: profile.display_name };
+                } catch {
+                  // If profile fetch fails, just use the enrollment without display_name
+                  return enrollment;
+                }
+              })
+            );
+            setDroppedEnrollments(droppedWithProfiles);
+          }
         } catch {
           // Non-fatal — restore panel will just be empty
         }
 
-        // Batch-fetch all player states in one request 
+        // Batch-fetch all player states in one request
         const playerStateMap = new Map<string, { total_xp_earned: number; gold: number; current_xp: number; xp_to_next_level: number; hearts: number; max_hearts: number; status: "ALIVE" | "DOWNED" | "BANNED" }>();
         try {
           const leaderboard = await getLeaderboard(classInfo.class_id, 200);
           for (const ps of leaderboard.items) {
             playerStateMap.set(ps.student_id, ps);
           }
+          // Pre-populate heart regen settings from the first student state that has them saved
+          const stateWithRegen = leaderboard.items.find(
+            ps => ps.heart_regen_enabled !== undefined || ps.heart_regen_interval_hours !== undefined
+          );
+          if (stateWithRegen) {
+            if (stateWithRegen.heart_regen_enabled !== undefined) setRegenEnabled(stateWithRegen.heart_regen_enabled);
+            if (stateWithRegen.heart_regen_interval_hours !== undefined && stateWithRegen.heart_regen_interval_hours > 0)
+              setRegenIntervalHours(stateWithRegen.heart_regen_interval_hours);
+          }
         } catch {
           // Leaderboard unavailable - all students will show default 0 values
+        } finally {
+          if (!cancelled) setRegenLoading(false);
         }
 
         if (cancelled) return;
@@ -243,7 +275,7 @@ const Students = () => {
 
     loadStudents();
     return () => { cancelled = true; };
-  }, [teacherClassCode]);
+  }, [teacherClassCode, refreshTrigger]);
 
   // Detect if there are unsaved changes
   const hasChanges = useMemo(() => {
@@ -325,8 +357,9 @@ const Students = () => {
     setRestoringId(studentId);
     try {
       await restoreStudentEnrollment(classId, studentId);
-      // Remove from dropped list; active roster will reload on next page visit
+      // Remove from dropped list and refresh the active student table
       setDroppedEnrollments((prev) => prev.filter((e) => e.student_id !== studentId));
+      setRefreshTrigger((prev) => prev + 1);
     } catch (err: any) {
       setGlobalError(`Failed to restore student: ${err.message}`);
     } finally {
@@ -598,66 +631,72 @@ const Students = () => {
               <span className="text-sm font-bold text-gray-800">Heart Regen</span>
             </div>
 
-            {/* Enable / Disable toggle */}
-            <div className="flex rounded-lg overflow-hidden border border-gray-300 text-sm">
-              <button
-                type="button"
-                onClick={() => setRegenEnabled(true)}
-                className={`px-3 py-1.5 font-medium transition-colors ${
-                  regenEnabled ? "bg-green-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                On
-              </button>
-              <button
-                type="button"
-                onClick={() => setRegenEnabled(false)}
-                className={`px-3 py-1.5 font-medium transition-colors border-l border-gray-300 ${
-                  !regenEnabled ? "bg-red-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                Off
-              </button>
-            </div>
+            {regenLoading ? (
+              <span className="text-sm text-gray-400 italic">Loading saved settings...</span>
+            ) : (
+              <>
+                {/* Enable / Disable toggle */}
+                <div className="flex rounded-lg overflow-hidden border border-gray-300 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setRegenEnabled(true)}
+                    className={`px-3 py-1.5 font-medium transition-colors ${
+                      regenEnabled ? "bg-green-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    On
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRegenEnabled(false)}
+                    className={`px-3 py-1.5 font-medium transition-colors border-l border-gray-300 ${
+                      !regenEnabled ? "bg-red-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    Off
+                  </button>
+                </div>
 
-            {/* Interval input */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 whitespace-nowrap">Every</span>
-              <input
-                type="number"
-                min={0.5}
-                step={0.5}
-                value={regenIntervalHours}
-                disabled={!regenEnabled}
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value);
-                  if (!isNaN(v) && v > 0) setRegenIntervalHours(v);
-                }}
-                className={`w-20 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
-                  !regenEnabled ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200" : "border-gray-300"
-                }`}
-              />
-              <span className="text-sm text-gray-600">hrs</span>
-            </div>
+                {/* Interval input */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600 whitespace-nowrap">Every</span>
+                  <input
+                    type="number"
+                    min={0.5}
+                    step={0.5}
+                    value={regenIntervalHours}
+                    disabled={!regenEnabled}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      if (!isNaN(v) && v > 0) setRegenIntervalHours(v);
+                    }}
+                    className={`w-20 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                      !regenEnabled ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200" : "border-gray-300"
+                    }`}
+                  />
+                  <span className="text-sm text-gray-600">hrs</span>
+                </div>
 
-            {/* Apply button */}
-            <button
-              type="button"
-              disabled={regenSaving || !classId || rows.filter((s) => !s.error).length === 0}
-              onClick={handleSaveRegenSettings}
-              className={`px-4 py-1.5 rounded-lg text-white font-medium text-sm transition-colors ${
-                regenSaving || !classId || rows.filter((s) => !s.error).length === 0
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700"
-              }`}
-            >
-              {regenSaving ? "Applying..." : "Apply to All"}
-            </button>
+                {/* Apply button */}
+                <button
+                  type="button"
+                  disabled={regenSaving || !classId || rows.filter((s) => !s.error).length === 0}
+                  onClick={handleSaveRegenSettings}
+                  className={`px-4 py-1.5 rounded-lg text-white font-medium text-sm transition-colors ${
+                    regenSaving || !classId || rows.filter((s) => !s.error).length === 0
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  {regenSaving ? "Applying..." : "Apply to All"}
+                </button>
 
-            {regenMessage && (
-              <span className={`text-xs font-medium ${regenMessage.kind === "ok" ? "text-green-600" : "text-red-600"}`}>
-                {regenMessage.kind === "ok" ? "✓" : "✗"} {regenMessage.text}
-              </span>
+                {regenMessage && (
+                  <span className={`text-xs font-medium ${regenMessage.kind === "ok" ? "text-green-600" : "text-red-600"}`}>
+                    {regenMessage.kind === "ok" ? "✓" : "✗"} {regenMessage.text}
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -666,7 +705,7 @@ const Students = () => {
           <div className="flex justify-between items-center mb-6 gap-4 flex-wrap">
             <h2 className="text-xl font-bold">Students in your class</h2>
 
-            <div className="relative w-full sm:w-80">
+            {/*<div className="relative w-full sm:w-80">
               <input
                 type="text"
                 value={query}
@@ -678,7 +717,7 @@ const Students = () => {
                 data-feather="search"
                 className="absolute left-3 top-2.5 text-gray-400"
               ></i>
-            </div>
+            </div>*/}
           </div>
 
           {!teacherClassCode ? (
@@ -957,29 +996,39 @@ const Students = () => {
         </div>
       </main>
 
+      {/* Refresh button */}
+      <div className="flex gap-2 ml-auto max-w-7xl mx-auto px-4">
+        <button
+                    className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg flex items-center border border-white/20"
+          onClick={() => setRefreshTrigger((prev) => prev + 1)}
+        >
+           <i data-feather="refresh-cw" className="mr-2"></i>
+          Refresh
+        </button>
+      </div>
       {/* Dropped students panel */}
       {droppedEnrollments.length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+        <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="bg-white rounded-xl shadow border border-gray-200 p-4">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">
+            <h2 className="text-md font-semibold text-gray-700 mb-3">
               Removed Students ({droppedEnrollments.length})
             </h2>
             <p className="text-xs text-gray-500 mb-3">
-              These students were removed from the class. You can restore them to re-activate their enrollment.
+              These students were removed from the class. Use the "Restore" button to re-activate their enrollment.
             </p>
             <ul className="divide-y divide-gray-100">
               {droppedEnrollments.map((e) => (
                 <li key={e.enrollment_id} className="flex items-center justify-between py-2 text-sm">
-                  <span className="text-gray-700 font-mono text-xs">{e.student_id}</span>
+                  <span className="text-gray-700 font-mono text-sm">{e.display_name || e.student_id}</span>
                   {e.dropped_at && (
-                    <span className="text-gray-400 text-xs mx-4">
+                    <span className="text-gray-400 text-sm mx-4">
                       Removed {new Date(e.dropped_at).toLocaleDateString()}
                     </span>
                   )}
                   <button
                     onClick={() => handleRestoreStudent(e.student_id)}
                     disabled={restoringId === e.student_id}
-                    className="px-3 py-1 rounded bg-blue-600 text-white text-xs hover:bg-blue-700 disabled:opacity-50"
+                    className="px-3 py-1 rounded bg-green-600 text-white text-sm hover:bg-green-500 disabled:opacity-50"
                   >
                     {restoringId === e.student_id ? "Restoring…" : "Restore"}
                   </button>

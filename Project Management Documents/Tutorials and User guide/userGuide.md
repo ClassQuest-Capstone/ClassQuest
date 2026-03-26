@@ -85,6 +85,8 @@ Teachers can create and manage classes on ClassQuest. You can invite students to
 
   Here you can change student username and display name, increase or decrease their XP, gold & hearts, and remove a student from a class. You can also adjust the heart regeneration logic as required.
 
+  **Note:** You can also restore removed students back into the class by clicking the **Restore** button
+
 3. **ManageGuilds and Shop**
     - Click the **Guilds** button to create guilds per class, assign students to guilds and view current guilds 
     - Click the **Shop** button to create items in the shop and make them available to students to purchase 

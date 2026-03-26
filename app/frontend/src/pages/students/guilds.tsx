@@ -10,6 +10,14 @@ import {
   listGuildMembers,
   type GuildMembership,
 } from "../../api/guildMemberships.js";
+import { listEquippedItemsByClass } from "../../api/equippedItems/client.js";
+import type { EquippedItems as EquippedItemsRecord } from "../../api/equippedItems/types.js";
+import { listPlayerAvatarsByClass } from "../../api/playerAvatars/client.js";
+import type { PlayerAvatar } from "../../api/playerAvatars/types.js";
+import { listShopItems } from "../../api/shopItems/client.js";
+import type { ShopItem } from "../../api/shopItems/types.js";
+import { listRewardMilestonesByClass } from "../../api/rewardMilestones/client.js";
+import { getAssetUrl } from "../../api/imageUpload/assetUrl.js";
 
 // pull classId from enrollments if missing
 import {
@@ -26,6 +34,7 @@ import { getPlayerState } from "../../api/playerStates.js";
 
 // your shared http client (so we can fetch class by id safely)
 import { api } from "../../api/http.js";
+import { StudentNavDropdown } from "./StudentNavDropdown.js";
 
 // Boss battle imports
 import { listBossBattleInstancesByClass } from "../../api/bossBattleInstances/client.js";
@@ -85,6 +94,7 @@ function getStatusColor(status?: string): string {
   
   return "bg-yellow-500"; // draft, intermission, etc
 }
+
 
 const GuildPage: React.FC = () => {
   const student = useMemo(() => getCurrentStudent(), []);
@@ -256,6 +266,13 @@ const GuildPage: React.FC = () => {
 
   // Hearts cache per student
   const [heartsByStudentId, setHeartsByStudentId] = useState<Record<string, number | null>>({});
+
+  // Character visual data
+  const [allEquippedItems, setAllEquippedItems] = useState<EquippedItemsRecord[]>([]);
+  const [playerAvatarMap, setPlayerAvatarMap] = useState<Map<string, PlayerAvatar>>(new Map());
+  const [shopItemMap, setShopItemMap] = useState<Map<string, ShopItem>>(new Map());
+  const [rewardImageMap, setRewardImageMap] = useState<Map<string, string>>(new Map());
+  const [targetIdImageMap, setTargetIdImageMap] = useState<Map<string, string>>(new Map());
 
   // Name cache
   const [nameByStudentId, setNameByStudentId] = useState<Record<string, string>>(
@@ -440,6 +457,40 @@ const GuildPage: React.FC = () => {
     refreshBossBattles(classId);
   }, [classId, classLoading]);
 
+  // Batch-fetch character visual data once per class
+  useEffect(() => {
+    if (!classId) return;
+    Promise.allSettled([
+      listEquippedItemsByClass(classId, { limit: 100 }),
+      listShopItems({ limit: 200 }),
+      listRewardMilestonesByClass(classId),
+      listPlayerAvatarsByClass(classId, { limit: 100 }),
+    ]).then(([equippedResult, shopResult, rewardsResult, playerAvatarsResult]) => {
+      if (equippedResult.status === "fulfilled") {
+        setAllEquippedItems((equippedResult.value as any).items ?? []);
+      }
+      if (shopResult.status === "fulfilled") {
+        setShopItemMap(new Map(
+          ((shopResult.value as any).items ?? []).map((s: ShopItem) => [s.item_id, s])
+        ));
+      }
+      if (rewardsResult.status === "fulfilled") {
+        const rewards: any[] = (rewardsResult.value as any) ?? [];
+        const rMap = new Map<string, string>();
+        const tMap = new Map<string, string>();
+        for (const r of rewards) {
+          if (r.reward_id && r.image_asset_key) rMap.set(r.reward_id, r.image_asset_key);
+          if (r.reward_target_id && r.image_asset_key) tMap.set(r.reward_target_id, r.image_asset_key);
+        }
+        setRewardImageMap(rMap);
+        setTargetIdImageMap(tMap);
+      }
+      if (playerAvatarsResult.status === "fulfilled") {
+        const avatars: PlayerAvatar[] = (playerAvatarsResult.value as any).items ?? [];
+        setPlayerAvatarMap(new Map(avatars.map((a) => [a.student_id, a])));
+      }
+    });
+  }, [classId]);
 
   useEffect(() => {
     feather.replace();
@@ -511,21 +562,7 @@ const GuildPage: React.FC = () => {
                 </Link>
               </div>
 
-              <div className="relative ml-3">
-                <button
-                  id="user-menu-button"
-                  className="flex items-center text-sm rounded-full focus:outline-none"
-                >
-                  <img
-                    className="h-8 w-8 rounded-full"
-                    src="/assets/mage-head.png"
-                    alt=""
-                  />
-                  <span className="ml-2 text-sm font-medium">
-                    {student?.displayName ?? "Student"}
-                  </span>
-                </button>
-              </div>
+              <StudentNavDropdown displayName={student?.displayName ?? "Student"} />
             </div>
 
             <div className="-mr-2 flex items-center md:hidden">
@@ -659,41 +696,98 @@ const GuildPage: React.FC = () => {
 
                 {!rosterLoading &&
                   roster.map((m) => {
-                    const displayName =
-                      nameByStudentId[m.student_id] ?? "Loading…";
-              const avatars = [ "/assets/mage-head.png", "/assets/warrior-head.png", "/assets/healer-head.png", ];
+                    const displayName = nameByStudentId[m.student_id] ?? "Loading…";
+                    const equippedRecord = allEquippedItems.find((r) => r.student_id === m.student_id);
+
+                    // Resolve base sprite
+                    let baseSpriteUrl: string | undefined;
+
+                    // Current user: read from localStorage
+                    if (m.student_id === studentId) {
+                      try {
+                        const raw = localStorage.getItem(`cq_characterData_${studentId}`);
+                        if (raw) {
+                          const cd = JSON.parse(raw);
+                          const classMap: Record<string, string> = { Guardian: "guardian", Mage: "mage", Healer: "healer" };
+                          const genderMap: Record<string, string> = { M: "male", F: "female" };
+                          const skinMap: Record<string, string> = { white: "white", brown: "brown", black: "dark" };
+                          const c = classMap[cd.class] ?? cd.class?.toLowerCase();
+                          const g = genderMap[cd.gender] ?? cd.gender?.toLowerCase();
+                          const s = skinMap[cd.skin] ?? cd.skin;
+                          if (c && g && s) baseSpriteUrl = `/assets/seed/avatar-assets/bases/${c}/${g}/${s}/base_${c}_${g}_${s}.png`;
+                        }
+                      } catch { /* ignore */ }
+                    }
+
+                    // Other members: use PlayerAvatar.avatar_base_id (set in welcome.tsx, always accurate)
+                    if (!baseSpriteUrl) {
+                      const playerAvatar = playerAvatarMap.get(m.student_id);
+                      const rawId = playerAvatar?.avatar_base_id ?? equippedRecord?.avatar_base_id ?? "";
+                      const id = rawId.toLowerCase();
+                      const c = ["guardian", "mage", "healer"].find((x) => id.includes(x));
+                      const g = ["male", "female"].find((x) => id.includes(x));
+                      const s = ["white", "brown", "dark"].find((x) => id.includes(x));
+                      if (c && g && s) baseSpriteUrl = `/assets/seed/avatar-assets/bases/${c}/${g}/${s}/base_${c}_${g}_${s}.png`;
+                    }
+
+                    baseSpriteUrl ??= "/assets/seed/avatar-assets/bases/default/base_default_global.png";
+
+                    const getItemSprite = (itemId?: string): string | undefined => {
+                      if (!itemId) return undefined;
+                      const shop = shopItemMap.get(itemId);
+                      if (shop) return getAssetUrl(shop.sprite_path) ?? shop.sprite_path;
+                      const rKey = rewardImageMap.get(itemId);
+                      if (rKey) return getAssetUrl(rKey);
+                      const tKey = targetIdImageMap.get(itemId);
+                      if (tKey) return getAssetUrl(tKey);
+                      return undefined;
+                    };
+
+                    const helmetUrl     = getItemSprite(equippedRecord?.helmet_item_id);
+                    const weaponUrl     = getItemSprite(equippedRecord?.hand_item_id);
+                    const armourUrl     = getItemSprite(equippedRecord?.armour_item_id);
+                    const petUrl        = getItemSprite(equippedRecord?.pet_item_id);
+                    const backgroundUrl = getItemSprite(equippedRecord?.background_item_id);
+
                     return (
                       <div
                         key={`${m.class_id}:${m.student_id}`}
-                        className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200"
+                        className="relative rounded-lg shadow-sm border border-gray-200 flex flex-col items-center pt-4 pb-3 px-3 overflow-hidden"
                       >
-                        <div className="flex items-center">
-                          <div className="relative mr-4">
-                            <img
-                              src={avatars[Math.floor(Math.random() * avatars.length)]}
-                              alt="Member"
-                              className="w-12 h-12 rounded-full"
-                            />
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-gray-800">
-                              {displayName}
-                              {m.role_in_guild === "LEADER" && " (Leader)"}
-                            </h4>
-                            <p className="text-xs text-gray-500">
-                              Joined{" "}
-                              {m.joined_at
-                                ? new Date(m.joined_at).toLocaleDateString()
-                                : "—"}
-                            </p>
-                          </div>
+                        {/* Blurred background fill */}
+                        {backgroundUrl ? (
+                          <div
+                            className="absolute inset-0 scale-110"
+                            style={{
+                              backgroundImage: `url(${backgroundUrl})`,
+                              backgroundSize: "cover",
+                              backgroundPosition: "center",
+                              filter: "blur(10px)",
+                            }}
+                          />
+                        ) : (
+                          <div className="absolute inset-0 bg-gray-50" />
+                        )}
+
+                        {/* Character sprite */}
+                        <div className="relative z-10 w-24 h-32 pixel-art mb-2 overflow-hidden rounded">
+                          {backgroundUrl && <img src={backgroundUrl} className="absolute inset-0 w-full h-full object-cover pointer-events-none" alt="" />}
+                          <img src={baseSpriteUrl} className="absolute inset-0 w-full h-full object-contain pointer-events-none" onError={(e) => { (e.target as HTMLImageElement).src = "/assets/seed/avatar-assets/bases/default/base_default_global.png"; }} alt="" />
+                          {helmetUrl && <img src={helmetUrl} className="absolute inset-0 w-full h-full object-contain pointer-events-none" alt="" />}
+                          {weaponUrl && <img src={weaponUrl} className="absolute inset-0 w-full h-full object-contain pointer-events-none" alt="" />}
+                          {armourUrl && <img src={armourUrl} className="absolute inset-0 w-full h-full object-contain pointer-events-none" alt="" />}
+                          {petUrl    && <img src={petUrl}    className="absolute inset-0 w-full h-full object-contain pointer-events-none" alt="" />}
                         </div>
 
-                        <div className="mt-3 flex justify-between items-center">
-                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                        <h4 className="relative z-10 font-medium text-sm text-center truncate w-full drop-shadow-md" style={{ color: backgroundUrl ? "#fff" : "#1f2937" }}>
+                          {displayName}{m.role_in_guild === "LEADER" && " 👑"}
+                        </h4>
+
+                        <div className="relative z-10 mt-2 flex justify-between items-center w-full">
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
                             {m.role_in_guild}
                           </span>
-                          <span className="text-xs text-red-600 font-semibold">
+                          <span className="text-xs text-red-600 font-semibold drop-shadow-md" style={{ color: backgroundUrl ? "#fca5a5" : undefined }}>
                             {heartsByStudentId[m.student_id] !== undefined
                               ? heartsByStudentId[m.student_id] !== null
                                 ? `❤️ ${heartsByStudentId[m.student_id]}`

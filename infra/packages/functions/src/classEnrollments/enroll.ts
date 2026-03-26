@@ -54,6 +54,12 @@ export const handler = async (event: any) => {
     // TODO AUTH: Verify student_id matches authenticated user
     // TODO: Verify class exists and is active (optional)
 
+    // TODO (EquippedItems): After successful enrollment (Step 4), auto-create an EquippedItems
+    // record for this student + class. Requires the student's avatar_base_id (read from
+    // PlayerAvatars by class+student, or from StudentProfiles). Call createEquippedItems()
+    // from the equippedItems domain. Treat as best-effort — log failures but do not roll back
+    // the enrollment if EquippedItems creation fails.
+
     // Step 3: Check for existing enrollment (prevent duplicates)
     const existing = await findEnrollmentByClassAndStudent(
         class_id,
