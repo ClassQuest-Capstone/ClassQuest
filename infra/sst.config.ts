@@ -82,6 +82,7 @@ export default {
                 tableArns: dataStackOutputs.tableArns,
                 userPoolId: authStackOutputs.userPoolId,
                 userPoolArn: authStackOutputs.userPoolArn,
+                userPoolClientId: authStackOutputs.userPoolClientId,
             });
         }
         app.stack(ClassQuestTeacherApiStack);

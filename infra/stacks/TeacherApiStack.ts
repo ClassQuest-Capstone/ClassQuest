@@ -47,6 +47,7 @@ type TeacherApiStackProps = {
     };
     userPoolId: string;
     userPoolArn: string;
+    userPoolClientId: string;
 };
 
 /**
@@ -56,7 +57,7 @@ type TeacherApiStackProps = {
  */
 export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) {
     const { stack } = ctx;
-    const { apiId, tableNames, tableArns, userPoolId, userPoolArn } = props;
+    const { apiId, tableNames, tableArns, userPoolId, userPoolArn, userPoolClientId } = props;
 
     // Define routes — method + path must exactly match what the router dispatch table uses
     const routes: Record<string, { method: string; path: string }> = {
@@ -127,6 +128,10 @@ export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) 
 
         // ImageUpload — teacher-only presigned S3 PUT URL
         "POST /teacher/images/upload-url": { method: "POST", path: "/teacher/images/upload-url" },
+
+        // Auth — public (no JWT required)
+        "POST /auth/teacher/forgot-password":         { method: "POST", path: "/auth/teacher/forgot-password" },
+        "POST /auth/teacher/confirm-forgot-password": { method: "POST", path: "/auth/teacher/confirm-forgot-password" },
     };
 
     // ── S3 ASSETS BUCKET (teacher image uploads) ─────────────────────────────
@@ -194,6 +199,7 @@ export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) 
             REWARD_MILESTONES_TABLE_NAME:             tableNames.rewardMilestonesTable,
             STUDENT_REWARD_CLAIMS_TABLE_NAME:         tableNames.studentRewardClaimsTable,
             USER_POOL_ID:                             userPoolId,
+            USER_POOL_CLIENT_ID:                      userPoolClientId,
             ASSETS_BUCKET_NAME:                       assetsBucket.bucketName,
         },
         timeout: 30,
@@ -222,6 +228,8 @@ export function TeacherApiStack(ctx: StackContext, props: TeacherApiStackProps) 
                 "cognito-idp:AdminGetUser",
                 "cognito-idp:AdminCreateUser",
                 "cognito-idp:AdminAddUserToGroup",
+                "cognito-idp:ForgotPassword",
+                "cognito-idp:ConfirmForgotPassword",
             ],
             resources: [userPoolArn],
         }),

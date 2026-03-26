@@ -70,6 +70,10 @@ import { handler as rmRestore }                     from "../rewardMilestones/re
 // ImageUpload
 import { handler as imageCreateUploadUrl }          from "../imageUpload/create-upload-url.js";
 
+// Auth (public — no JWT required)
+import { handler as authForgotPassword }            from "../auth/teacher-forgot-password.js";
+import { handler as authConfirmForgotPassword }     from "../auth/teacher-confirm-forgot-password.js";
+
 // Dispatch table: keys must exactly match the routeKey API Gateway sets on event.routeKey
 const ROUTES: Record<string, (event: any) => Promise<any>> = {
     // Schools
@@ -139,6 +143,10 @@ const ROUTES: Record<string, (event: any) => Promise<any>> = {
 
     // ImageUpload
     "POST /teacher/images/upload-url":                                        imageCreateUploadUrl,
+
+    // Auth (public — no JWT required)
+    "POST /auth/teacher/forgot-password":                                     authForgotPassword,
+    "POST /auth/teacher/confirm-forgot-password":                             authConfirmForgotPassword,
 };
 
 export const handler = async (event: any): Promise<any> => {
