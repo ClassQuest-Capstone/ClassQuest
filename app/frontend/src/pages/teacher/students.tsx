@@ -74,6 +74,7 @@ const Students = () => {
   const [regenIntervalHours, setRegenIntervalHours] = useState(3);
   const [regenSaving, setRegenSaving] = useState(false);
   const [regenMessage, setRegenMessage] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [regenLoading, setRegenLoading] = useState(true);
 
   //  read teacher
   const teacher = useMemo<CurrentUser | null>(() => {
@@ -116,6 +117,7 @@ const Students = () => {
     const loadStudents = async () => {
       try {
         setGlobalError(null);
+        setRegenLoading(true);
         
         // Get class info from join code
         const classInfo = await validateJoinCode(teacherClassCode);
@@ -124,6 +126,7 @@ const Students = () => {
           setGlobalError("Class not found");
           setRows([]);
           setClassId(null);
+          setRegenLoading(false);
           return;
         }
         
@@ -152,15 +155,26 @@ const Students = () => {
           // Non-fatal — restore panel will just be empty
         }
 
-        // Batch-fetch all player states in one request 
+        // Batch-fetch all player states in one request
         const playerStateMap = new Map<string, { total_xp_earned: number; gold: number; current_xp: number; xp_to_next_level: number; hearts: number; max_hearts: number; status: "ALIVE" | "DOWNED" | "BANNED" }>();
         try {
           const leaderboard = await getLeaderboard(classInfo.class_id, 200);
           for (const ps of leaderboard.items) {
             playerStateMap.set(ps.student_id, ps);
           }
+          // Pre-populate heart regen settings from the first student state that has them saved
+          const stateWithRegen = leaderboard.items.find(
+            ps => ps.heart_regen_enabled !== undefined || ps.heart_regen_interval_hours !== undefined
+          );
+          if (stateWithRegen) {
+            if (stateWithRegen.heart_regen_enabled !== undefined) setRegenEnabled(stateWithRegen.heart_regen_enabled);
+            if (stateWithRegen.heart_regen_interval_hours !== undefined && stateWithRegen.heart_regen_interval_hours > 0)
+              setRegenIntervalHours(stateWithRegen.heart_regen_interval_hours);
+          }
         } catch {
           // Leaderboard unavailable - all students will show default 0 values
+        } finally {
+          if (!cancelled) setRegenLoading(false);
         }
 
         if (cancelled) return;
@@ -617,66 +631,72 @@ const Students = () => {
               <span className="text-sm font-bold text-gray-800">Heart Regen</span>
             </div>
 
-            {/* Enable / Disable toggle */}
-            <div className="flex rounded-lg overflow-hidden border border-gray-300 text-sm">
-              <button
-                type="button"
-                onClick={() => setRegenEnabled(true)}
-                className={`px-3 py-1.5 font-medium transition-colors ${
-                  regenEnabled ? "bg-green-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                On
-              </button>
-              <button
-                type="button"
-                onClick={() => setRegenEnabled(false)}
-                className={`px-3 py-1.5 font-medium transition-colors border-l border-gray-300 ${
-                  !regenEnabled ? "bg-red-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                Off
-              </button>
-            </div>
+            {regenLoading ? (
+              <span className="text-sm text-gray-400 italic">Loading saved settings...</span>
+            ) : (
+              <>
+                {/* Enable / Disable toggle */}
+                <div className="flex rounded-lg overflow-hidden border border-gray-300 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setRegenEnabled(true)}
+                    className={`px-3 py-1.5 font-medium transition-colors ${
+                      regenEnabled ? "bg-green-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    On
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRegenEnabled(false)}
+                    className={`px-3 py-1.5 font-medium transition-colors border-l border-gray-300 ${
+                      !regenEnabled ? "bg-red-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    Off
+                  </button>
+                </div>
 
-            {/* Interval input */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 whitespace-nowrap">Every</span>
-              <input
-                type="number"
-                min={0.5}
-                step={0.5}
-                value={regenIntervalHours}
-                disabled={!regenEnabled}
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value);
-                  if (!isNaN(v) && v > 0) setRegenIntervalHours(v);
-                }}
-                className={`w-20 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
-                  !regenEnabled ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200" : "border-gray-300"
-                }`}
-              />
-              <span className="text-sm text-gray-600">hrs</span>
-            </div>
+                {/* Interval input */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600 whitespace-nowrap">Every</span>
+                  <input
+                    type="number"
+                    min={0.5}
+                    step={0.5}
+                    value={regenIntervalHours}
+                    disabled={!regenEnabled}
+                    onChange={(e) => {
+                      const v = parseFloat(e.target.value);
+                      if (!isNaN(v) && v > 0) setRegenIntervalHours(v);
+                    }}
+                    className={`w-20 border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                      !regenEnabled ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200" : "border-gray-300"
+                    }`}
+                  />
+                  <span className="text-sm text-gray-600">hrs</span>
+                </div>
 
-            {/* Apply button */}
-            <button
-              type="button"
-              disabled={regenSaving || !classId || rows.filter((s) => !s.error).length === 0}
-              onClick={handleSaveRegenSettings}
-              className={`px-4 py-1.5 rounded-lg text-white font-medium text-sm transition-colors ${
-                regenSaving || !classId || rows.filter((s) => !s.error).length === 0
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700"
-              }`}
-            >
-              {regenSaving ? "Applying..." : "Apply to All"}
-            </button>
+                {/* Apply button */}
+                <button
+                  type="button"
+                  disabled={regenSaving || !classId || rows.filter((s) => !s.error).length === 0}
+                  onClick={handleSaveRegenSettings}
+                  className={`px-4 py-1.5 rounded-lg text-white font-medium text-sm transition-colors ${
+                    regenSaving || !classId || rows.filter((s) => !s.error).length === 0
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  {regenSaving ? "Applying..." : "Apply to All"}
+                </button>
 
-            {regenMessage && (
-              <span className={`text-xs font-medium ${regenMessage.kind === "ok" ? "text-green-600" : "text-red-600"}`}>
-                {regenMessage.kind === "ok" ? "✓" : "✗"} {regenMessage.text}
-              </span>
+                {regenMessage && (
+                  <span className={`text-xs font-medium ${regenMessage.kind === "ok" ? "text-green-600" : "text-red-600"}`}>
+                    {regenMessage.kind === "ok" ? "✓" : "✗"} {regenMessage.text}
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>
