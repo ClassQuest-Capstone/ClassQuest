@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.js";
-import ProfileModal from "../features/teacher/ProfileModal.js";
+import ProfileModal from "../features/teacher/profileModal.tsx";
 import { createShopItem, listShopItems, activateShopItem, deactivateShopItem, updateShopItem } from "../../api/shopItems/client.js";
 import type { ShopItem, CreateShopItemInput, UpdateShopItemInput } from "../../api/shopItems/types.js";
 import { createShopListing, listShopListingsByItem, activateShopListing, deactivateShopListing } from "../../api/shopListings/client.js";

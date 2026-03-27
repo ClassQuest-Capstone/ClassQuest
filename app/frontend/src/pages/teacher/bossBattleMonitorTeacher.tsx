@@ -4,7 +4,7 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import feather from "feather-icons";
 
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
-import ProfileModal from "../features/teacher/ProfileModal.js";
+import ProfileModal from "../features/teacher/profileModal.tsx";
 import { getTeacherProfile } from "../../api/teacherProfiles.js";
 
 import {

@@ -10,7 +10,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
-import ProfileModal from "../features/teacher/ProfileModal.js";
+import ProfileModal from "../features/teacher/profileModal.tsx";
 import { createQuestTemplate, updateQuestTemplate, type QuestTemplate } from "../../api/questTemplates.js";
 import { createQuestQuestion, updateQuestQuestion, deleteQuestQuestion } from "../../api/questQuestions.js";
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import feather from "feather-icons";
-import EditProfileModal from "./EditProfileModal.js";
+import EditProfileModal from "./editProfileModal.tsx";
 
 type TeacherUser = {
   id: string;

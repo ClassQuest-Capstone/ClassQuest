@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
-import ProfileModal from "../features/teacher/ProfileModal.js";
+import ProfileModal from "../features/teacher/profileModal.tsx";
 
 // TODO: this page will be used for stylized profile management, character selection/customization, and other user-specific settings in the future. For now it just has a placeholder and the edit profile modal form.
 

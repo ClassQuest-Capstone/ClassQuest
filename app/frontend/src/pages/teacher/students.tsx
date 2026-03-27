@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, Navigate, useSearchParams } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.js";
-import ProfileModal from "../features/teacher/ProfileModal.js";
+import ProfileModal from "../features/teacher/profileModal.tsx";
 
 import { validateJoinCode } from "../../api/classes.js";
 import { getClassEnrollments, unenrollStudent, restoreStudentEnrollment, type EnrollmentItem } from "../../api/classEnrollments.js";

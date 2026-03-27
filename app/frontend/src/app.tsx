@@ -15,7 +15,7 @@ import BossClasses from "./pages/teacher/bossClasses.js";
 import Quests from "./pages/teacher/quests.js";
 import Rewards from "./pages/teacher/rewards.js";
 import Students from "./pages/teacher/students.js";
-import Activity from "./pages/teacher/Activity.js";
+import Activity from "./pages/teacher/activity.tsx";
 import BossFight from "./pages/students/bossFight.js";
 import ProblemSolve from "./pages/students/problemsolve.js";
 import Leaderboards from "./pages/students/leaderboards.js";

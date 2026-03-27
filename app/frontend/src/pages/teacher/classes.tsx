@@ -14,7 +14,7 @@ import {
 
 import { getTeacherProfile } from "../../api/teacherProfiles.js";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
-import ProfileModal from "../features/teacher/ProfileModal.js";
+import ProfileModal from "../features/teacher/profileModal.tsx";
 
 // Teacher interface
 type TeacherUser = {
