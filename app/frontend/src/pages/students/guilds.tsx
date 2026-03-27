@@ -231,10 +231,11 @@ const GuildPage: React.FC = () => {
   );
 
   const pageBg =
-    "min-h-screen bg-cover bg-center bg-fixed bg-no-repeat bg-gray-900";
+    "min-h-screen bg-cover bg-fixed bg-no-repeat bg-gray-900";
 
   const pageStyle: React.CSSProperties = {
     backgroundImage: "url('/assets/background/guilds-bg.png')",
+    backgroundPosition: "center top",
   };
 
   // --------------------
@@ -297,20 +298,29 @@ const GuildPage: React.FC = () => {
     const missing = unique.filter((id) => !nameCacheRef.current[id]);
     if (missing.length === 0) return;
 
-    const results = await Promise.all(
-      missing.map(async (sid) => {
-        try {
-          const prof: any = await getStudentProfile(sid);
-          const name = String(prof?.display_name ?? "").trim();
-          return { sid, name: name || "Unknown Student" };
-        } catch {
-          return { sid, name: "Unknown Student" };
-        }
-      })
-    );
+    // Mark as in-progress immediately to prevent duplicate fetches
+    for (const id of missing) nameCacheRef.current[id] = "";
 
+    // Fetch in batches of 5 to avoid overwhelming the API
+    const batchSize = 5;
     const updates: Record<string, string> = {};
-    for (const r of results) updates[r.sid] = r.name;
+    for (let i = 0; i < missing.length; i += batchSize) {
+      const batch = missing.slice(i, i + batchSize);
+      const results = await Promise.all(
+        batch.map(async (sid) => {
+          try {
+            const prof: any = await getStudentProfile(sid);
+            const name = String(prof?.display_name ?? "").trim();
+            return { sid, name: name || "Unknown Student" };
+          } catch {
+            // Clear the in-progress marker so it can be retried
+            delete nameCacheRef.current[sid];
+            return { sid, name: "Unknown Student" };
+          }
+        })
+      );
+      for (const r of results) updates[r.sid] = r.name;
+    }
 
     setNameByStudentId((prev) => ({ ...prev, ...updates }));
   }
