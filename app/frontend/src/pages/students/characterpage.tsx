@@ -310,6 +310,10 @@ const CharacterPage: React.FC = () => {
       const storedData = localStorage.getItem(`cq_characterData_${studentId}`);
       if (storedData) {
         setCharacterData(JSON.parse(storedData));
+        // Backfill characterChosen flag in case it was missing
+        if (!localStorage.getItem(`cq_characterChosen_${studentId}`)) {
+          localStorage.setItem(`cq_characterChosen_${studentId}`, "1");
+        }
       }
     } catch (err) {
       console.error("Error loading character data:", err);
@@ -720,9 +724,12 @@ const CharacterPage: React.FC = () => {
     weekendReset,
   } = usePlayerProgression(studentId, classId || "");
 
-  // Redirect to character selection when student first reaches level 5
+  // Redirect to character selection only if student has NEVER chosen a character
   useEffect(() => {
-    if (profile.level >= 5 && !localStorage.getItem(`cq_characterChosen_${studentId}`)) {
+    const hasChosen =
+      !!localStorage.getItem(`cq_characterChosen_${studentId}`) ||
+      !!localStorage.getItem(`cq_characterData_${studentId}`);
+    if (profile.level >= 5 && !hasChosen) {
       navigate("/welcome", { replace: true });
     }
   }, [profile.level, studentId, navigate]);
@@ -1243,7 +1250,7 @@ const CharacterPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="character-container p-8 mb-8 border border-gray-700">
+          <div className="character-container p-8 mb-8 border-4 border-gray-700">
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Equipment slots (left) */}
               <div
@@ -1313,7 +1320,7 @@ const CharacterPage: React.FC = () => {
                     <div className="relative w-full h-full">
                       <div className="absolute inset-0 bg-gradient-to-br from-blue-900/30 via-purple-900/30 to-pink-900/30 rounded-xl animate-pulse" />
                       <div className="relative h-full flex items-center justify-center">
-                        <div className="relative w-full h-full max-w-[360px] max-h-[480px] pixel-art">
+                        <div className="relative w-full h-full max-w-[360px] max-h-[580px] pixel-art">
                           {/* Layer 1: Background */}
                           {equipped["background"] && (
                             <img
@@ -1399,17 +1406,6 @@ const CharacterPage: React.FC = () => {
                     </div>
                     
 
-                    <div className="absolute bottom-0 right-0 flex space-x-2 bg-black/50 p-2 rounded-tl-xl">
-                      <button className="bg-gray-700 hover:bg-gray-600 p-2 rounded-full text-white transition-all hover:rotate-45">
-                        <i data-feather="rotate-cw" />
-                      </button>
-                      <button className="bg-gray-700 hover:bg-gray-600 p-2 rounded-full text-white transition-all">
-                        <i data-feather="zoom-in" />
-                      </button>
-                      <button className="bg-gray-700 hover:bg-gray-600 p-2 rounded-full text-white transition-all">
-                        <i data-feather="zoom-out" />
-                      </button>
-                    </div>
                   </div>
                 </div>
 
