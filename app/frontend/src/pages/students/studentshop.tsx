@@ -184,13 +184,15 @@ const StudentShop: React.FC = () => {
   };
 
   return (
-    <div
-      className="min-h-screen bg-cover bg-center bg-fixed"
-      style={{
-        backgroundImage:
-          "url('https://i.pinimg.com/originals/df/96/29/df9629c20480fa6cb0b6241d0fdd3a47.jpg')",
-      }}
-    >
+    <div className="min-h-screen relative overflow-hidden">
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-fixed scale-105"
+        style={{
+          backgroundImage: "url('/assets/background/shop_bg.png')",
+          filter: "blur(2px)",
+        }}
+      />
+      <div className="relative z-10">
       {/* NAVIGATION */}
       <nav className="bg-blue-700 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -392,6 +394,7 @@ const StudentShop: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
