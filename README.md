@@ -26,6 +26,7 @@ The project was initiated as a Capstone at the **University of Regina**.
 ## Shorts
 1. What is ClassQuest? : [🎞️ Shorts1](https://youtube.com/shorts/tD3HApM7JdE?si=88EbOguojmiUEZG7)
 2. ClassQuest Update! : [🎞️ Shorts2](https://youtube.com/shorts/GEsXfeNBteg?si=nJVJFkgri3ytHMPg)
+3. ClassQuest Final Update!: [🎞️ Shorts3](https://youtube.com/shorts/xxvq05DqwpE?feature=share)
 
 ## 🚀 Overview
 - **Goal:** Make learning engaging, collaborative, and fun.
