@@ -6,6 +6,9 @@
  *
  * Usage: RUN FROM THE ROOT FOLDER and use your stage for seeding the data into the correct environment:
  *   npx tsx app/frontend/public/assets/seed/avatar-assets/scripts/seed-avatar-system.ts --stage "local#"
+ * 
+ * npx tsx app/frontend/public/assets/seed/avatar-assets/scripts/seed-avatar-system.ts --stage local# --class-id # --teacher-id # --reward-milestones-table local1-classquest-RewardMilestones
+ * npx tsx app/frontend/public/assets/seed/avatar-assets/scripts/seed-avatar-system.ts --stage local# --class-id # --teacher-id # 
  *
  * Required env vars:   (reads from infra/.sst/outputs.json based on the stage)
  *   SHOP_ITEMS_TABLE_NAME
