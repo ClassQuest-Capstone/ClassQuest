@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
-import DropDownProfile from "../features/teacher/dropDownProfile.js";
+import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
 //import QuizStats from "../components/teacher/quizStats.tsx";
-import ActivityCard from "../features/teacher/ActivityCard.js";
-import ClassLeaderboard from "../features/teacher/ClassLeaderboard.js";
-import { useTeacherActivity, ActivityCategory } from "../hooks/teacher/useTeacherActivity.js";
-import { listClassesByTeacher, type ClassItem } from "../../api/classes.js";
-import ProfileModal from "../features/teacher/ProfileModal.js";
+import ActivityCard from "../features/teacher/activityCard.tsx";
+import ClassLeaderboard from "../features/teacher/classLeaderboard.tsx";
+import { useTeacherActivity, ActivityCategory } from "../hooks/teacher/useTeacherActivity.ts";
+import { listClassesByTeacher, type ClassItem } from "../../api/classes.ts";
+import ProfileModal from "../features/teacher/profileModal.tsx";
 
 type TeacherUser = {
   id: string;

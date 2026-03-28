@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import feather from "feather-icons";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
-import ProfileModal from "../features/teacher/ProfileModal.js";
+import ProfileModal from "../features/teacher/profileModal.tsx";
 import { useQuestions } from "../hooks/teacher/useQuestions.js";
 import { EditQuestModal } from "../components/teacher/modals/EditQuestModal.js";
 import { AssignQuestModal } from "../components/teacher/modals/AssignQuestModal.js";

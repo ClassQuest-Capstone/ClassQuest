@@ -523,16 +523,8 @@ const CharacterPage: React.FC = () => {
           })
           .filter((item): item is (ShopItem & { inventory_item_id: string; quantity: number }) => item !== null);
 
-        // Filter by character-specific items if character data is available
-        const filtered = characterData
-          ? mapped.filter(item =>
-              characterData.characterSpecificItems.some(
-                csItem => csItem.item_id === item.item_id
-              )
-            )
-          : mapped;
-
-        setShopPurchasedItems(filtered);
+        // Show all purchased items - no need to filter by characterSpecificItems since shop filters what can be bought based on character
+        setShopPurchasedItems(mapped);
       } catch (error) {
         console.error("Failed to fetch shop purchased items:", error);
         setShopPurchasedItems([]);

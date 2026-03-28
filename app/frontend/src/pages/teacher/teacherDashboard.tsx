@@ -9,9 +9,9 @@ import { TutorialProvider } from "../components/tutorial/context.js";
 import { TutorialIntroModal } from "../components/tutorial/IntroModal.js";
 import { TutorialOverlay } from "../components/tutorial/overlay.js";
 import { ensureClassExists } from "../../utils/classStore.js";
-import ActivityCard from "../features/teacher/ActivityCard.js";
+import ActivityCard from "../features/teacher/activityCard.tsx";
 import { useTeacherActivity } from "../hooks/teacher/useTeacherActivity.js";
-import ProfileModal from "../features/teacher/ProfileModal.js";
+import ProfileModal from "../features/teacher/profileModal.tsx";
 
 type TeacherUser = {
   id: string;

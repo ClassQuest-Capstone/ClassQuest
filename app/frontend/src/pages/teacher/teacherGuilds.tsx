@@ -4,7 +4,7 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import feather from "feather-icons";
 import { fetchAuthSession } from "aws-amplify/auth";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
-import ProfileModal from "../features/teacher/ProfileModal.js";
+import ProfileModal from "../features/teacher/profileModal.tsx";
 import { getTeacherProfile } from "../../api/teacherProfiles.js";
 import { listClassesByTeacher, type ClassItem } from "../../api/classes.js";
 import { createGuild, listGuildsByClass, type Guild } from "../../api/guilds.js";

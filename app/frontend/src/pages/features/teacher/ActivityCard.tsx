@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import feather from "feather-icons";
-import type { ActivityItem, ActivityCategory } from "../../hooks/teacher/useTeacherActivity.js";
+import type { ActivityItem, ActivityCategory } from "../../hooks/teacher/useTeacherActivity.ts";
 
 // Icon and color config for each activity category
 const CATEGORY_CONFIG: Record<

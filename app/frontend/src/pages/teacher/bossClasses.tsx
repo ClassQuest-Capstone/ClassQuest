@@ -20,7 +20,7 @@ import {
 import type { BossBattleTemplate as BossBattleTemplate } from "../../api/bossBattleTemplates/types.js";
 
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
-import ProfileModal from "../features/teacher/ProfileModal.js";
+import ProfileModal from "../features/teacher/profileModal.tsx";
 
 // Utility to convert string input to int
 function toInt(val: unknown, fallback = 0) {

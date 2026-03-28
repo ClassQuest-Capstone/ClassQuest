@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { getLeaderboard, type PlayerState } from "../../../api/playerStates.js";
-import { getStudentProfile, type StudentProfile } from "../../../api/studentProfiles.js";
+import { getLeaderboard, type PlayerState } from "../../../api/playerStates.ts";
+import { getStudentProfile, type StudentProfile } from "../../../api/studentProfiles.ts";
 
 // Constants for level calculation (from usePlayerProgression)
 const BASE_XP_FOR_LEVEL_2 = 500;

@@ -43,12 +43,12 @@ The project was initiated as a Capstone at the **University of Regina**.
 
 ---
 
-## 🛠️ Technologies
-- **AWS:** Infrastructure
+## 🛠️ Tech Stack
+- **AWS:** Cloud Platform
 - **React(Typescript) + Vite:** Frontend
-- **GraphQL:** Backend
+- **GraphQL(AppSync):** Backend
 - **DynamoDB:** Database
-- **Cognito:** Authentication
+- **AWSCognito:** Authentication
 - **SST:** Infrastructure
 
 ---
