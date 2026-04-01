@@ -4,7 +4,7 @@
 # Run this after deployment to verify all routes are working
 
 # In git bash run the following commands from the root folder:
-# export VITE_API_URL="https://57fwtua1k9.execute-api.ca-central-1.amazonaws.com"
+# export VITE_API_URL
 # echo $VITE_API_URL
 # bash infra/verify-split.sh
 
