@@ -186,7 +186,7 @@ const StudentShop: React.FC = () => {
   return (
     <div className="min-h-screen relative overflow-hidden">
       <div
-        className="absolute inset-0 bg-cover bg-center bg-fixed scale-105"
+        className="absolute inset-0 bg-cover bg-center bg-fixed"
         style={{
           backgroundImage: "url('/assets/background/shop_bg.png')",
           filter: "blur(2px)",
