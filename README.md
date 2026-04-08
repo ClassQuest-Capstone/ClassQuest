@@ -17,11 +17,21 @@ The project was initiated as a Capstone at the **University of Regina**.
 2. Backend (AWS Infrastructure): [Backend](https://github.com/ClassQuest-Capstone/ClassQuest/tree/main/infra)
 3. Frontend: [Frontend](https://github.com/ClassQuest-Capstone/ClassQuest/tree/main/app/frontend)
 
+## Additional Resources
+
+1. Project Poster: [Project Poster]()
+2. Installation Guide: [Installation Guide]()   
+3. User Guide: [User Guide](https://github.com/ClassQuest-Capstone/ClassQuest/blob/main/Project%20Management%20Documents/Tutorials%20and%20User%20guide/userGuide.md)
+
+
 ## Vlogs
 
 1. Team and project Introduction: [🎞️ Vlog1](https://www.youtube.com/watch?v=lCHaV5K9AQU)
 2. Progress report and semester reflection: [🎞️ Vlog2](https://www.youtube.com/watch?v=BxoGuTXhTXo)
 3. Project update:  [🎞️ Vlog3](https://youtu.be/WxOvtN4L3_Q?si=8RlhtUtfbxR12Drf)
+4. ClassQuest Tutorial: [🎞️ ClassQuest Tutorial]()
+5. Commercial : [🎞️ ClassQuest Commercial]()
+
 
 ## Shorts
 1. What is ClassQuest? : [🎞️ Shorts1](https://youtube.com/shorts/tD3HApM7JdE?si=88EbOguojmiUEZG7)
