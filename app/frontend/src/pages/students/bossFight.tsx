@@ -415,11 +415,16 @@ const BossFight: React.FC = () => {
   useEffect(() => {
     setSelectedAnswer(null);
     setSubmitting(false);
-    setHasSubmittedCurrentQuestion(false);
     setLastAnswerCorrect(null);
     setLastXpEarned(0);
+    // Restore submitted state from sessionStorage so page reloads don't allow re-submission
+    const sessionKey = question?.question_id && studentId
+      ? `bossq_submitted:${studentId}:${question.question_id}`
+      : null;
+    const alreadySubmitted = sessionKey ? sessionStorage.getItem(sessionKey) === "1" : false;
+    setHasSubmittedCurrentQuestion(alreadySubmitted);
     // NOTE: do NOT clear pendingHeartFlashRef here — it must survive until INTERMISSION renders
-  }, [question?.question_id]);
+  }, [question?.question_id, studentId]);
 
   const myParticipant = useMemo(() => {
     if (!studentId) return null;
@@ -1079,6 +1084,10 @@ const BossFight: React.FC = () => {
       });
 
       setHasSubmittedCurrentQuestion(true);
+      // Persist so a page reload doesn't let the student re-submit the same question
+      if (question?.question_id && studentId) {
+        sessionStorage.setItem(`bossq_submitted:${studentId}:${question.question_id}`, "1");
+      }
       setLastAnswerCorrect(result.is_correct);
 
       if (result.is_correct) {
@@ -1120,13 +1129,35 @@ const BossFight: React.FC = () => {
           )
         );
       }
+
+      // Trigger an immediate instance refresh so HP updates are seen faster
+      if (instance?.boss_instance_id) {
+        getBossBattleInstance(instance.boss_instance_id)
+          .then((fresh) => setInstance(fresh as BossBattleInstance))
+          .catch(() => {/* ignore — polling will catch it */});
+      }
     } catch (error: any) {
       console.error("Failed to submit answer:", error);
-      const msg = error?.message || "Failed to submit answer. Try again.";
-      setBattleLog((prev) => [
-        ...prev,
-        { id: `local-${Date.now()}`, text: msg, kind: "danger" },
-      ]);
+      const msg: string = error?.message || "";
+
+      // If the server says we already answered this question (e.g. submitted before
+      // a page reload but the response never reached the client), treat it as submitted
+      // so the student isn't stuck staring at an unsubmittable answer form.
+      if (msg.includes("already answered") || msg.includes("Duplicate submission")) {
+        setHasSubmittedCurrentQuestion(true);
+        if (question?.question_id && studentId) {
+          sessionStorage.setItem(`bossq_submitted:${studentId}:${question.question_id}`, "1");
+        }
+        setBattleLog((prev) => [
+          ...prev,
+          { id: `local-${Date.now()}`, text: "Your answer was already recorded.", kind: "info" },
+        ]);
+      } else {
+        setBattleLog((prev) => [
+          ...prev,
+          { id: `local-${Date.now()}`, text: msg || "Failed to submit answer. Try again.", kind: "danger" },
+        ]);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -1389,6 +1420,12 @@ const BossFight: React.FC = () => {
           {myParticipant?.state === "KICKED" ? (
             <div className="mt-4 text-sm text-red-300">
               You were removed from this boss battle.
+            </div>
+          ) : null}
+
+          {myParticipant?.is_downed ? (
+            <div className="mt-4 p-3 rounded-lg bg-orange-900/60 border border-orange-500 text-sm text-orange-200">
+              💀 You are downed (0 hearts). You can still answer, but you will only earn <span className="font-bold text-yellow-300">50% of rewards</span> if your team wins.
             </div>
           ) : null}
 
