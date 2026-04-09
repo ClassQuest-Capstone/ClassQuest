@@ -253,11 +253,12 @@ export const usePlayerProgression = (
         const backendReward = (() => {
           const expectedType = LEVEL_EXPECTED_TYPE[rewardLevel]?.toUpperCase();
           const all = rewardsResponse.rewards ?? [];
+          const atLevel = all.filter(r => r.unlock_level === rewardLevel);
 
           // Filter to records matching this level AND the expected type
           const candidates = expectedType
-            ? all.filter(r => r.unlock_level === rewardLevel && (r.type ?? "").toUpperCase() === expectedType)
-            : all.filter(r => r.unlock_level === rewardLevel);
+            ? atLevel.filter(r => (r.type ?? "").toUpperCase() === expectedType)
+            : atLevel;
 
           // For class-specific types, pick the one matching the student's class
           if (expectedType && CLASS_SPECIFIC_TYPES.includes(expectedType) && studentRoleType) {
@@ -265,8 +266,11 @@ export const usePlayerProgression = (
             if (classMatch) return classMatch;
           }
 
-          // Shared reward (BACKGROUND, PET) or fallback: first candidate
-          return candidates[0] ?? null;
+          // Shared reward (BACKGROUND, PET) or fallback: first typed candidate
+          if (candidates[0]) return candidates[0];
+
+          // Last resort: any reward at this level regardless of type
+          return atLevel[0] ?? null;
         })();
         
         console.log("[claimReward] Found backend reward:", backendReward);

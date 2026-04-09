@@ -22,6 +22,8 @@ The project was initiated as a Capstone at the **University of Regina**.
 1. Project Poster: [Project Poster]()
 2. Installation Guide: [Installation Guide]()   
 3. User Guide: [User Guide](https://github.com/ClassQuest-Capstone/ClassQuest/blob/main/Project%20Management%20Documents/Tutorials%20and%20User%20guide/userGuide.md)
+4. Prototype: [Prototype]()
+5. Presentation Slides: [Presentation Slides]()
 
 
 ## Vlogs
