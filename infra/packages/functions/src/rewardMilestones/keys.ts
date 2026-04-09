@@ -1,6 +1,7 @@
 export const REWARD_TYPES = [
     "HELMET",
     "ARMOR_SET",
+    "WEAPON",
     "BACKGROUND",
     "PET",
     "BADGE",

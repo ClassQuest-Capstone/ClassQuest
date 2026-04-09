@@ -3,6 +3,12 @@ import { createRewardMilestone } from "./repo.ts";
 import { validateCreateInput } from "./validation.ts";
 import { buildUnlockSort, buildTeacherSort } from "./keys.ts";
 import type { RewardMilestoneItem } from "./types.ts";
+import { listStudentsByClass } from "../classEnrollments/repo.js";
+import { getPlayerState } from "../playerStates/repo.js";
+import { getLevelFromXP } from "../shared/xp-progression.js";
+import { createStudentRewardClaim, getStudentRewardClaimByRewardAndStudent } from "../studentRewardClaims/repo.js";
+import { buildClaimSort } from "../studentRewardClaims/keys.js";
+import type { StudentRewardClaimItem } from "../studentRewardClaims/types.js";
 
 /**
  * POST /teacher/rewards
@@ -68,11 +74,6 @@ export const handler = async (event: any) => {
 
     try {
         await createRewardMilestone(item);
-        return {
-            statusCode: 201,
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(item),
-        };
     } catch (err: any) {
         if (err.name === "ConditionalCheckFailedException") {
             return {
@@ -88,4 +89,50 @@ export const handler = async (event: any) => {
             body: JSON.stringify({ error: "INTERNAL_SERVER_ERROR" }),
         };
     }
+
+    // Best-effort: create AVAILABLE claim rows for all enrolled students already
+    // at or above this milestone's unlock_level.
+    try {
+        const enrollments = await listStudentsByClass(item.class_id, "active");
+        const now = new Date().toISOString();
+
+        for (const enrollment of enrollments) {
+            const playerState = await getPlayerState(item.class_id, enrollment.student_id);
+            const studentLevel = playerState ? getLevelFromXP(playerState.total_xp_earned) : 1;
+
+            if (studentLevel < item.unlock_level) continue;
+
+            const existing = await getStudentRewardClaimByRewardAndStudent(
+                item.reward_id,
+                enrollment.student_id
+            );
+            if (existing) continue;
+
+            const claimItem: StudentRewardClaimItem = {
+                student_reward_claim_id: randomUUID(),
+                student_id:         enrollment.student_id,
+                class_id:           item.class_id,
+                reward_id:          item.reward_id,
+                status:             "AVAILABLE",
+                unlocked_at_level:  item.unlock_level,
+                claim_sort:         buildClaimSort("AVAILABLE", item.class_id, item.unlock_level, item.reward_id),
+                unlocked_at:        now,
+                reward_target_type: item.reward_target_type,
+                reward_target_id:   item.reward_target_id,
+                created_at:         now,
+                updated_at:         now,
+            };
+
+            await createStudentRewardClaim(claimItem);
+        }
+    } catch (seedErr) {
+        // Non-fatal: reward was created; log and continue
+        console.error("Non-fatal: failed to seed reward claims for existing students:", seedErr);
+    }
+
+    return {
+        statusCode: 201,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(item),
+    };
 };

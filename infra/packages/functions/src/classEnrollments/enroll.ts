@@ -1,6 +1,12 @@
 import { randomUUID } from "crypto";
 import type { EnrollmentItem } from "./types.ts";
 import { putEnrollment, findEnrollmentByClassAndStudent } from "./repo.ts";
+import { listRewardMilestonesByClass } from "../rewardMilestones/repo.js";
+import { getPlayerState } from "../playerStates/repo.js";
+import { getLevelFromXP } from "../shared/xp-progression.js";
+import { createStudentRewardClaim, getStudentRewardClaimByRewardAndStudent } from "../studentRewardClaims/repo.js";
+import { buildClaimSort } from "../studentRewardClaims/keys.js";
+import type { StudentRewardClaimItem } from "../studentRewardClaims/types.js";
 
 /**
  * POST /classes/{class_id}/enroll
@@ -104,17 +110,60 @@ export const handler = async (event: any) => {
 
     try {
         await putEnrollment(item);
-
-        return {
-            statusCode: 201,
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-                enrollment_id,
-                message: "Successfully enrolled in class",
-            }),
-        };
     } catch (error: any) {
         console.error("Error creating enrollment:", error);
         throw error;
     }
+
+    // Best-effort: seed AVAILABLE claim rows for any reward milestones the student
+    // already qualifies for at their current level (new students default to level 1).
+    try {
+        const milestones = await listRewardMilestonesByClass(class_id, { includeDeleted: false });
+        const qualifying = milestones.filter(m => m.is_active && !m.is_deleted);
+
+        if (qualifying.length > 0) {
+            const playerState = await getPlayerState(class_id, student_id);
+            const studentLevel = playerState ? getLevelFromXP(playerState.total_xp_earned) : 1;
+            const now = new Date().toISOString();
+
+            for (const milestone of qualifying) {
+                if (milestone.unlock_level > studentLevel) continue;
+
+                const existing = await getStudentRewardClaimByRewardAndStudent(
+                    milestone.reward_id,
+                    student_id
+                );
+                if (existing) continue;
+
+                const claimItem: StudentRewardClaimItem = {
+                    student_reward_claim_id: randomUUID(),
+                    student_id,
+                    class_id,
+                    reward_id:          milestone.reward_id,
+                    status:             "AVAILABLE",
+                    unlocked_at_level:  milestone.unlock_level,
+                    claim_sort:         buildClaimSort("AVAILABLE", class_id, milestone.unlock_level, milestone.reward_id),
+                    unlocked_at:        now,
+                    reward_target_type: milestone.reward_target_type,
+                    reward_target_id:   milestone.reward_target_id,
+                    created_at:         now,
+                    updated_at:         now,
+                };
+
+                await createStudentRewardClaim(claimItem);
+            }
+        }
+    } catch (rewardErr) {
+        // Non-fatal: enrollment succeeded; log and continue
+        console.error("Non-fatal: failed to seed reward claims on enrollment:", rewardErr);
+    }
+
+    return {
+        statusCode: 201,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+            enrollment_id,
+            message: "Successfully enrolled in class",
+        }),
+    };
 };
