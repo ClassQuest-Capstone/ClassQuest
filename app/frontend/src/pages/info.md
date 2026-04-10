@@ -214,7 +214,9 @@ TODO: connect rewards to s3 and logic for rewards (DONE)
 
 TODO: Usability Testing
 
-TODO: tell team about new add armour to equipment
+TODO: tell team about new add armour to equipment (DONE)
+
+TODO: Batch requests for student leaderboard (DONE)
 
 TODO: fix deleted student and edit logic for class (DONE)
 

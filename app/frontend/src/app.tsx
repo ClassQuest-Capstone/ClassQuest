@@ -26,6 +26,10 @@ import Welcome from "./pages/students/welcome.js";
 import TeacherGuilds from "./pages/teacher/teacherGuilds.js";
 
 import BossQuestions from "./pages/teacher/bossQuestions.js";
+import ClassesWiki from "./pages/teacher/wiki/classesWiki.js";
+import QuestsWiki from "./pages/teacher/wiki/questsWiki.js";
+import GuildsWiki from "./pages/teacher/wiki/guildsWiki.js";
+
 
 import ApiSmoke from "./pages/api/ApiSmoke.js";
 
@@ -63,6 +67,9 @@ export default function App() {
         <Route path="/students" element={<Students />} />
         <Route path="/Activity" element={<Activity />} />
         <Route path="/classes" element={<Classes />} />
+        <Route path="/wiki/classes" element={<ClassesWiki />} />
+        <Route path="/wiki/quests" element={<QuestsWiki />} />
+        <Route path="/wiki/guilds" element={<GuildsWiki />} />
         <Route path="/ClassQuest" element={<ClassQuest />} />
         <Route path="/bossClasses" element={<BossClasses />} />
 

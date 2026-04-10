@@ -1877,17 +1877,18 @@ const CharacterPage: React.FC = () => {
                       <div className="bg-gradient-to-r from-red-600/20 to-red-800/20 border border-red-600/50 rounded-lg p-4">
                         <h3 className="font-bold text-red-300 mb-2">How Hearts Work</h3>
                         <ul className="text-sm text-gray-300 space-y-2">
-                          <li>• Lose a heart when you get less than 50% on a quest</li>
-                          <li>• 💚 Hearts regenerate every {profile.heartRegenIntervalHours ?? 3} hour{(profile.heartRegenIntervalHours ?? 3) !== 1 ? "s" : ""}{!profile.heartRegenEnabled ? " (currently disabled)" : ""}</li>
+                          <li>❤️ Lose a heart when you get less than 50% on a quest</li>
+                          <li>💚 Hearts regeneration is set by teacher </li>
+                          <li>⚔️ Boss battles also cost a heart if your team loses</li>
                         </ul>
                       </div>
 
-                      <div className="bg-gradient-to-r from-yellow-600/20 to-yellow-800/20 border border-yellow-600/50 rounded-lg p-4">
-                        <h3 className="font-bold text-yellow-300 mb-2">Perfect Attempt Bonus</h3>
+                      <div className="bg-gradient-to-r from-green-600/20 to-green-800/20 border border-green-600/50 rounded-lg p-4">
+                        <h3 className="font-bold text-green-300 mb-2">Tips to Save Hearts</h3>
                         <ul className="text-sm text-gray-300 space-y-2">
-                          <li>✨ Complete a quest without losing any hearts</li>
-                          <li>✨ Increase your leaderboard score</li>
-                          
+                          <li>📚 Review quest material before attempting</li>
+                          <li>🎯 Score 50% or higher to keep your hearts</li>
+                          <li>⏳ Wait for weekend reset if you're low on hearts</li>
                         </ul>
                       </div>
                     </div>

@@ -33,7 +33,6 @@ The tutorial dynamically adjusts its steps depending on whether the user is a St
 | `Equipment`   | `equipment`       | Equipped items |
 | `Appearance`  | `appear`          | Character appearance |
 | `Inventory`   | `inventory`       | Collected items |
-| `Stats`       | `stats`           | Character stats |
 | `hearts`      | `hearts`          | Available hearts |
 | `Footer`      | `footer`          | Quests and rewards |
 | `done`        | —                 | Tutorial completion |

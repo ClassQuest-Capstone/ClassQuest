@@ -78,6 +78,42 @@ const Leaderboard: React.FC = () => {
 
     let cancelled = false;
 
+    // Helper: Fetch student profile with retries for transient errors
+    const fetchWithRetry = async (student_id: string, maxAttempts = 5): Promise<StudentProfile | null> => {
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          return await getStudentProfile(student_id);
+        } catch (err: any) {
+          const isRetryable = err?.message?.includes("503") || err?.message?.includes("502") || err?.message?.includes("429");
+          if (!isRetryable || attempt === maxAttempts) return null;
+          // Exponential backoff
+          await new Promise(res => setTimeout(res, 200 * attempt));
+        }
+      }
+      return null;
+    };
+
+    // Fetch profiles in batches to avoid overwhelming the API
+    const fetchInBatches = async (playerStates: PlayerState[], batchSize = 5) => {
+      const results: Omit<LeaderboardEntry, "rank">[] = [];
+      for (let i = 0; i < playerStates.length; i += batchSize) {
+        const batch = playerStates.slice(i, i + batchSize);
+        const batchResults = await Promise.all(
+          batch.map(async (player) => {
+            const profile = await fetchWithRetry(player.student_id);
+            return {
+              studentId: player.student_id,
+              displayName: profile?.display_name ?? "Unknown",
+              level: getLevelFromXP(player.total_xp_earned),
+              totalXP: player.total_xp_earned,
+            };
+          })
+        );
+        results.push(...batchResults);
+      }
+      return results;
+    };
+
     const fetchLeaderboard = async () => {
       try {
         setLeaderboardLoading(true);
@@ -87,28 +123,8 @@ const Leaderboard: React.FC = () => {
         const response = await getLeaderboard(classId, 100);
         const playerStates = response?.items ?? [];
 
-        // Fetch student profiles for all players
-        const profilesPromise = playerStates.map(async (player: PlayerState) => {
-          try {
-            const profile = await getStudentProfile(player.student_id);
-            return {
-              studentId: player.student_id,
-              displayName: profile?.display_name ?? "Unknown",
-              level: getLevelFromXP(player.total_xp_earned),
-              totalXP: player.total_xp_earned,
-            };
-          } catch (err) {
-            // If profile fetch fails, use defaults
-            return {
-              studentId: player.student_id,
-              displayName: "Unknown",
-              level: getLevelFromXP(player.total_xp_earned),
-              totalXP: player.total_xp_earned,
-            };
-          }
-        });
-
-        const profiles = await Promise.all(profilesPromise);
+        // Fetch student profiles in batches of 5 to avoid overwhelming the API
+        const profiles = await fetchInBatches(playerStates, 5);
 
         // Sort by XP descending and add ranks
         const sorted = profiles.sort((a, b) => b.totalXP - a.totalXP);

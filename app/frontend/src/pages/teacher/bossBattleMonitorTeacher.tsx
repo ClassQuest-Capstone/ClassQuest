@@ -1117,7 +1117,7 @@ export default function BossBattleMonitorTeacher() {
                         <th className="text-left px-4 py-2">Gold</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="text-gray-900">
                       {(battleResults.student_results || []).map((s) => (
                         <tr key={s.student_id} className="border-t">
                           <td className="px-4 py-2 font-semibold">{nameMap[s.student_id] || s.student_id}</td>
@@ -1147,7 +1147,7 @@ export default function BossBattleMonitorTeacher() {
                         <th className="text-left px-4 py-2">Gold</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="text-gray-900">
                       {(battleResults.guild_results || []).map((g) => (
                         <tr key={g.guild_id} className="border-t">
                           <td className="px-4 py-2 font-semibold">{(guildById.get(g.guild_id) as any)?.name || g.guild_id}</td>

@@ -194,7 +194,8 @@ export const handler = async (event: any) => {
         const allJoined = await listParticipants(boss_instance_id, {
             state: ParticipantState.JOINED,
         });
-        const activeParticipants = allJoined;
+        // Exclude downed students from quorum — they cannot block question advancement
+        const activeParticipants = allJoined.filter(p => !p.is_downed);
 
         let required_answer_count: number;
         let ready_to_resolve_init: boolean;

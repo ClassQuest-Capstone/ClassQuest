@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import type { ClassItem } from "./types.ts";
 import { generateJoinCode } from "./joinCode.ts";
 import { putClass } from "./repo.ts";
+import { createDefaultRewardMilestones } from "../rewardMilestones/default-rewards.js";
 
 /**
  * POST /classes
@@ -141,6 +142,13 @@ export const handler = async (event: any) => {
         try {
             // Attempt to write to DynamoDB with conditional expression
             await putClass(item); // Will throw ConditionalCheckFailedException if collision
+
+            // Best-effort: seed default reward milestones for the new class
+            try {
+                await createDefaultRewardMilestones(class_id, created_by_teacher_id.trim());
+            } catch (rewardErr) {
+                console.error("Non-fatal: failed to create default reward milestones for class:", rewardErr);
+            }
 
             // Success! Return created class with join code
             return {

@@ -4,39 +4,86 @@ import { getClassEnrollments, EnrollmentItem } from "../../../api/classEnrollmen
 import { getStudentProfile, StudentProfile } from "../../../api/studentProfiles.js";
 import { listTransactionsByStudentAndClass, listTransactionsByStudent, RewardTransaction, SourceType, } from "../../../api/rewardTransactions.js";
 
-// Helper: Limits concurrent promise execution
-async function withConcurrencyLimit<T>(
-  tasks: (() => Promise<T>)[],
-  limit: number
-): Promise<T[]> {
-  const results: T[] = [];
-  let executing = 0;
+// ─────────────────────────────────────────────────────────────────────────────
+// Batch Request Types & Utilities
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const executeNext = async (): Promise<void> => {
-    if (tasks.length === 0) return;
-    
-    executing++;
-    const task = tasks.shift()!;
-    
+interface BatchRequestItem<T> {
+  id: string;
+  execute: () => Promise<T>;
+}
+
+interface BatchResult<T> {
+  id: string;
+  success: boolean;
+  data?: T;
+  error?: Error;
+}
+
+interface BatchRequestOptions {
+  /** Max concurrent requests per batch (default: 10) */
+  concurrency?: number;
+  /** Continue on individual request failure (default: true) */
+  continueOnError?: boolean;
+}
+
+/**
+ * Execute multiple API requests as a batch with concurrency control.
+ * Groups requests and executes them efficiently with proper error handling.
+ */
+async function executeBatchRequest<T>(
+  requests: BatchRequestItem<T>[],
+  options: BatchRequestOptions = {}
+): Promise<BatchResult<T>[]> {
+  const { concurrency = 10, continueOnError = true } = options;
+  const results: BatchResult<T>[] = [];
+  const queue = [...requests];
+
+  const executeOne = async (item: BatchRequestItem<T>): Promise<BatchResult<T>> => {
     try {
-      results.push(await task());
-    } catch (err) {
-      results.push(err as any);
-    } finally {
-      executing--;
-      if (tasks.length > 0) {
-        await executeNext();
-      }
+      const data = await item.execute();
+      return { id: item.id, success: true, data };
+    } catch (error) {
+      if (!continueOnError) throw error;
+      return { id: item.id, success: false, error: error as Error };
     }
   };
 
-  // Start up to limit concurrent tasks
-  const workers = Array(Math.min(limit, tasks.length))
-    .fill(null)
-    .map(() => executeNext());
+  // Process in batches with concurrency limit
+  while (queue.length > 0) {
+    const batch = queue.splice(0, concurrency);
+    const batchResults = await Promise.all(batch.map(executeOne));
+    results.push(...batchResults);
+  }
 
-  await Promise.all(workers);
   return results;
+}
+
+/**
+ * Helper to create batch request items from an array of data
+ */
+function createBatchRequests<TInput, TOutput>(
+  items: TInput[],
+  idFn: (item: TInput, index: number) => string,
+  executeFn: (item: TInput) => Promise<TOutput>
+): BatchRequestItem<TOutput>[] {
+  return items.map((item, index) => ({
+    id: idFn(item, index),
+    execute: () => executeFn(item),
+  }));
+}
+
+/**
+ * Extract successful results from batch response
+ */
+function getSuccessfulResults<T>(results: BatchResult<T>[]): Map<string, T> {
+  const map = new Map<string, T>();
+  results.forEach((r) => {
+    if (r.success && r.data !== undefined) {
+      map.set(r.id, r.data);
+    }
+  });
+  return map;
 }
 
 // Types
@@ -141,83 +188,94 @@ export function useTeacherActivity(teacherId: string | undefined) {
       const { items: classes } = await listClassesByTeacher(teacherId);
       const activeClasses = classes.filter((c: ClassItem) => c.is_active);
 
-      // For each class, get enrolled students
-      const classStudentPairs: {
-        classItem: ClassItem;
-        enrollment: EnrollmentItem;
-      }[] = [];
-
-      await Promise.all(
-        activeClasses.map(async (classItem) => {
-          try {
-            const { items: enrollments } = await getClassEnrollments(classItem.class_id);
-            const active = enrollments.filter((e) => e.status === "active");
-            active.forEach((enrollment) => {
-              classStudentPairs.push({ classItem, enrollment });
-            });
-          } catch (err) {
-            console.warn(`Failed to fetch enrollments for class ${classItem.class_id}:`, err);
-          }
-        }),
+      // Batch fetch enrollments for all classes 
+      const enrollmentBatchRequests = createBatchRequests(
+        activeClasses,
+        (classItem) => classItem.class_id,
+        async (classItem) => {
+          const { items: enrollments } = await getClassEnrollments(classItem.class_id);
+          return { classItem, enrollments: enrollments.filter((e) => e.status === "active") };
+        }
       );
 
-      // Fetch student profiles (student_id) with concurrency limit
-      const uniqueStudentIds = [...new Set(classStudentPairs.map((p) => p.enrollment.student_id))];
-      const profileMap = new Map<string, string>(); 
+      const enrollmentResults = await executeBatchRequest(enrollmentBatchRequests, { concurrency: 10 });
+      const enrollmentData = getSuccessfulResults(enrollmentResults);
 
-      // Limit to 10 concurrent requests to avoid overwhelming the API
-      const profileTasks = uniqueStudentIds.map((sid) => async () => {
-        try {
-          const profile: StudentProfile = await getStudentProfile(sid);
-          profileMap.set(sid, profile.display_name);
-        } catch {
-          profileMap.set(sid, sid); // fallback to ID
+      // Build class-student pairs from successful enrollment fetches
+      const classStudentPairs: { classItem: ClassItem; enrollment: EnrollmentItem }[] = [];
+      enrollmentData.forEach(({ classItem, enrollments }) => {
+        enrollments.forEach((enrollment) => {
+          classStudentPairs.push({ classItem, enrollment });
+        });
+      });
+
+      // Log any failed enrollment batches
+      enrollmentResults
+        .filter((r) => !r.success)
+        .forEach((r) => console.warn(`Failed to fetch enrollments for class ${r.id}:`, r.error));
+
+      // Batch fetch student profiles 
+      const uniqueStudentIds = [...new Set(classStudentPairs.map((p) => p.enrollment.student_id))];
+      
+      const profileBatchRequests = createBatchRequests(
+        uniqueStudentIds,
+        (studentId) => studentId,
+        async (studentId) => {
+          const profile: StudentProfile = await getStudentProfile(studentId);
+          return profile.display_name;
+        }
+      );
+
+      const profileResults = await executeBatchRequest(profileBatchRequests, { concurrency: 10 });
+      const profileMap = new Map<string, string>();
+      
+      profileResults.forEach((result) => {
+        if (result.success && result.data) {
+          profileMap.set(result.id, result.data);
+        } else {
+          // Fallback to student ID if profile fetch failed
+          profileMap.set(result.id, result.id);
         }
       });
 
-      await withConcurrencyLimit(profileTasks, 10);
-
-      // For each student+class pair, try fetching reward transactions.
+      // Batch fetch transactions per student+class pair
       const allItems: ActivityItem[] = [];
-
-      // Build a class-id -> class-name map for the fallback path
       const classNameMap = new Map<string, string>();
       activeClasses.forEach((c) => classNameMap.set(c.class_id, c.name));
-
-      // Set of class IDs owned by this teacher (for filtering fallback results)
       const teacherClassIds = new Set(activeClasses.map((c) => c.class_id));
-
-      // Track students already fetched via the per-class route
       const fetchedStudentClassPairs = new Set<string>();
 
-      // attempt per-class route first
-      await Promise.all(
-        classStudentPairs.map(async ({ classItem, enrollment }) => {
-          const pairKey = `${enrollment.student_id}|${classItem.class_id}`;
-          try {
-            const { items: transactions } = await listTransactionsByStudentAndClass(
-              enrollment.student_id,
-              classItem.class_id,
-              { limit: 50 },
-            );
-
-            fetchedStudentClassPairs.add(pairKey);
-
-            const filtered = transactions.filter((tx) =>
-              TRACKED_SOURCES.includes(tx.source_type),
-            );
-
-            const displayName = profileMap.get(enrollment.student_id) ?? enrollment.student_id;
-            filtered.forEach((tx) => {
-              allItems.push(toActivityItem(tx, displayName, classItem.name));
-            });
-          } catch {
-            // per-class route unavailable – will be handled by fallback below
-          }
-        }),
+      const transactionBatchRequests = createBatchRequests(
+        classStudentPairs,
+        ({ classItem, enrollment }) => `${enrollment.student_id}|${classItem.class_id}`,
+        async ({ classItem, enrollment }) => {
+          const { items: transactions } = await listTransactionsByStudentAndClass(
+            enrollment.student_id,
+            classItem.class_id,
+            { limit: 50 }
+          );
+          return { enrollment, classItem, transactions };
+        }
       );
 
-      // Fallback: per-student route for any student + class pairs we missed 
+      const transactionResults = await executeBatchRequest(transactionBatchRequests, { concurrency: 10 });
+
+      // Process successful transaction batches
+      transactionResults.forEach((result) => {
+        if (result.success && result.data) {
+          const { enrollment, classItem, transactions } = result.data;
+          fetchedStudentClassPairs.add(result.id);
+
+          const filtered = transactions.filter((tx) => TRACKED_SOURCES.includes(tx.source_type));
+          const displayName = profileMap.get(enrollment.student_id) ?? enrollment.student_id;
+          
+          filtered.forEach((tx) => {
+            allItems.push(toActivityItem(tx, displayName, classItem.name));
+          });
+        }
+      });
+
+      // Batch fallback for missed student+class pairs
       const missedStudents = new Map<string, ClassItem[]>();
       classStudentPairs.forEach(({ classItem, enrollment }) => {
         const pairKey = `${enrollment.student_id}|${classItem.class_id}`;
@@ -229,34 +287,35 @@ export function useTeacherActivity(teacherId: string | undefined) {
       });
 
       if (missedStudents.size > 0) {
-        await Promise.all(
-          [...missedStudents.entries()].map(async ([studentId, missedClasses]) => {
-            try {
-              const { items: transactions } = await listTransactionsByStudent(
-                studentId,
-                { limit: 100 },
-              );
-
-              const displayName = profileMap.get(studentId) ?? studentId;
-
-              // Include transactions belonging to this teacher's classes
-              transactions.forEach((tx) => {
-                if (!TRACKED_SOURCES.includes(tx.source_type)) return;
-                const txClassId = tx.class_id ?? "";
-                if (!teacherClassIds.has(txClassId)) return;
-                if (fetchedStudentClassPairs.has(`${studentId}|${txClassId}`)) return;
-
-                const cName = classNameMap.get(txClassId) ?? txClassId;
-                allItems.push(toActivityItem(tx, displayName, cName));
-              });
-            } catch (err) {
-              console.warn(
-                `Failed to fetch transactions for student ${studentId}:`,
-                err,
-              );
-            }
-          }),
+        const fallbackBatchRequests = createBatchRequests(
+          [...missedStudents.entries()],
+          ([studentId]) => studentId,
+          async ([studentId]) => {
+            const { items: transactions } = await listTransactionsByStudent(studentId, { limit: 100 });
+            return { studentId, transactions };
+          }
         );
+
+        const fallbackResults = await executeBatchRequest(fallbackBatchRequests, { concurrency: 10 });
+
+        fallbackResults.forEach((result) => {
+          if (result.success && result.data) {
+            const { studentId, transactions } = result.data;
+            const displayName = profileMap.get(studentId) ?? studentId;
+
+            transactions.forEach((tx) => {
+              if (!TRACKED_SOURCES.includes(tx.source_type)) return;
+              const txClassId = tx.class_id ?? "";
+              if (!teacherClassIds.has(txClassId)) return;
+              if (fetchedStudentClassPairs.has(`${studentId}|${txClassId}`)) return;
+
+              const cName = classNameMap.get(txClassId) ?? txClassId;
+              allItems.push(toActivityItem(tx, displayName, cName));
+            });
+          } else {
+            console.warn(`Failed to fetch transactions for student ${result.id}:`, result.error);
+          }
+        });
       }
 
       // Sort newest-first

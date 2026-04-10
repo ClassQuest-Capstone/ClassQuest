@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import feather from "feather-icons";
+import { Search, X } from "react-feather";
 import DropDownProfile from "../features/teacher/dropDownProfile.tsx";
 import ProfileModal from "../features/teacher/profileModal.tsx";
 import { useQuestions } from "../hooks/teacher/useQuestions.js";
@@ -218,6 +219,9 @@ const Subjects = () => {
 
   const [teacher, setTeacher] = useState<TeacherUser | null>(null);
   const [classes, setClasses] = useState<ClassItem[]>([]);
+  
+  // Search functionality
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -418,6 +422,7 @@ const Subjects = () => {
     }
   }, [teacher?.id]);
 
+
   useEffect(() => {
     if (teacher?.id) loadTemplates();
   }, [teacher?.id, loadTemplates]);
@@ -561,7 +566,14 @@ const Subjects = () => {
   const templatesBySubject = useMemo(() => {
     const map = new Map<string, QuestTemplate[]>();
 
-    for (const t of templates) {
+    // Filter templates by search query
+    const filteredTemplates = searchQuery.trim()
+      ? templates.filter((t) => 
+          safeStr((t as any).title).toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : templates;
+
+    for (const t of filteredTemplates) {
       const key = safeStr((t as any).subject || "Unassigned").trim() || "Unassigned";
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(t);
@@ -575,12 +587,19 @@ const Subjects = () => {
     return [...map.entries()]
       .map(([subject, items]) => ({ subject, items }))
       .sort((a, b) => a.subject.localeCompare(b.subject));
-  }, [templates]);
+  }, [templates, searchQuery]);
 
   const bossTemplatesBySubject = useMemo(() => {
     const map = new Map<string, BossBattleTemplate[]>();
 
-    for (const t of bossTemplates) {
+    // Filter boss templates by search query
+    const filteredBossTemplates = searchQuery.trim()
+      ? bossTemplates.filter((t) => 
+          safeStr((t as any).title).toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : bossTemplates;
+
+    for (const t of filteredBossTemplates) {
       const key = safeStr((t as any).subject || "Unassigned").trim() || "Unassigned";
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(t);
@@ -594,7 +613,7 @@ const Subjects = () => {
     return [...map.entries()]
       .map(([subject, items]) => ({ subject, items }))
       .sort((a, b) => a.subject.localeCompare(b.subject));
-  }, [bossTemplates]);
+  }, [bossTemplates, searchQuery]);
 
   const handleCreateQuest = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1236,15 +1255,23 @@ const Subjects = () => {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <Link
-          to="/teacher/dashboard"
-          className="inline-flex items-center bg-indigo-600 text-white border-2 border-indigo-600 rounded-md px-3 py-2 hover:bg-indigo-700"
-        >
-          <i data-feather="arrow-left" className="w-5 h-5 mr-2"></i>
-          <span className="text-sm font-medium">Back</span>
-        </Link>
-      </div>
+      {/* Sub-nav with back and wiki links */}
+     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-4">
+             <Link
+               to="/teacherDashboard"
+               className="inline-flex items-center bg-indigo-600 text-white border-2 border-indigo-600 rounded-md px-3 py-2 hover:bg-indigo-700"
+             >
+               <i data-feather="arrow-left" className="w-5 h-5 mr-2"></i>
+               <span className="text-sm font-medium">Back</span>
+             </Link>
+             <Link
+               to="/wiki/quests"
+               className="ml-auto inline-flex items-center bg-white text-indigo-700 border-2 border-indigo-300 rounded-md px-3 py-2 hover:bg-indigo-50 hover:border-indigo-400 transition-colors"
+             >
+               <i data-feather="book-open" className="w-5 h-5 mr-2"></i>
+               <span className="text-sm font-medium">Wiki / Help</span>
+             </Link>
+           </div>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex flex-wrap gap-4 justify-between items-center mb-8">
@@ -1272,6 +1299,40 @@ const Subjects = () => {
           </div>
         </div>
 
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search quests by title..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-10 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  // If no results were found, reload the page to reset feather icons
+                  if (templatesBySubject.length === 0 && bossTemplatesBySubject.length === 0) {
+                    window.location.reload();
+                  } else {
+                    setSearchQuery("");
+                  }
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className="text-gray-900 text-sm mt-2">
+              Showing results for "{searchQuery}"
+            </p>
+          )}
+        </div>
+
         {loading && <div className="bg-white rounded-xl shadow-md p-5 text-gray-700">Loading templates…</div>}
 
         {error && (
@@ -1280,6 +1341,13 @@ const Subjects = () => {
 
         {!loading && !error && (
           <div className="space-y-10">
+            {templatesBySubject.length === 0 && searchQuery && (
+              <div className="bg-white border border-white/20 rounded-xl shadow-md p-8 text-center">
+                <Search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-900 text-lg">No quest templates found matching "{searchQuery}"</p>
+                <p className="text-gray-900 text-sm mt-2">Try a different search term</p>
+              </div>
+            )}
             {templatesBySubject.map(({ subject, items }) => (
               <div key={subject}>
                 <div className="flex items-end justify-between mb-4">
@@ -1503,6 +1571,12 @@ const Subjects = () => {
               {bossTemplates.length === 0 ? (
                 <div className="bg-white rounded-xl shadow-md p-5 text-gray-700">
                   No boss battle templates yet. Create one with Type = "Boss Fight".
+                </div>
+              ) : bossTemplatesBySubject.length === 0 && searchQuery ? (
+                <div className="bg-white border border-white/20 rounded-xl shadow-md p-8 text-center">
+                  <Search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-900 text-lg">No boss battle templates found matching "{searchQuery}"</p>
+                  <p className="text-gray-900 text-sm mt-2">Try a different search term</p>
                 </div>
               ) : (
                 <div className="space-y-10">

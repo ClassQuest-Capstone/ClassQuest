@@ -144,8 +144,8 @@ export default function Home() {
                     {/** Stats tiles*/}
                     <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
                           {[
-                            { icon: 'trending-up', label: 'Average XP', value: '1,243', color: 'bg-blue-500' },
-                            { icon: 'check-circle', label: 'Completion Rate', value: '78%', color: 'bg-green-500' },
+                            { icon: 'book', label: 'Active Classes', value: '10', color: 'bg-blue-500' },
+                            { icon: 'award', label: 'Active Quests', value: '5', color: 'bg-green-500' },
                             { icon: 'star', label: 'Top Student', value: 'Emma S.', color: 'bg-amber-500' }
                           ].map((stat, idx) => (
                             <div key={idx} className="bg-gradient-to-r from-yellow-300 to-gray-400 overflow-hidden shadow rounded-lg">

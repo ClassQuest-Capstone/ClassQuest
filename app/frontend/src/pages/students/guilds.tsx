@@ -952,12 +952,18 @@ const GuildPage: React.FC = () => {
                       </div>
 
                       {/* Action Button */}
-                      <Link
-                        to={`/students/boss-lobby/${battle.boss_instance_id}`}
-                        className="block w-full bg-white text-gray-800 font-bold py-3 rounded-lg hover:bg-gray-100 transition-colors shadow-lg text-center"
-                      >
-                        Join Battle
-                      </Link>
+                      {battle.status === "COMPLETED" ? (
+                        <div className="block w-full bg-gray-400 text-gray-700 font-bold py-3 rounded-lg shadow-lg text-center cursor-default">
+                          Battle Ended
+                        </div>
+                      ) : (
+                        <Link
+                          to={`/students/boss-lobby/${battle.boss_instance_id}`}
+                          className="block w-full bg-white text-gray-800 font-bold py-3 rounded-lg hover:bg-gray-100 transition-colors shadow-lg text-center"
+                        >
+                          {battle.status === "LOBBY" ? "Join Battle" : "Battle in Progress"}
+                        </Link>
+                      )}
                     </div>
                   </div>
                 );
