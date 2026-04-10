@@ -1357,7 +1357,7 @@ const Subjects = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
                   {items.map((t) => {
                     const type = safeStr((t as any).type);
                     const icon =
@@ -1367,7 +1367,7 @@ const Subjects = () => {
                     const gold = toInt((t as any).base_gold_reward, 0);
 
                     return (
-                      <div key={(t as any).quest_template_id} className="bg-white rounded-xl shadow-md overflow-hidden transition duration-300">
+                      <div key={(t as any).quest_template_id} className="bg-white rounded-xl shadow-md overflow-hidden transition duration-300 h-fit">
                         <div className="bg-linear-to-r from-green-500 to-orange-300 p-6 text-white text-center">
                           <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4">
                             <i data-feather={icon} className="w-10 h-10 text-gray-800"></i>
@@ -1589,7 +1589,7 @@ const Subjects = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
                         {items.map((t) => {
                           const id = safeStr((t as any).boss_template_id);
                           const title = safeStr((t as any).title);
@@ -1602,7 +1602,7 @@ const Subjects = () => {
                           const assignedInstances = getBossInstancesForTemplate(id);
 
                           return (
-                            <div key={id} className="bg-white rounded-xl shadow-md overflow-hidden transition duration-300">
+                            <div key={id} className="bg-white rounded-xl shadow-md overflow-hidden transition duration-300 h-fit">
                               <div className="bg-linear-to-r from-red-500 to-purple-600 p-6 text-white text-center">
                                 <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4">
                                   <i data-feather="shield" className="w-10 h-10 text-gray-800"></i>

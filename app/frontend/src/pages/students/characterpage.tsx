@@ -838,13 +838,19 @@ const CharacterPage: React.FC = () => {
 
         const merged: QuestInstance[] = perClass.flatMap((r: any) => r.items || []);
 
-        // 3) Keep ACTIVE only + dedupe by quest_instance_id
+        // 3) Keep ACTIVE only + start_date reached + dedupe by quest_instance_id
+        const now = new Date();
         const seen = new Set<string>();
         const active = merged.filter((q: QuestInstance) => {
           if (q.status !== "ACTIVE") return false;
           const id = q.quest_instance_id;
           if (!id) return false;
           if (seen.has(id)) return false;
+          // Only show quests where start_date has been reached
+          if (q.start_date) {
+            const startDate = new Date(q.start_date);
+            if (startDate > now) return false;
+          }
           seen.add(id);
           return true;
         });

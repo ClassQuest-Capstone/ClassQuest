@@ -335,7 +335,7 @@ const ClassQuest = () => {
           <h1 className="text-4xl font-bold text-yellow-300  mb-2">
             {state.className}
           </h1>
-          <p className="text-white/80">Assigned Quests</p>
+          <p className="text-white/80">Active Quests</p>
         </div>
 
         {/* Error */}
@@ -352,10 +352,10 @@ const ClassQuest = () => {
           </div>
         )}
 
-        {/* Quests Grid */}
-        {!loading && instances.length === 0 && (
+        {/* Quests Grid - Only Active Quests */}
+        {!loading && instances.filter(i => i.status === "ACTIVE").length === 0 && (
           <div className="bg-white rounded-xl shadow-md p-6 text-center text-gray-700">
-            <p>No quests assigned to this class yet.</p>
+            <p>No active quests assigned to this class.</p>
             <Link
               to="/Subjects"
               className="mt-4 inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
@@ -365,9 +365,9 @@ const ClassQuest = () => {
           </div>
         )}
 
-        {!loading && instances.length > 0 && (
+        {!loading && instances.filter(i => i.status === "ACTIVE").length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {instances.map((instance) => {
+            {instances.filter(i => i.status === "ACTIVE").map((instance) => {
               const template = templates.get((instance as any).quest_template_id);
               if (!template) return null;
 
