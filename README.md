@@ -39,6 +39,12 @@ The project was initiated as a Capstone at the **University of Regina**.
 2. ClassQuest Update! : [🎞️ Shorts2](https://youtube.com/shorts/GEsXfeNBteg?si=nJVJFkgri3ytHMPg)
 3. ClassQuest Final Update!: [🎞️ Shorts3](https://youtube.com/shorts/xxvq05DqwpE?feature=share)
 
+## Commercial
+[🎞️ Dommercial]([https://youtube.com/shorts/tD3HApM7JdE?si=88EbOguojmiUEZG7](https://youtu.be/vl0pBGR0PZY))
+
+## Demo
+[🎞️ Demo]([https://youtube.com/shorts/tD3HApM7JdE?si=88EbOguojmiUEZG7](https://youtu.be/qaHJvmj-0a4))
+
 ## 🚀 Overview
 - **Goal:** Make learning engaging, collaborative, and fun.
 - **Users:** Students (grades 5–8), Teachers, and Parents (view-only).
