@@ -40,10 +40,10 @@ The project was initiated as a Capstone at the **University of Regina**.
 3. ClassQuest Final Update!: [🎞️ Shorts3](https://youtube.com/shorts/xxvq05DqwpE?feature=share)
 
 ## Commercial
-[🎞️ Dommercial]([https://youtube.com/shorts/tD3HApM7JdE?si=88EbOguojmiUEZG7](https://youtu.be/vl0pBGR0PZY))
+[🎞️ Commercial](https://youtube.com/shorts/tD3HApM7JdE?si=88EbOguojmiUEZG7](https://youtu.be/vl0pBGR0PZY)
 
 ## Demo
-[🎞️ Demo]([https://youtube.com/shorts/tD3HApM7JdE?si=88EbOguojmiUEZG7](https://youtu.be/qaHJvmj-0a4))
+[🎞️ Demo](https://youtube.com/shorts/tD3HApM7JdE?si=88EbOguojmiUEZG7](https://youtu.be/qaHJvmj-0a4)
 
 ## 🚀 Overview
 - **Goal:** Make learning engaging, collaborative, and fun.
