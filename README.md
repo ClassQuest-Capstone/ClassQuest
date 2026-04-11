@@ -30,20 +30,14 @@ The project was initiated as a Capstone at the **University of Regina**.
 1. Team and project Introduction: [🎞️ Vlog1](https://www.youtube.com/watch?v=lCHaV5K9AQU)
 2. Progress report and semester reflection: [🎞️ Vlog2](https://www.youtube.com/watch?v=BxoGuTXhTXo)
 3. Project update:  [🎞️ Vlog3](https://youtu.be/WxOvtN4L3_Q?si=8RlhtUtfbxR12Drf)
-4. ClassQuest Tutorial: [🎞️ ClassQuest Tutorial]()
-5. Commercial : [🎞️ ClassQuest Commercial]()
+4. ClassQuest Tutorial: [🎞️ ClassQuest Tutorial](https://youtu.be/qaHJvmj-0a4)
+5. Commercial : [🎞️ ClassQuest Commercial](https://youtu.be/vl0pBGR0PZY)
 
 
 ## Shorts
 1. What is ClassQuest? : [🎞️ Shorts1](https://youtube.com/shorts/tD3HApM7JdE?si=88EbOguojmiUEZG7)
 2. ClassQuest Update! : [🎞️ Shorts2](https://youtube.com/shorts/GEsXfeNBteg?si=nJVJFkgri3ytHMPg)
 3. ClassQuest Final Update!: [🎞️ Shorts3](https://youtube.com/shorts/xxvq05DqwpE?feature=share)
-
-## Commercial
-[🎞️ Commercial](https://youtube.com/shorts/tD3HApM7JdE?si=88EbOguojmiUEZG7](https://youtu.be/vl0pBGR0PZY)
-
-## Demo
-[🎞️ Demo](https://youtube.com/shorts/tD3HApM7JdE?si=88EbOguojmiUEZG7](https://youtu.be/qaHJvmj-0a4)
 
 ## 🚀 Overview
 - **Goal:** Make learning engaging, collaborative, and fun.
