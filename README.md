@@ -19,7 +19,7 @@ The project was initiated as a Capstone at the **University of Regina**.
 
 ## Additional Resources
 
-1. Project Poster: [Project Poster]()  
+1. Project Poster: [Project Poster](https://github.com/ClassQuest-Capstone/ClassQuest/blob/main/Project%20Management%20Documents/Presentations/Project%20Day%20Poster%20SSE%20Group2.pdf)  
 2. User Guide: [User Guide](https://github.com/ClassQuest-Capstone/ClassQuest/blob/main/Project%20Management%20Documents/Tutorials%20and%20User%20guide/userGuide.md)
 3. Hi-Fi Prototype: [Prototype](https://www.figma.com/proto/31TZsremsnzuLb8FvTil5Y/ClassQuest-prototype?node-id=76-2&starting-point-node-id=76%3A2)
 4. Presentation Slides: [Slides]()
